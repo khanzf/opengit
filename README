@@ -1,0 +1,9 @@
+OpenGit
+Open Source replacement for GNU git
+
+The objective is an executable whose syntax is identical to GNU git.
+
+Written for and dedicated to the BSD systems
+Using the ISC license
+
+Farhan Khan <khanzf@gmail.com>
