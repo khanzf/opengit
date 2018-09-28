@@ -5,16 +5,18 @@
 #include <string.h>
 
 #include "ogit.h"
+#include "ini.h"
 
 static struct cmd cmds[] = {
+	{"remote",	remote_main}
 };
 
-int cmd_count = 0;
+int cmd_count = 1;
 
 void
 usage()
 {
-	printf("Usage goes here\n");
+	printf("Usage statement goes here\n");
 	exit(0);
 }
 
@@ -37,5 +39,4 @@ main(int argc, char *argv[])
 		usage();
 
 	cmds[ch].c_func();
-
 }

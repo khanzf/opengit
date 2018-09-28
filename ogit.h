@@ -1,10 +1,14 @@
 #ifndef _OGIT_H_
 #define _OGIT_H_
 
+#include <limits.h>
+
 struct cmd {
 	const char *c_arg;
 	int (*c_func)();
 };
+
+static char dotgitpath[PATH_MAX + NAME_MAX];
 
 extern	int cmd_count;
 
