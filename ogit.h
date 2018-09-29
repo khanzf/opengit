@@ -5,7 +5,7 @@
 
 struct cmd {
 	const char *c_arg;
-	int (*c_func)();
+	int (*c_func)(int argc, char *argv[]);
 };
 
 static char dotgitpath[PATH_MAX + NAME_MAX];

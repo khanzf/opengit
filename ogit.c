@@ -24,7 +24,6 @@ int
 main(int argc, char *argv[])
 {
 	int ch;
-	int option_index = 0;
 
 	if (argc == 1)
 		usage();
@@ -38,5 +37,5 @@ main(int argc, char *argv[])
 	if (ch == cmd_count)
 		usage();
 
-	cmds[ch].c_func();
+	cmds[ch].c_func(argc, argv);
 }

@@ -1,5 +1,6 @@
 ogit
 ogit.debug
 ogit.full
-ogit.core
+*.o
+*.core
 .depend*
