@@ -4,7 +4,9 @@
 enum section_types {
 	CORE = 1,
 	REMOTE = 2,
-	BRANCH = 3
+	BRANCH = 3,
+
+	OTHER = 99
 };
 
 enum boolean {
@@ -27,6 +29,11 @@ struct section {
 	char *			repo_name;
 	char *			url;
 	char *			fetch;
+
+	/* Other */
+	char *			other_header_name;
+	char *			other_variable;
+	char *			other_value;
 
 	struct section *next;
 };
