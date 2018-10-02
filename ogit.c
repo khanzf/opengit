@@ -5,13 +5,15 @@
 #include <string.h>
 
 #include "ogit.h"
-#include "ini.h"
+#include "init.h"
+//#include "ini.h"
 
 static struct cmd cmds[] = {
-	{"remote",	remote_main}
+	{"remote",	remote_main},
+	{"init",	init_main}
 };
 
-int cmd_count = 1;
+int cmd_count = 2;
 
 void
 usage()

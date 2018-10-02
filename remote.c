@@ -48,7 +48,8 @@ remote_remove(int argc, char *argv[], uint8_t flags)
 	repolocation = argv[1];
 
 	while(cur_section) {
-		if (cur_section->type == REMOTE && !strncmp(cur_section->repo_name, repolocation, strlen(repolocation))) {
+		if (cur_section->type == REMOTE && \
+		    !strncmp(cur_section->repo_name, repolocation, strlen(repolocation))) {
 			match = 1;
 			break;
 		}
