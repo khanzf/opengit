@@ -6,14 +6,16 @@
 
 #include "ogit.h"
 #include "init.h"
-//#include "ini.h"
+#include "common.h"
+#include "hash_object.h"
 
 static struct cmd cmds[] = {
 	{"remote",	remote_main},
-	{"init",	init_main}
+	{"init",	init_main},
+	{"hash-object",	hash_object_main}
 };
 
-int cmd_count = 2;
+int cmd_count = nitems(cmds);
 
 void
 usage()

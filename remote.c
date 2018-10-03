@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include "remote.h"
 #include "ini.h"
-#include "lib.h"
+#include "common.h"
 
 static struct option long_options[] =
 {
