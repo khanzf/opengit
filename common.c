@@ -7,7 +7,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-#include "lib.h"
+#include "common.h"
 
 /*
 	Gets the path of the .git directory

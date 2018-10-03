@@ -1,5 +1,5 @@
-#ifndef __LIB_H__
-#define __LIB_H__
+#ifndef __COMMON_H__
+#define __COMMON_H__
 
 extern char dotgitpath[PATH_MAX + NAME_MAX];
 
