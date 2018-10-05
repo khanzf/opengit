@@ -28,7 +28,6 @@ git_repository_path()
 	int ret = 1;
 
 	d = getcwd(d, PATH_MAX);
-
 	if (d == NULL) {
 		fprintf(stderr, "Unable to get current directory: %s\n", strerror(errno));
 		exit(errno);

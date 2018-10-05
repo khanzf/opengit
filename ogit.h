@@ -8,9 +8,9 @@ struct cmd {
 	int (*c_func)(int argc, char *argv[]);
 };
 
-static char dotgitpath[PATH_MAX + NAME_MAX];
+extern char dotgitpath[PATH_MAX + NAME_MAX];
 
-extern	int cmd_count;
+extern int cmd_count;
 
 extern int log_main();
 extern int remote_main();

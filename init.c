@@ -14,10 +14,10 @@
 static struct option long_options[] =
 {
 	{"quiet",no_argument, NULL, 'q'},
-	{"bare", no_argument, NULL, 'b'},
-	{"template", required_argument, NULL, 't'},
-	{"separate-git-dir", required_argument, NULL, 's'},
-	{"shared", required_argument, NULL, 'r'},
+	{"bare", no_argument, NULL, 0},
+	{"template", required_argument, NULL, 0},
+	{"separate-git-dir", required_argument, NULL, 0},
+	{"shared", required_argument, NULL, 0},
 	{NULL, 0, NULL, 0}
 };
 

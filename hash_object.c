@@ -33,15 +33,14 @@ hash_object_compute_checksum(FILE *source, char *checksum, char *header)
 	int l;
 
 	SHA1_Init(&context);
-
 	SHA1_Update(&context, header, strlen(header)+1);
 
 	while((l = fread(&in, 1, 4096, source)) != -1 && l != 0) {
 		SHA1_Update(&context, in, l);
 	}
-
 	SHA1_End(&context, checksum);
 
+	/* Reset the stream */
 	fseek(source, 0, SEEK_SET);
 
 	return 0;
@@ -60,47 +59,40 @@ hash_object_create_header(char *filepath, char *header)
 }
 
 int
-hash_object_create_zlib(FILE *source, char *header, char *zlib)
+hash_object_create_zlib(FILE *source, FILE *dest, char *header, char *checksum)
 {
 	int ret, flush;
 	z_stream strm;
 	unsigned int have;
 	unsigned char in[Z_CHUNK];
 	unsigned char out[Z_CHUNK];
+	char filepath[PATH_MAX + NAME_MAX];
 
-	FILE *dest = stdout; // This is a temporary test
+	sprintf(filepath, "%s/objects/%c%c", dotgitpath, checksum[0], checksum[1]);
 
 	strm.zalloc = Z_NULL;
 	strm.zfree = Z_NULL;
 	strm.opaque = Z_NULL;
-//	ret = deflateInit(&strm, Z_BEST_SPEED);
-	ret = deflateInit2(&strm, Z_BEST_SPEED, Z_DEFLATED, 15 | 16, 8, Z_DEFAULT_STRATEGY);
+	ret = deflateInit(&strm, Z_BEST_SPEED);
 	if (ret != Z_OK)
 		return ret;
 
-	printf("Header: %s\n", header);
-
 	/* Beginning of writing the header */
-
 	strm.next_in = (unsigned char *) header;
 	strm.avail_in = strlen(header) + 1;
 
 	do {
 		strm.avail_out = Z_CHUNK;
 		strm.next_out = out;
-		if (deflate (& strm, Z_FINISH) < 0) {
+		if (deflate (& strm, Z_NO_FLUSH) < 0) {
 			fprintf(stderr, "returned a bad status of.\n");
 			exit(0);
 		}
 		have = Z_CHUNK - strm.avail_out;
-		fwrite(out, 1, have, stdout);
+		fwrite(out, 1, have, dest);
 	} while(strm.avail_out == 0);
-	/* End of writing the header */
 
-
-
-
-
+	/* Beginning of file content */
 	do {
 		strm.avail_in = fread(in, 1, Z_CHUNK, source);
 		if (ferror(source)) {
@@ -123,6 +115,28 @@ hash_object_create_zlib(FILE *source, char *header, char *zlib)
 		} while(strm.avail_out == 0);
 
 	} while (flush != Z_FINISH);
+
+	return 0;
+}
+
+int
+hash_object_create_file(FILE **objectfileptr, char *checksum)
+{
+	char objectpath[PATH_MAX];
+
+	// First create the directory
+	sprintf(objectpath, "%s/objects/%c%c",
+	    dotgitpath, checksum[0], checksum[1]);
+
+	mkdir(objectpath, 0755);
+
+	// Reusing objectpath variable
+	sprintf(objectpath, "%s/objects/%c%c/%s",
+	    dotgitpath, checksum[0], checksum[1], checksum+2);
+
+	*objectfileptr = fopen(objectpath, "w");
+
+	return 0;
 }
 
 int
@@ -131,10 +145,11 @@ hash_object_main(int argc, char *argv[])
 	int ret = 0;
 	int ch;
 	FILE *fileptr;
+	FILE *objectfileptr = NULL;
 	char *filepath;
 	char checksum[HEX_DIGEST_LENGTH];
 	char header[32];
-	char *zlib;
+	//char *zlib;
 
 	//uint8_t flags = 0;
 
@@ -151,15 +166,16 @@ hash_object_main(int argc, char *argv[])
 		return -1;
 	}
 
+	git_repository_path();
+
 	filepath = argv[1];
 	fileptr = fopen(filepath, "r");
 
 	hash_object_create_header(filepath, (char *)&header);
 	hash_object_compute_checksum(fileptr,(char *)&checksum,(char *)&header);
-	hash_object_create_zlib(fileptr, (char *)&header, (char *)&header);
+	hash_object_create_file(&objectfileptr, (char *) &checksum);
+	hash_object_create_zlib(fileptr, objectfileptr, (char *)&header, (char *)&checksum);
 
-//	printf("%s\n", checksum);
-//	printf("Filepath: %s\n", filepath);
-
+	printf("%s\n", checksum);
 	return (ret);
 }
