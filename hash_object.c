@@ -15,13 +15,28 @@
 
 static struct option long_options[] =
 {
+	{"stdin", no_argument, NULL, 0},
+	{"stdin-paths", no_argument, NULL, 0},
+	{"no-filters", no_argument, NULL, 0},
+	{"literally", no_argument, NULL, 0},
+	{"path", required_argument, NULL, 0},
 	{NULL, 0, NULL, 0}
 };
 
 int
 hash_object_usage(int type)
 {
-	printf("usage: ogit hash-object\n");
+	fprintf(stderr, "usage: git hash-object [-t <type>] [-w] [--path=<file> | --no-filters] [--stdin] [--] <file>...\n");
+	fprintf(stderr, "   or: git hash-object  --stdin-paths\n");
+	fprintf(stderr, "\n");
+	fprintf(stderr, "    -t <type>\t\twrite the object into the object database\n");
+	fprintf(stderr, "    -w\t\t\twrite the object into the object database\n");
+	fprintf(stderr, "    --stdin\t\tread the object from stdin\n");
+	fprintf(stderr, "    --stdin-paths\tread file names from stdin\n");
+	fprintf(stderr, "    --no-filters\tstore file as is without filters\n");
+	fprintf(stderr, "    --literally\t\tjust hash any random garbage to create corrupt objects for debugging Git\n");
+	fprintf(stderr, "    --path <file>\tprocess file as it were from this path\n");
+	fprintf(stderr, "\n");
 	return 0;
 }
 
@@ -173,15 +188,16 @@ hash_object_main(int argc, char *argv[])
 
 	argc--; argv++;
 
-	while((ch = getopt_long(argc, argv, "w", long_options, NULL)) != -1)
+	while((ch = getopt_long(argc, argv, "wt:", long_options, NULL)) != -1)
 		switch(ch) {
-			case 'w':
+		case 'w':
 			flags |= CMD_HASH_OBJECT_WRITE; 
 			q++;
 			break;
 		default:
-			printf("Bad\n");
-			break;
+			printf("Currently not implemented\n");
+			hash_object_usage(0);
+			return -1;
 		}
 	argc = argc - q;
 	argv = argv + q;
