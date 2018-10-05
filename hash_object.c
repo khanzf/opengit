@@ -140,42 +140,57 @@ hash_object_create_file(FILE **objectfileptr, char *checksum)
 }
 
 int
-hash_object_main(int argc, char *argv[])
+hash_object_write(char *filearg, uint8_t flags)
 {
 	int ret = 0;
-	int ch;
 	FILE *fileptr;
 	FILE *objectfileptr = NULL;
-	char *filepath;
 	char checksum[HEX_DIGEST_LENGTH];
 	char header[32];
-	//char *zlib;
-
-	//uint8_t flags = 0;
-
-	argc--; argv++;
-
-	while((ch = getopt_long(argc, argv, "", long_options, NULL)) != -1)
-		switch(ch) {
-		default:
-			break;
-		}
-
-	if (argc != 2) {
-		printf("Future functionality not yet implemented\n");
-		return -1;
-	}
 
 	git_repository_path();
 
-	filepath = argv[1];
-	fileptr = fopen(filepath, "r");
+	fileptr = fopen(filearg, "r");
 
-	hash_object_create_header(filepath, (char *)&header);
+	hash_object_create_header(filearg, (char *)&header);
 	hash_object_compute_checksum(fileptr,(char *)&checksum,(char *)&header);
 	hash_object_create_file(&objectfileptr, (char *) &checksum);
-	hash_object_create_zlib(fileptr, objectfileptr, (char *)&header, (char *)&checksum);
+	if (flags & CMD_HASH_OBJECT_WRITE)
+		hash_object_create_zlib(fileptr, objectfileptr, (char *)&header, (char *)&checksum);
 
 	printf("%s\n", checksum);
 	return (ret);
 }
+
+int
+hash_object_main(int argc, char *argv[])
+{
+	int ret = 0;
+	int ch;
+	int q = 0;
+
+	int8_t flags = 0;
+
+	argc--; argv++;
+
+	while((ch = getopt_long(argc, argv, "w", long_options, NULL)) != -1)
+		switch(ch) {
+			case 'w':
+			flags |= CMD_HASH_OBJECT_WRITE; 
+			q++;
+			break;
+		default:
+			printf("Bad\n");
+			break;
+		}
+	argc = argc - q;
+	argv = argv + q;
+
+	if (argv[1])
+		ret = hash_object_write(argv[1], flags);
+	else
+		return hash_object_usage(0);
+
+	return (ret);
+}
+
