@@ -65,39 +65,7 @@ update_index_parse(FILE **indexptr)
 		exit(1);
 	}
 
-	cache_hdr = (struct _cache_hdr *)indexmap;
-	offset = sizeof(*cache_hdr);
-
-	printf("Offset is: %d\n", offset);
-
-	printf("File size: %d\n", sb.st_size);
-
-	if (strncmp(cache_hdr->sig, "DIRC", 4)) {
-		fprintf(stderr, "Bad index signature\n");
-		exit(-1);
-	}
-
-	printf("Signature:\t%s\n", cache_hdr->sig);
-	printf("Version:\t%d\n", ntohl(cache_hdr->version));
-	printf("Entries:\t%d\n", ntohl(cache_hdr->entries));
-
-#define CE_EXTENDED  (0x4000)
-
-	for(i=0;i<ntohl(cache_hdr->entries);i++) {
-		index_hdr = (struct _index_hdr *)((char *)indexmap + offset);
-
-		flags = ntohs(index_hdr->flags);
-
-		if (flags & CE_EXTENDED) {
-			extension_hdr = (struct _extension_hdr *)indexmap + offset;
-			/* 72 is calculated as offsetof(struct _extension_hdr, name) + 8 bytes */
-			offset += (72 + strlen(extension_hdr->name)) & ~0x7;
-		}
-		else {
-			/* 70 is calculated as offsetof(struct _index_hdr, name) + 8 bytes */
-			offset += (70 + strlen(index_hdr->name)) & ~0x7;
-		}
-	}
+	parse_index(indexmap, sb.st_size);
 	return 0;
 }
 

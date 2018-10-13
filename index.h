@@ -8,13 +8,13 @@ Header source
 https://github.com/git/git/blob/master/Documentation/technical/index-format.txt
 */
 
-struct _cache_hdr {
+struct _indexhdr {
 	unsigned char	sig[4];		/* Always "DIRC" */
 	uint32_t	version;	/* Version Number */
 	uint32_t	entries;	/* Number of extensions */
 };
 
-struct _index_hdr {
+struct _indexentry {
 	uint32_t	ctime_sec;
 	uint32_t	ctime_nsec;
 	uint32_t	mtime_sec;
@@ -30,7 +30,9 @@ struct _index_hdr {
 	char		name[1];
 } __packed;
 
-struct _extension_hdr {
+#define CE_EXTENDED	0x4000
+
+struct _indexextentry {
 	uint32_t	ctime_sec;
 	uint32_t	ctime_nsec;
 	uint32_t	mtime_sec;
@@ -47,6 +49,11 @@ struct _extension_hdr {
 	char		name[1];
 };
 
-struct _cache_hdr cache_hdr;
+struct indexparse {
+	struct _indexhdr *indexhdrs;
+	struct _indexextentry *indexextentry;
+};
+
+void parse_index(unsigned char *indexmap, off_t indexsize);
 
 #endif
