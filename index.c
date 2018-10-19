@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "index.h"
 
 /*
@@ -10,21 +11,22 @@
 void
 parse_treeentries(unsigned char *indexmap, int *offset)
 {
+	unsigned char *treemap = indexmap;
 	int entry_count;
 	int subtrees;
 	unsigned char *endptr;
 	uint8_t objectid[20];
-	printf("Offset starts at: %d\n", *offset);
-	while(indexmap[*offset]) {
+	int q;
+
+//	printf("Offset starts at: %d\n", *offset);
+	while(indexmap[*offset])
 		*offset = *offset + 1;
-		printf("Skip %c\n", *offset);
-	}
 	*offset = *offset + 1;
 
 	entry_count = strtol(indexmap + *offset, &endptr, 10);
-	printf("entry_count: %d\n", entry_count);
+//	printf("entry_count: %d\n", entry_count);
 	*offset = *offset + (endptr - (indexmap + *offset));
-	printf("That size was: %d\n", (endptr - (indexmap + *offset)));
+//	printf("That size was: %d\n", (endptr - (indexmap + *offset)));
 
 	*offset = *offset + 1; // Jump past the space
 
@@ -32,15 +34,27 @@ parse_treeentries(unsigned char *indexmap, int *offset)
 	printf("Subtrees: %d\n", subtrees);
 	*offset = *offset + (endptr - (indexmap + *offset));
 
-	printf("THe next character: 0x%x\n", indexmap[*offset]);
+//	printf("THe next character: 0x%x\n", indexmap[*offset]);
 
 	*offset = *offset + 1; // Jump past the new line
 
 	memcpy(objectid, indexmap + *offset, 20); 
-	*offset = *offset + 20;
+//	printf("object id: %x%x%x%x%x\n", objectid[0], objectid[1], objectid[2], objectid[3], objectid[4]);
 
-	printf("The End\n");
-	exit(0);
+	if (subtrees >= 0)
+		*offset = *offset + 20;
+
+	for(q=0;q<subtrees;q++) {
+		parse_treeentries(indexmap, offset);
+//		printf("Going through a subtree\n");
+//		printf("%c %c %c %c %c\n",	indexmap[*offset],
+//						indexmap[*offset+1],
+//						indexmap[*offset+2],
+//						indexmap[*offset+3]);
+		
+	}
+
+//	printf("The End\n");
 }
 
 void
@@ -65,7 +79,7 @@ name = indexextentry->name;
 name = indexentry->name;
 		}
 
-		printf("Name -> %s\n", name);
+//		printf("Name -> %s\n", name);
 	}
 }
 
@@ -93,7 +107,9 @@ parse_index(unsigned char *indexmap, off_t indexsize)
 			parse_treeentries(indexmap, &offset);	
 		}
 		else {
-			printf("Found something after DIRC\n"); exit(0);
+			printf("Found something after DIRC\n");
+			printf("Found this: %c%c%c%c\n", indexhdr->sig[0], indexhdr->sig[1], indexhdr->sig[2], indexhdr->sig[3]);
+			exit(0);
 		}
 	}
 }
