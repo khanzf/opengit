@@ -54,6 +54,14 @@ struct indexparse {
 	struct _indexextentry *indexextentry;
 };
 
+struct treeentry {
+	// Path component?
+	char *relative_path;
+	char *entry_count;
+	char space;
+	
+};
+
 void parse_index(unsigned char *indexmap, off_t indexsize);
 
 #endif
