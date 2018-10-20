@@ -78,9 +78,9 @@ hash_object_create_zlib(FILE *source, FILE *dest, char *header, char *checksum)
 {
 	int ret, flush;
 	z_stream strm;
-	unsigned int have;
-	unsigned char in[Z_CHUNK];
-	unsigned char out[Z_CHUNK];
+	int have;
+	char in[Z_CHUNK];
+	char out[Z_CHUNK];
 	char filepath[PATH_MAX + NAME_MAX];
 
 	sprintf(filepath, "%s/objects/%c%c", dotgitpath, checksum[0], checksum[1]);
@@ -93,7 +93,7 @@ hash_object_create_zlib(FILE *source, FILE *dest, char *header, char *checksum)
 		return ret;
 
 	/* Beginning of writing the header */
-	strm.next_in = (unsigned char *) header;
+	strm.next_in = (char *) header;
 	strm.avail_in = strlen(header) + 1;
 
 	do {

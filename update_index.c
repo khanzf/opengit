@@ -45,17 +45,8 @@ update_index_open_index(FILE **indexptr)
 int
 update_index_parse(FILE **indexptr)
 {
-	int i;
-	struct _cache_hdr *cache_hdr;
-
-	struct _index_hdr *index_hdr;
-	struct _extension_hdr *extension_hdr;
-
 	unsigned char *indexmap;
-	int offset;
 	struct stat sb;
-
-	unsigned int flags;
 
 	fstat(fileno(*indexptr), &sb);
 
@@ -75,8 +66,6 @@ update_index_main(int argc, char *argv[])
 	int ret = 0;
 	int ch;
 	int q = 0;
-
-	int8_t flags = 0;
 
 	argc--; argv++;
 

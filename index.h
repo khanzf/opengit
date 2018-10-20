@@ -4,17 +4,23 @@
 #include <stdint.h>
 
 /*
-Header source
-https://github.com/git/git/blob/master/Documentation/technical/index-format.txt
+Header source Documentation/technical/index-format.txt
 */
 
-struct _indexhdr {
-	unsigned char	sig[4];		/* Always "DIRC" */
+struct cache_tree {
+	int entry_count;
+	int subtree_count;
+	uint8_t objectname[20];
+	struct cache_tree **subtree;
+};
+
+struct indexhdr {
+	char		sig[4];		/* Always "DIRC" */
 	uint32_t	version;	/* Version Number */
 	uint32_t	entries;	/* Number of extensions */
 };
 
-struct _indexentry {
+struct indexentry {
 	uint32_t	ctime_sec;
 	uint32_t	ctime_nsec;
 	uint32_t	mtime_sec;
@@ -32,7 +38,7 @@ struct _indexentry {
 
 #define CE_EXTENDED	0x4000
 
-struct _indexextentry {
+struct indexextentry {
 	uint32_t	ctime_sec;
 	uint32_t	ctime_nsec;
 	uint32_t	mtime_sec;
@@ -49,19 +55,12 @@ struct _indexextentry {
 	char		name[1];
 };
 
-struct indexparse {
-	struct _indexhdr *indexhdrs;
-	struct _indexextentry *indexextentry;
+struct indexcache {
+	struct indexhdr *indexhdrs;
+	struct indexextentry *indexextentry;
+	struct cache_tree *cache_tree;
 };
 
-struct treeentry {
-	// Path component?
-	char *relative_path;
-	char *entry_count;
-	char space;
-	
-};
-
-void parse_index(unsigned char *indexmap, off_t indexsize);
+struct cache_tree *parse_index(char *indexmap, off_t indexsize);
 
 #endif
