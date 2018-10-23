@@ -9,12 +9,14 @@
 #include "common.h"
 #include "hash_object.h"
 #include "update_index.h"
+#include "cat_file.h"
 
 static struct cmd cmds[] = {
-	{"remote",	remote_main},
-	{"init",	init_main},
-	{"hash-object",	hash_object_main},
-	{"update-index", update_index_main}
+	{"remote",		remote_main},
+	{"init",		init_main},
+	{"hash-object",		hash_object_main},
+	{"update-index",	update_index_main},
+	{"cat-file",		cat_file_main}
 };
 
 int cmd_count = nitems(cmds);
