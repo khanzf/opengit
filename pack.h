@@ -16,18 +16,23 @@ struct offset {
 	unsigned int addr;
 };
 
+struct checksum {
+	unsigned int val;
+};
+
 struct entry {
 	unsigned char sha[20];
 };
 
-struct idxhdr {
-	int fantable[256];
+struct fan {
+	int count[256];
 };
 
 struct packhdr {
 	uint8_t		sig[4];
 };
 
-void test_test();
+int pack_find_sha(char *sha, char *idxmap);
+//void pack_pointer(struct fan *fans, struct entry *entries, struct checksum *checksums, struct offset *offsets);
 
 #endif
