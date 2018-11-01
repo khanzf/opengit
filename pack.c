@@ -6,7 +6,7 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "objects.h"
+#include "pack.h"
 #include "common.h"
 #include "ini.h"
 
@@ -25,7 +25,7 @@ test_test() {
 	char *idxmap;
 //	void *packmap;
 	struct stat sb;
-	int offset;
+	int idx_offset;
 	int idx_version;
 	
 
@@ -56,31 +56,58 @@ int v;
 				fprintf(stderr, "Header signature does not match index version 2.\n");
 				exit(0);
 			}
-			offset = 4;
+			idx_offset = 4;
 
-			idx_version = *(idxmap + offset+3);
+			idx_version = *(idxmap + idx_offset+3);
 			printf("the version is: %d\n", idx_version);
 
-			offset += 4;
-			idxhdr = idxmap + offset;
+			idx_offset += 4;
+			idxhdr = idxmap + idx_offset;
 
+			// Fanout Table
 
 			for(v=0;v<256;v++) {
 				printf("Count -> %02x:%d\n", v, ntohl(idxhdr->fantable[v]));
 			}
 
-			offset += sizeof(struct idxhdr);
+			idx_offset += sizeof(struct idxhdr);
 
-			int last = idxhdr->fantable[255];
-			struct entry *entries = malloc(sizeof(struct entry) * last);
+			int last = ntohl(idxhdr->fantable[255]);
+			struct entry *entries = idxmap + idx_offset;
 
-			printf("size is: %d\n", ntohl(last));
+			printf("size is: %d\n", last);
 
-			entries = idxmap + offset;
+			// Hashes
+
 			for(v=0;v<last;v++) {
-				printf("Offset: %d, %d SHA\n", v, entries[v].offset);
+				printf("SHA: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+					entries[v].sha[0], entries[v].sha[1], entries[v].sha[2], entries[v].sha[3],
+					entries[v].sha[4], entries[v].sha[5], entries[v].sha[6], entries[v].sha[7],
+					entries[v].sha[8], entries[v].sha[9], entries[v].sha[10], entries[v].sha[11],
+					entries[v].sha[12], entries[v].sha[13], entries[v].sha[14], entries[v].sha[15],
+					entries[v].sha[16], entries[v].sha[17], entries[v].sha[18], entries[v].sha[19]
+				);
 			}
-			printf("After\n");
+
+			idx_offset += (sizeof(struct entry) * last);
+
+			// Offsets
+			struct offset *crc = idxmap + idx_offset;
+
+			for(v=0;v<last;v++) {
+				printf("crc: %u\n", crc[v].addr);
+			}
+
+		printf("Ending\n");
+
+			idx_offset += (sizeof(struct entry) * last);
+			struct offset *offsets = idxmap + idx_offset;
+
+			for(v=0;v<last;v++) {
+				printf("Offset: %u\n", offsets[v].addr);
+			}
+
+			exit(0);
 
 			munmap(idxmap, sb.st_size);
 			close(idxfilefd);

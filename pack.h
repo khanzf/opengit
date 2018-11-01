@@ -1,5 +1,5 @@
-#ifndef OBJECTS_H
-#define OBJECTS_H
+#ifndef PACK_H
+#define PACK_H
 
 #include <stdint.h>
 
@@ -12,9 +12,12 @@ Header source Documentation/technical/multi-pack-index.txt
     These are for files located in .git/objects/pack/[*].idx
 */
 
+struct offset {
+	unsigned int addr;
+};
+
 struct entry {
-	int offset;
-	char sha[20];
+	unsigned char sha[20];
 };
 
 struct idxhdr {
