@@ -33,16 +33,16 @@ cat_file_type(char *sha) {
 	struct dirent *dir;
 	char packdir[PATH_MAX];
 	char idxfile[PATH_MAX];
-	int idxfilefd;
+	int packfd;
 	char *file_ext;
 	char *idxmap;
 	struct stat sb;
-
-	printf("Comes here\n");
+	int offset = 0;
 
 	sprintf(packdir, "%s/objects/pack", dotgitpath);
 	d = opendir(packdir);
 
+	/* Find hash in idx file or die */
 	if (d) {
 		while((dir = readdir(d)) != NULL) {
 			file_ext = strrchr(dir->d_name, '.');
@@ -50,21 +50,71 @@ cat_file_type(char *sha) {
 				continue;
 			sprintf(idxfile, "%s/objects/pack/%s", dotgitpath, dir->d_name);
 
-			idxfilefd = open(idxfile, O_RDONLY);
-			fstat(idxfilefd, &sb);
-			idxmap = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, idxfilefd, 0);
+			packfd = open(idxfile, O_RDONLY);
+			fstat(packfd, &sb);
+			idxmap = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, packfd, 0);
 
 			if (idxmap == NULL) {
 				fprintf(stderr, "mmap(2) error, exiting.\n");
 				exit(0);
 			}
-			close(idxfilefd);
+			close(packfd);
 
-			pack_find_sha(sha, idxmap);
+			offset = pack_find_sha_offset(sha, idxmap);
 
 			munmap(idxmap, sb.st_size);
+
+			if (offset != -1)
+				break;
 		}
 	}
+
+	if (offset == -1) {
+		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
+		exit(128);
+	}
+
+
+	/* Pack file part */
+	int version;
+	int nobjects;
+
+	strncpy(idxfile+strlen(idxfile)-4, ".pack", 6);
+	printf("Looking after: %s:%d\n", idxfile, offset);
+
+	packfd = open(idxfile, O_RDONLY);
+	if (packfd == -1) {
+		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
+		exit(128); // XXX replace 128 with proper return macro value
+	}
+	fstat(packfd, &sb);
+
+	idxmap = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, packfd, 0);
+	if (idxmap == NULL) {
+		fprintf(stderr, "mmap(2) error, exiting.\n");
+		exit(0);
+	}
+	close(packfd);
+
+	if (memcmp(idxmap, "PACK", 4)) {
+		fprintf(stderr, "error: file %s is not a GIT packfile\n");
+		fprintf(stderr, "error: bad object HEAD\n");
+		exit(128);
+	}
+
+	offset = 4;
+	version = *(idxmap + offset + 3);
+	printf("Version: %d\n", version);
+	if (version != 2) {
+		fprintf(stderr, "error: unsupported version: %d\n", version);
+		exit(128); // XXX replace 128 with proper return macro value
+	}
+
+	offset += 4;
+	nobjects = *(idxmap + offset + 3);
+
+	printf("Objects: %d\n", nobjects);
+
 
 }
 
@@ -87,13 +137,11 @@ cat_file_main(int argc, char *argv[])
 			argv++;
 			sha = argv[1];
 			flags |= CAT_FILE_PRINT;
-			printf("The p target is %s\n", sha);
 			break;
 		case 't':
 			argc--;
 			argv++;
 			sha = argv[1];
-			printf("The t target is %s\n", sha);
 			flags |= CAT_FILE_TYPE;
 			break;
 		default:
@@ -112,9 +160,7 @@ cat_file_main(int argc, char *argv[])
 		for(i=0;i<20;i++)
 			sscanf(sha+i*2, "%2hhx", &sha_hex[i]);
 
-		printf("%02x%02x%02x%02x BBBB\n",   sha_hex[0], sha_hex[1], sha_hex[2], sha_hex[3]);
-
-		cat_file_type(&sha_hex);
+		cat_file_type(sha_hex);
 	}
 	else if (flags & CAT_FILE_PRINT) {
 		printf("Unimplemented -p option\n");
