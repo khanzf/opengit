@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include "cat_file.h"
 #include "common.h"
+#include "pack.h"
 #include "ini.h"
 
 static struct option long_options[] =
@@ -27,7 +28,7 @@ cat_file_usage(int type)
 }
 
 void
-cat_file_type(char *sha) {
+cat_file_get_content_type(char *sha) {
 	// Find the sha or fail
 	DIR *d;
 	struct dirent *dir;
@@ -74,13 +75,12 @@ cat_file_type(char *sha) {
 		exit(128);
 	}
 
-
 	/* Pack file part */
 	int version;
 	int nobjects;
+	int loc;
 
 	strncpy(idxfile+strlen(idxfile)-4, ".pack", 6);
-	printf("Looking after: %s:%d\n", idxfile, offset);
 
 	packfd = open(idxfile, O_RDONLY);
 	if (packfd == -1) {
@@ -90,7 +90,7 @@ cat_file_type(char *sha) {
 	fstat(packfd, &sb);
 
 	idxmap = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, packfd, 0);
-	if (idxmap == NULL) {
+	if (idxmap == MAP_FAILED) { // XXX Should this be MAP_FAILED?
 		fprintf(stderr, "mmap(2) error, exiting.\n");
 		exit(0);
 	}
@@ -102,20 +102,41 @@ cat_file_type(char *sha) {
 		exit(128);
 	}
 
-	offset = 4;
-	version = *(idxmap + offset + 3);
-	printf("Version: %d\n", version);
+	loc = 4;
+	version = *(idxmap + loc + 3);
 	if (version != 2) {
 		fprintf(stderr, "error: unsupported version: %d\n", version);
 		exit(128); // XXX replace 128 with proper return macro value
 	}
 
-	offset += 4;
-	nobjects = *(idxmap + offset + 3);
+	loc += 4;
+	nobjects = *(idxmap + loc + 3);
 
-	printf("Objects: %d\n", nobjects);
+	// Classify Object
 
+	unsigned char object_type;
+	object_type = (idxmap[offset] >> 4) & 7;
 
+	switch (object_type) {
+	case OBJ_COMMIT:
+		printf("commit\n"); break;
+	case OBJ_TREE:
+		printf("tree\n"); break;
+	case OBJ_BLOB:
+		printf("blob\n"); break;
+	case OBJ_TAG:
+		printf("tag\n"); break;
+	case OBJ_OFS_DELTA:
+		printf("OFS Delta\n"); break;
+	case OBJ_REF_DELTA:
+		printf("REF Delta\n"); break;
+	default:
+		printf("Default case\n"); break;
+	}
+
+	char *v;
+	int q;
+	v = idxmap + loc + 4;
 }
 
 int
@@ -160,7 +181,7 @@ cat_file_main(int argc, char *argv[])
 		for(i=0;i<20;i++)
 			sscanf(sha+i*2, "%2hhx", &sha_hex[i]);
 
-		cat_file_type(sha_hex);
+		cat_file_get_content_type(sha_hex);
 	}
 	else if (flags & CAT_FILE_PRINT) {
 		printf("Unimplemented -p option\n");

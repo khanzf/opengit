@@ -12,13 +12,16 @@
 
 #include <netinet/in.h>
 
-void
-pack_get_pack_content(char *path, int offset) {
+int
+pack_get_pack_get_content_type(unsigned char *idxmap, int offset)
+{
+	return (idxmap[offset] >> 4) & 7;
 
 }
 
 int
-pack_find_sha_offset(char *sha, char *idxmap) {
+pack_find_sha_offset(char *sha, char *idxmap)
+{
 	struct fan *fans;
 	struct entry *entries;
 	struct checksum *checksums;

@@ -12,6 +12,14 @@ Header source Documentation/technical/multi-pack-index.txt
     These are for files located in .git/objects/pack/[*].idx
 */
 
+// From Documentation/technical/pack-format.txt
+#define OBJ_COMMIT		1
+#define OBJ_TREE		2
+#define OBJ_BLOB		3
+#define OBJ_TAG		4
+#define OBJ_OFS_DELTA	6
+#define OBJ_REF_DELTA	7
+
 // idx file headers
 struct offset {
 	unsigned int addr;
