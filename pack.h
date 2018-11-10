@@ -38,7 +38,11 @@ struct fan {
 };
 
 // pack file headers
-
+struct objectinfo {
+	uint8_t	unused1:4;
+	uint8_t	type:3;
+	uint8_t	unused2:1;
+};
 
 // Shared by both idx and pack files
 struct packhdr {

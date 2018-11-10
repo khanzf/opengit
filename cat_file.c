@@ -114,10 +114,9 @@ cat_file_get_content_type(char *sha) {
 
 	// Classify Object
 
-	unsigned char object_type;
-	object_type = (idxmap[offset] >> 4) & 7;
+	struct objectinfo *objectinfo = idxmap+offset;
 
-	switch (object_type) {
+	switch (objectinfo->type) {
 	case OBJ_COMMIT:
 		printf("commit\n"); break;
 	case OBJ_TREE:
