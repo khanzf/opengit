@@ -117,8 +117,6 @@ cat_file_get_content_type(char *sha) {
 	unsigned long c; // = idxmap + offset + 8;
 	struct objectinfo *objectinfo = idxmap+offset;
 
-	printf("Check: %02x\n", c);
-
 	switch (objectinfo->type) {
 	case OBJ_COMMIT:
 		printf("commit\n"); break;
@@ -246,32 +244,10 @@ cat_file_get_content_size(char *sha) {
 	while(*sevenbit&0x80) {
 		sevenbit = idxmap + offset + used;
 		size += (*sevenbit & 0x7F) << (4 + (7*(used-1)));
-//		shift += 7;
 		used++;
 	}
 
-/*
-	unsigned shift;
-	unsigned long size, c;
-	unsigned long used = 0;
-
-	c = idxmap[offset + used];
-	used++;
-
-	printf("this part: %lu\n", c);
-
-	size = c & 15;
-
-	shift = 4;
-	while (c & 0x80) {
-		printf("Checking: %lu\n", c);
-		c = idxmap[offset + used];
-		size += (c & 0x7f) << shift;
-		shift += 7;
-		used++;
-	}
-*/
-	printf("%d\n", size);
+	printf("%lu\n", size);
 }
 
 int

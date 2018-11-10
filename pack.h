@@ -42,7 +42,8 @@ struct objectinfo {
 	uint8_t	size:4;
 	uint8_t	type:3;
 	uint8_t	more:1;
-};
+	uint8_t	unused[56];
+} __packed;
 
 // Shared by both idx and pack files
 struct packhdr {
