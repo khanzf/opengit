@@ -133,10 +133,6 @@ cat_file_get_content_type(char *sha) {
 	default:
 		printf("Default case\n"); break;
 	}
-
-	char *v;
-	int q;
-	v = idxmap + loc + 4;
 }
 
 void
@@ -250,6 +246,118 @@ cat_file_get_content_size(char *sha) {
 	printf("%lu\n", size);
 }
 
+void
+cat_file_get_content_pretty(char *sha) {
+	// Find the sha or fail
+	DIR *d;
+	struct dirent *dir;
+	char packdir[PATH_MAX];
+	char idxfile[PATH_MAX];
+	int packfd;
+	char *file_ext;
+	char *idxmap;
+	struct stat sb;
+	int offset = 0;
+
+	sprintf(packdir, "%s/objects/pack", dotgitpath);
+	d = opendir(packdir);
+
+	/* Find hash in idx file or die */
+	if (d) {
+		while((dir = readdir(d)) != NULL) {
+			file_ext = strrchr(dir->d_name, '.');
+			if (!file_ext || strncmp(file_ext, ".idx", 4))
+				continue;
+			sprintf(idxfile, "%s/objects/pack/%s", dotgitpath, dir->d_name);
+
+			packfd = open(idxfile, O_RDONLY);
+			fstat(packfd, &sb);
+			idxmap = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, packfd, 0);
+
+			if (idxmap == NULL) {
+				fprintf(stderr, "mmap(2) error, exiting.\n");
+				exit(0);
+			}
+			close(packfd);
+
+			offset = pack_find_sha_offset(sha, idxmap);
+
+			munmap(idxmap, sb.st_size);
+
+			if (offset != -1)
+				break;
+		}
+	}
+
+	if (offset == -1) {
+		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
+		exit(128);
+	}
+
+	/* Pack file part */
+	int version;
+	int nobjects;
+	int loc;
+
+	strncpy(idxfile+strlen(idxfile)-4, ".pack", 6);
+
+	packfd = open(idxfile, O_RDONLY);
+	if (packfd == -1) {
+		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
+		exit(128); // XXX replace 128 with proper return macro value
+	}
+	fstat(packfd, &sb);
+
+	idxmap = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, packfd, 0);
+	if (idxmap == MAP_FAILED) { // XXX Should this be MAP_FAILED?
+		fprintf(stderr, "mmap(2) error, exiting.\n");
+		exit(0);
+	}
+	close(packfd);
+
+	if (memcmp(idxmap, "PACK", 4)) {
+		fprintf(stderr, "error: file %s is not a GIT packfile\n");
+		fprintf(stderr, "error: bad object HEAD\n");
+		exit(128);
+	}
+
+	loc = 4;
+	version = *(idxmap + loc + 3);
+	if (version != 2) {
+		fprintf(stderr, "error: unsupported version: %d\n", version);
+		exit(128); // XXX replace 128 with proper return macro value
+	}
+
+	loc += 4;
+	nobjects = *(idxmap + loc + 3);
+
+	// Classify Object
+
+	unsigned long size;
+	unsigned long *sevenbit;
+	unsigned long used = 0;
+/*
+	Git's size count is all sorts of screwy
+	In short, we are adding up the value of the lower 4 bits.
+	If the highest bit of the lower 8-bits is 1, then look at the next 8 bits
+	Those lower 4 bits are shifted over by 4 + (7 times the iteration we are on).
+	And this value is added to the size total.
+*/
+
+	sevenbit = idxmap + offset;
+	used++;
+	size = *sevenbit & 0x0F;
+
+	while(*sevenbit&0x80) {
+		sevenbit = idxmap + offset + used;
+		size += (*sevenbit & 0x7F) << (4 + (7*(used-1)));
+		used++;
+	}
+
+	pack_uncompress_object(idxmap, size, offset + used);
+}
+
+
 int
 cat_file_main(int argc, char *argv[])
 {
@@ -301,8 +409,12 @@ cat_file_main(int argc, char *argv[])
 		cat_file_get_content_type(sha_hex);
 	}
 	else if (flags & CAT_FILE_PRINT) {
-		printf("Unimplemented -p option\n");
-		exit(0);
+		unsigned char sha_hex[20];
+		int i;
+		for(i=0;i<20;i++)
+			sscanf(sha+i*2, "%2hhx", &sha_hex[i]);
+
+		cat_file_get_content_pretty(sha_hex);
 	}
 	else if (flags & CAT_FILE_SIZE) {
 		unsigned char sha_hex[20];
