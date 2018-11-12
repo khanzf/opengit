@@ -70,6 +70,13 @@ cat_file_get_content(char *sha, uint8_t flags)
 		}
 	}
 
+	// Process CAT_FILE_EXIT here
+	if (flags == CAT_FILE_EXIT)
+		if (offset == -1)
+			exit(1);
+		else
+			exit(0);
+
 	if (offset == -1) {
 		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
 		exit(128);
