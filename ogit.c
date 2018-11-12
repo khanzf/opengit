@@ -16,7 +16,8 @@ static struct cmd cmds[] = {
 	{"init",		init_main},
 	{"hash-object",		hash_object_main},
 	{"update-index",	update_index_main},
-	{"cat-file",		cat_file_main}
+	{"cat-file",		cat_file_main},
+	{"log",			log_main}
 };
 
 int cmd_count = nitems(cmds);
