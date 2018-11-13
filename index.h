@@ -61,6 +61,6 @@ struct indexcache {
 	struct cache_tree *cache_tree;
 };
 
-struct cache_tree *parse_index(char *indexmap, off_t indexsize);
+struct cache_tree *parse_index(unsigned char *indexmap, off_t indexsize);
 
 #endif

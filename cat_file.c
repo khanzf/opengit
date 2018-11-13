@@ -28,7 +28,7 @@ cat_file_usage(int type)
 }
 
 void
-cat_file_get_content(char *sha, uint8_t flags)
+cat_file_get_content(unsigned char *sha, uint8_t flags)
 {
 	DIR *d;
 	struct dirent *dir;
@@ -36,7 +36,7 @@ cat_file_get_content(char *sha, uint8_t flags)
 	char idxfile[PATH_MAX];
 	int packfd;
 	char *file_ext;
-	char *idxmap;
+	unsigned char *idxmap;
 	struct stat sb;
 	int offset = 0;
 
@@ -71,11 +71,12 @@ cat_file_get_content(char *sha, uint8_t flags)
 	}
 
 	// Process CAT_FILE_EXIT here
-	if (flags == CAT_FILE_EXIT)
+	if (flags == CAT_FILE_EXIT) {
 		if (offset == -1)
 			exit(1);
 		else
 			exit(0);
+	}
 
 	if (offset == -1) {
 		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
@@ -104,7 +105,7 @@ cat_file_get_content(char *sha, uint8_t flags)
 	close(packfd);
 
 	if (memcmp(idxmap, "PACK", 4)) {
-		fprintf(stderr, "error: file %s is not a GIT packfile\n");
+		fprintf(stderr, "error: file %s is not a GIT packfile\n", idxfile);
 		fprintf(stderr, "error: bad object HEAD\n");
 		exit(128);
 	}
@@ -120,7 +121,7 @@ cat_file_get_content(char *sha, uint8_t flags)
 	nobjects = *(idxmap + loc + 3);
 
 	// Classify Object
-	struct objectinfo *objectinfo = idxmap + offset;
+	struct objectinfo *objectinfo = (struct objectinfo *)(idxmap + offset);
 
 	// Used for size
 	unsigned long size;
@@ -128,7 +129,7 @@ cat_file_get_content(char *sha, uint8_t flags)
 	unsigned long used = 0;
 
 
-        sevenbit = idxmap + offset;
+        sevenbit = (unsigned long *)(idxmap + offset);
         used++;
         size = *sevenbit & 0x0F;
 
@@ -141,7 +142,7 @@ cat_file_get_content(char *sha, uint8_t flags)
 	        And this value is added to the size total.
 	*/
         while(*sevenbit & 0x80) {
-                sevenbit = idxmap + offset + used;
+                sevenbit = (unsigned long *)(idxmap + offset + used);
                 size += (*sevenbit & 0x7F) << (4 + (7*(used-1)));
                 used++;
         }

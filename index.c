@@ -14,10 +14,10 @@
     This is the best I could do to make it readable.
 */
 struct cache_tree *
-parse_treeentries(char *indexmap, int *offset)
+parse_treeentries(unsigned char *indexmap, int *offset)
 {
 	struct cache_tree *cache_tree;
-	char *endptr;
+	unsigned char *endptr;
 	int q=0;
 
 	cache_tree = malloc(sizeof(struct cache_tree));
@@ -26,12 +26,12 @@ parse_treeentries(char *indexmap, int *offset)
 		*offset = *offset + 1;
 	*offset = *offset + 1;
 
-	cache_tree->entry_count = strtol(indexmap + *offset, &endptr, 10);
+	cache_tree->entry_count = strtol((const char *)(indexmap + (int)*offset), (char **)&endptr, 10);
 	*offset = *offset + (endptr - (indexmap + *offset));
 
 	*offset = *offset + 1; // Jump past the space
 
-	cache_tree->subtree_count = strtol(indexmap + *offset, &endptr, 10);
+	cache_tree->subtree_count = strtol((const char *)(indexmap + *offset), (char **)&endptr, 10);
 	*offset = *offset + (endptr - (indexmap + *offset));
 
 	*offset = *offset + 1; // Jump past the new line
@@ -55,12 +55,12 @@ parse_treeentries(char *indexmap, int *offset)
 }
 
 void
-parse_indexentries(char *indexmap, int *offset, int entries)
+parse_indexentries(unsigned char *indexmap, int *offset, int entries)
 {
 	struct indexentry *indexentry;
 	struct indexextentry *indexextentry;
 	char *name;
-uint8_t *sha;
+	uint8_t *sha;
 	int i;
 
 	indexentry = (struct indexentry *)((char *)indexmap + *offset);
@@ -84,9 +84,9 @@ uint8_t *sha;
 }
 
 struct cache_tree *
-parse_index(char *indexmap, off_t indexsize)
+parse_index(unsigned char *indexmap, off_t indexsize)
 {
-	struct cache_tree *cache_tree;
+	struct cache_tree *cache_tree = NULL;
 	struct indexcache *indexcache;
 	struct indexhdr *indexhdr;
 

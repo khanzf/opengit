@@ -2,6 +2,7 @@
 #include <sys/mman.h>
 #include <dirent.h>
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <limits.h>
 #include <fcntl.h>
@@ -19,10 +20,9 @@ unsigned char *
 pack_uncompress_object(unsigned char *idxmap, unsigned long size, int offset)
 {
 	z_stream strm;
-	int chunk_size, remaining_size, consumed = 0;
+	int chunk_size = 0, remaining_size, consumed = 0;
 	unsigned char *content;
 
-	unsigned char in[CHUNK];
 	unsigned char out[CHUNK];
 	unsigned have;
 	int ret;
@@ -38,7 +38,7 @@ pack_uncompress_object(unsigned char *idxmap, unsigned long size, int offset)
 	strm.next_in = Z_NULL;
 	ret = inflateInit(&strm);
 	if (ret != Z_OK)
-		return ret;
+		exit(ret);
 
 	/* decompress until deflate stream ends or end of file */
 	do {
@@ -67,7 +67,7 @@ pack_uncompress_object(unsigned char *idxmap, unsigned long size, int offset)
 			case Z_DATA_ERROR:
 			case Z_MEM_ERROR:
 				(void)inflateEnd(&strm);
-				return ret;
+				exit(ret);
 			}
 			have = CHUNK - strm.avail_out;
 			fwrite(out, 1, have, stdout);
@@ -87,7 +87,7 @@ pack_get_pack_get_content_type(unsigned char *idxmap, int offset)
 }
 
 int
-pack_find_sha_offset(char *sha, char *idxmap)
+pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap)
 {
 	struct fan *fans;
 	struct entry *entries;
@@ -98,7 +98,7 @@ pack_find_sha_offset(char *sha, char *idxmap)
 	int nelements;
 	int n;
 
-	if (strncmp(idxmap, "\xff\x74\x4f\x63", 4)) {
+	if (memcmp(idxmap, "\xff\x74\x4f\x63", 4)) {
 		fprintf(stderr, "Header signature does not match index version 2.\n");
 		exit(0);
 	}
@@ -112,12 +112,12 @@ pack_find_sha_offset(char *sha, char *idxmap)
 	idx_offset += 4;
 
 	// Get the fan table and capture last element
-	fans = idxmap + idx_offset;
+	fans = (struct fan *)(idxmap + idx_offset);
 	nelements = ntohl(fans->count[255]);
 	// Move to SHA entries
 	idx_offset += sizeof(struct fan);
 	// Point to SHA entries
-	entries = idxmap + idx_offset;
+	entries = (struct entry *)(idxmap + idx_offset);
 
 	for(n=0;n<nelements;n++)
 		if (!memcmp(entries[n].sha, sha, 20))
@@ -129,11 +129,11 @@ pack_find_sha_offset(char *sha, char *idxmap)
 	// Move to Checksums
 	idx_offset += (sizeof(struct entry) * nelements);
 	// Point to checksums
-	checksums = idxmap + idx_offset;
+	checksums = (struct checksum *)(idxmap + idx_offset);
 	// Move to Offsets
 	idx_offset += (nelements * 4);
 	// Capture Offsets
-	offsets = idxmap + idx_offset;
+	offsets = (struct offset *)(idxmap + idx_offset);
 
 	return ntohl(offsets[n].addr);
 }

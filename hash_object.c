@@ -74,13 +74,15 @@ hash_object_create_header(char *filepath, char *header)
 }
 
 int
-hash_object_create_zlib(FILE *source, FILE *dest, char *header, char *checksum)
+hash_object_create_zlib(FILE *source, FILE *dest, unsigned char *header, unsigned char *checksum)
 {
 	int ret, flush;
 	z_stream strm;
 	int have;
-	char in[Z_CHUNK];
-	char out[Z_CHUNK];
+//	char in[Z_CHUNK];
+//	char out[Z_CHUNK];
+	Bytef in[Z_CHUNK];
+	Bytef out[Z_CHUNK];
 	char filepath[PATH_MAX + NAME_MAX];
 
 	sprintf(filepath, "%s/objects/%c%c", dotgitpath, checksum[0], checksum[1]);
@@ -93,8 +95,8 @@ hash_object_create_zlib(FILE *source, FILE *dest, char *header, char *checksum)
 		return ret;
 
 	/* Beginning of writing the header */
-	strm.next_in = (char *) header;
-	strm.avail_in = strlen(header) + 1;
+	strm.next_in = (Bytef *)header;
+	strm.avail_in = strlen((const char *)header) + 1;
 
 	do {
 		strm.avail_out = Z_CHUNK;
@@ -160,8 +162,8 @@ hash_object_write(char *filearg, uint8_t flags)
 	int ret = 0;
 	FILE *fileptr;
 	FILE *objectfileptr = NULL;
-	char checksum[HEX_DIGEST_LENGTH];
-	char header[32];
+	unsigned char checksum[HEX_DIGEST_LENGTH];
+	unsigned char header[32];
 
 	git_repository_path();
 
@@ -171,7 +173,7 @@ hash_object_write(char *filearg, uint8_t flags)
 	hash_object_compute_checksum(fileptr,(char *)&checksum,(char *)&header);
 	hash_object_create_file(&objectfileptr, (char *) &checksum);
 	if (flags & CMD_HASH_OBJECT_WRITE)
-		hash_object_create_zlib(fileptr, objectfileptr, (char *)&header, (char *)&checksum);
+		hash_object_create_zlib(fileptr, objectfileptr, (unsigned char *)&header, (unsigned char *)&checksum);
 
 	printf("%s\n", checksum);
 	return (ret);

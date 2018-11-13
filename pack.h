@@ -50,6 +50,7 @@ struct packhdr {
 	uint8_t		sig[4];
 };
 
-int pack_find_sha_offset(char *sha, char *idxmap);
+int pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap);
+unsigned char *pack_uncompress_object(unsigned char *idxmap, unsigned long size, int offset);
 
 #endif
