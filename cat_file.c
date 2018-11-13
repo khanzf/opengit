@@ -128,6 +128,7 @@ cat_file_get_content_loose(char *sha_str, uint8_t flags)
 							printf("obj_ref_delta\n");
 							break;
 						}
+						exit(0);
 					}
 					else if (flags == CAT_FILE_EXIT)
 						exit(0);
