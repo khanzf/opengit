@@ -8,6 +8,12 @@
 #define CAT_FILE_SIZE		0x04
 #define CAT_FILE_EXIT		0x08
 
+// XXX Need to consolidate the zlib stuff to a single place
+#define CHUNK 16384
+
+void cat_file_get_content(char *sha_str, uint8_t flags);
+int cat_file_get_content_loose(char *sha_str, uint8_t flags);
+void cat_file_get_content_pack(char *sha_str, uint8_t flags);
 int cat_file_main(int argc, char *argv[]);
 
 #endif

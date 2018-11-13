@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <getopt.h>
 #include <fcntl.h>
+#include <zlib.h>
 #include "cat_file.h"
 #include "common.h"
 #include "pack.h"
@@ -28,7 +29,130 @@ cat_file_usage(int type)
 }
 
 void
-cat_file_get_content(unsigned char *sha, uint8_t flags)
+cat_file_get_content(char *sha_str, uint8_t flags)
+{
+	// Check if the loose file exists. If not, check the pack files
+	if (cat_file_get_content_loose(sha_str, flags) == 0)
+		cat_file_get_content_pack(sha_str, flags);
+}
+
+int
+cat_file_get_content_loose(char *sha_str, uint8_t flags)
+{
+	char objectpath[PATH_MAX];
+	int objectfd;
+	struct stat sb;
+
+	sprintf(objectpath, "%s/objects/%c%c/%s", dotgitpath, sha_str[0], sha_str[1], sha_str+2);
+	objectfd = open(objectpath, O_RDONLY);
+	if (objectfd == -1)
+		return 0;
+	fstat(objectfd, &sb);
+
+	unsigned have;
+	int ret;
+	uint8_t out[CHUNK];
+	uint8_t in[CHUNK];
+	z_stream strm;
+
+	// XXX Change these variable names to match the pack type?
+	long int size = 0;
+	int object_type;
+	char *ptr; // rename this?
+
+	strm.zalloc = Z_NULL;
+	strm.zfree = Z_NULL;
+	strm.opaque = Z_NULL;
+	strm.avail_in = 0;
+	strm.next_in = Z_NULL;
+	ret = inflateInit(&strm);
+	if (ret != Z_OK)
+		exit(ret);
+
+	do {
+		strm.avail_in = read(objectfd, in, CHUNK);
+		if (strm.avail_in == 0)
+			break;
+		strm.next_in = in;
+
+		do {
+			strm.avail_out = CHUNK;
+			strm.next_out = out;
+			ret = inflate(&strm, Z_NO_FLUSH);
+			switch(ret) {
+			case Z_NEED_DICT:
+				ret = Z_DATA_ERROR;
+			case Z_DATA_ERROR:
+			case Z_MEM_ERROR:
+				(void)inflateEnd(&strm);
+				exit(ret);
+			}
+			have = CHUNK - strm.avail_out;
+
+			if (size == 0) {
+				if (!memcmp(out, "commit ", 7)) {
+					size = strtol(out+7, &ptr, 10);
+					object_type = OBJ_COMMIT;
+					have -= (ptr - (char *)out) + 1;
+					ptr++;
+				}
+				else if (!memcmp(out, "tree", 4)) {
+					object_type = OBJ_TREE;
+				}
+				else if (!memcmp(out, "blob ", 5)) {
+					size = strtol(out+5, &ptr, 10);
+					object_type = OBJ_BLOB;
+					have -= (ptr - (char *)out) + 1;
+					ptr++;
+				}
+
+				if (flags == CAT_FILE_TYPE || flags == CAT_FILE_EXIT) {
+					if (flags == CAT_FILE_TYPE) {
+						switch(object_type) {
+						case OBJ_COMMIT:
+							printf("commit\n");
+							break;
+						case OBJ_TREE:
+							printf("tree\n");
+							break;
+						case OBJ_BLOB:
+							printf("blob\n");
+							break;
+						case OBJ_TAG:
+							printf("tag\n");
+							break;
+						case OBJ_OFS_DELTA:
+							printf("obj_ofs_delta\n");
+							break;
+						case OBJ_REF_DELTA:
+							printf("obj_ref_delta\n");
+							break;
+						}
+					}
+					else if (flags == CAT_FILE_EXIT)
+						exit(0);
+				}
+				else if (flags == CAT_FILE_SIZE) {
+					printf("%ld\n", size);
+					exit(0);
+				}
+			}
+			else {
+				ptr = out;
+			}
+
+			write(1, ptr, have);
+
+		} while(strm.avail_out == 0);
+	} while(ret != Z_STREAM_END);
+
+	(void)inflateEnd(&strm);
+
+	return 1;
+}
+
+void
+cat_file_get_content_pack(char *sha_str, uint8_t flags)
 {
 	DIR *d;
 	struct dirent *dir;
@@ -39,6 +163,11 @@ cat_file_get_content(unsigned char *sha, uint8_t flags)
 	unsigned char *idxmap;
 	struct stat sb;
 	int offset = 0;
+	uint8_t sha_bin[20];
+	int i;
+
+	for (i=0;i<20;i++)
+		sscanf(sha_str+i*2, "%2hhx", &sha_bin[i]);
 
 	sprintf(packdir, "%s/objects/pack", dotgitpath);
 	d = opendir(packdir);
@@ -61,7 +190,7 @@ cat_file_get_content(unsigned char *sha, uint8_t flags)
 			}
 			close(packfd);
 
-			offset = pack_find_sha_offset(sha, idxmap);
+			offset = pack_find_sha_offset(sha_bin, idxmap);
 
 			munmap(idxmap, sb.st_size);
 
@@ -128,7 +257,6 @@ cat_file_get_content(unsigned char *sha, uint8_t flags)
 	unsigned long *sevenbit;
 	unsigned long used = 0;
 
-
         sevenbit = (unsigned long *)(idxmap + offset);
         used++;
         size = *sevenbit & 0x0F;
@@ -180,10 +308,8 @@ cat_file_main(int argc, char *argv[])
 {
 	int ret = 0;
 	int ch;
-	char *sha;
+	char *sha_str;
 	uint8_t flags = 0;
-	unsigned char sha_bin[20];
-	int i;
 
 	argc--; argv++;
 
@@ -192,19 +318,19 @@ cat_file_main(int argc, char *argv[])
 		case 'p':
 			argc--;
 			argv++;
-			sha = argv[1];
+			sha_str = argv[1];
 			flags = CAT_FILE_PRINT;
 			break;
 		case 't':
 			argc--;
 			argv++;
-			sha = argv[1];
+			sha_str = argv[1];
 			flags = CAT_FILE_TYPE;
 			break;
 		case 's':
 			argc--;
 			argv++;
-			sha = argv[1];
+			sha_str = argv[1];
 			flags = CAT_FILE_SIZE;
 			break;
 		default:
@@ -217,14 +343,14 @@ cat_file_main(int argc, char *argv[])
 		exit(0);
 	}
 
-	for(i=0;i<20;i++)
-		sscanf(sha+i*2, "%2hhx", &sha_bin[i]);
+//	for(i=0;i<20;i++)
+//		sscanf(sha+i*2, "%2hhx", &sha_bin[i]);
 
 	switch(flags) {
 		case CAT_FILE_PRINT:
 		case CAT_FILE_TYPE:
 		case CAT_FILE_SIZE:
-			cat_file_get_content(sha_bin, flags);
+			cat_file_get_content(sha_str, flags);
 	}
 
 	return (ret);
