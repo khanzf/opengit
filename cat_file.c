@@ -141,7 +141,7 @@ cat_file_get_content_loose(char *sha_str, uint8_t flags)
 				ptr = out;
 			}
 
-			write(1, ptr, have);
+			write(STDOUT_FILENO, ptr, have);
 
 		} while(strm.avail_out == 0);
 	} while(ret != Z_STREAM_END);
