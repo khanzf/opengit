@@ -36,6 +36,34 @@ cat_file_get_content(char *sha_str, uint8_t flags)
 		cat_file_get_content_pack(sha_str, flags);
 }
 
+void
+cat_file_print_type_by_id(int object_type)
+{
+	switch(object_type) {
+	case OBJ_COMMIT:
+		printf("commit\n");
+		break;
+	case OBJ_TREE:
+		printf("tree\n");
+		break;
+	case OBJ_BLOB:
+		printf("blob\n");
+		break;
+	case OBJ_TAG:
+		printf("tag\n");
+		break;
+	case OBJ_OFS_DELTA:
+		printf("obj_ofs_delta\n");
+		break;
+	case OBJ_REF_DELTA:
+		printf("obj_ref_delta\n");
+		break;
+	default:
+		fprintf(stderr, "Unknown type, exiting.\n");
+		exit(1);
+	}
+}
+
 int
 cat_file_get_content_loose(char *sha_str, uint8_t flags)
 {
@@ -108,27 +136,7 @@ cat_file_get_content_loose(char *sha_str, uint8_t flags)
 
 				if (flags == CAT_FILE_TYPE || flags == CAT_FILE_EXIT) {
 					if (flags == CAT_FILE_TYPE) {
-						switch(object_type) {
-						case OBJ_COMMIT:
-							printf("commit\n");
-							break;
-						case OBJ_TREE:
-							printf("tree\n");
-							break;
-						case OBJ_BLOB:
-							printf("blob\n");
-							break;
-						case OBJ_TAG:
-							printf("tag\n");
-							break;
-						case OBJ_OFS_DELTA:
-							printf("obj_ofs_delta\n");
-							break;
-						case OBJ_REF_DELTA:
-							printf("obj_ref_delta\n");
-							break;
-						}
-						exit(0);
+						cat_file_print_type_by_id(object_type);
 					}
 					else if (flags == CAT_FILE_EXIT)
 						exit(0);
@@ -284,22 +292,7 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 			printf("%lu\n", size);
 			break;
 		case CAT_FILE_TYPE:
-			switch (objectinfo->type) {
-			case OBJ_COMMIT:
-				printf("commit\n"); break;
-			case OBJ_TREE:
-				printf("tree\n"); break;
-			case OBJ_BLOB:
-				printf("blob\n"); break;
-			case OBJ_TAG:
-				printf("tag\n"); break;
-			case OBJ_OFS_DELTA:
-				printf("OFS Delta\n"); break;
-			case OBJ_REF_DELTA:
-				printf("REF Delta\n"); break;
-			default:
-				printf("Default case\n"); break;
-			}
+			cat_file_print_type_by_id(objectinfo->type);
 			break;
 	}
 }
@@ -343,9 +336,6 @@ cat_file_main(int argc, char *argv[])
 		fprintf(stderr, "fatal: not a git repository (or any of the parent directories): .git");
 		exit(0);
 	}
-
-//	for(i=0;i<20;i++)
-//		sscanf(sha+i*2, "%2hhx", &sha_bin[i]);
 
 	switch(flags) {
 		case CAT_FILE_PRINT:
