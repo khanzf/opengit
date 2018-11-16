@@ -8,8 +8,10 @@
 #define CAT_FILE_SIZE		0x04
 #define CAT_FILE_EXIT		0x08
 
-// XXX Need to consolidate the zlib stuff to a single place
-#define CHUNK 16384
+struct looseobjectinfo {
+	int type;
+	long size;
+};
 
 void cat_file_get_content(char *sha_str, uint8_t flags);
 int cat_file_get_content_loose(char *sha_str, uint8_t flags);

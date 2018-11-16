@@ -10,6 +10,7 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include <zlib.h>
+#include "zlib_handler.h"
 #include "cat_file.h"
 #include "common.h"
 #include "pack.h"
@@ -64,98 +65,81 @@ cat_file_print_type_by_id(int object_type)
 	}
 }
 
+unsigned char *
+cat_file_get_loose_headers_callback(unsigned char *buf, int size, void *arg)
+{
+	struct looseobjectinfo *looseobjectinfo = arg;
+	unsigned char *location;
+	unsigned char *endptr;
+
+	looseobjectinfo->size = 0;
+
+	if (!memcmp(buf, "commit ", 7)) {
+		looseobjectinfo->type = OBJ_COMMIT;
+		location = buf + 7;
+		looseobjectinfo->size = strtol((char *)buf + 7, (char **)&endptr, 10);
+	}
+	else if (!memcmp(buf, "tree", 4)) {
+		looseobjectinfo->type = OBJ_TREE;
+		location = buf + 5;
+	}
+	else if (!memcmp(buf, "blob ", 5)) {
+		looseobjectinfo->type = OBJ_BLOB;
+		location = buf + 5;
+		looseobjectinfo->size = strtol((char *)buf + 5, (char **)&endptr, 10);
+	}
+	else if (!memcmp(buf, "tag", 3)) {
+		looseobjectinfo->type = OBJ_TAG;
+		location = buf + 3;
+	}
+	else if (!memcmp(buf, "obj_ofs_delta", 13)) {
+		looseobjectinfo->type = OBJ_REF_DELTA;
+		location = buf + 14;
+	}
+	else if (!memcmp(buf, "obj_ref_delta", 13)) {
+		looseobjectinfo->type = OBJ_REF_DELTA;
+		location = buf + 14;
+	}
+
+	return NULL;
+//	return &endptr;
+}
+
 int
 cat_file_get_content_loose(char *sha_str, uint8_t flags)
 {
 	char objectpath[PATH_MAX];
 	int objectfd;
-	struct stat sb;
+	struct writer_args writer_args;
+	struct looseobjectinfo looseobjectinfo;
 
 	sprintf(objectpath, "%s/objects/%c%c/%s", dotgitpath, sha_str[0], sha_str[1], sha_str+2);
 	objectfd = open(objectpath, O_RDONLY);
 	if (objectfd == -1)
 		return 0;
-	fstat(objectfd, &sb);
 
-	unsigned have;
-	int ret;
-	uint8_t out[CHUNK];
-	uint8_t in[CHUNK];
-	z_stream strm;
-
-	// XXX Change these variable names to match the pack type?
-	long int size = 0;
-	int object_type;
-	char *ptr; // rename this?
-
-	strm.zalloc = Z_NULL;
-	strm.zfree = Z_NULL;
-	strm.opaque = Z_NULL;
-	strm.avail_in = 0;
-	strm.next_in = Z_NULL;
-	ret = inflateInit(&strm);
-	if (ret != Z_OK)
-		exit(ret);
-
-	do {
-		strm.avail_in = read(objectfd, in, CHUNK);
-		if (strm.avail_in == 0)
+	switch(flags) {
+		case CAT_FILE_PRINT:
+			writer_args.fd = STDOUT_FILENO;
+			writer_args.sent = 0;
+			deflate_caller(objectfd,
+			    write_callback,
+			    &writer_args);
 			break;
-		strm.next_in = in;
-
-		do {
-			strm.avail_out = CHUNK;
-			strm.next_out = out;
-			ret = inflate(&strm, Z_NO_FLUSH);
-			switch(ret) {
-			case Z_NEED_DICT:
-				ret = Z_DATA_ERROR;
-			case Z_DATA_ERROR:
-			case Z_MEM_ERROR:
-				(void)inflateEnd(&strm);
-				exit(ret);
-			}
-			have = CHUNK - strm.avail_out;
-
-			if (size == 0) {
-				if (!memcmp(out, "commit ", 7)) {
-					size = strtol(out+7, &ptr, 10);
-					object_type = OBJ_COMMIT;
-					have -= (ptr - (char *)out) + 1;
-					ptr++;
-				}
-				else if (!memcmp(out, "tree", 4)) {
-					object_type = OBJ_TREE;
-				}
-				else if (!memcmp(out, "blob ", 5)) {
-					size = strtol(out+5, &ptr, 10);
-					object_type = OBJ_BLOB;
-					have -= (ptr - (char *)out) + 1;
-					ptr++;
-				}
-
-				if (flags == CAT_FILE_TYPE || flags == CAT_FILE_EXIT) {
-					if (flags == CAT_FILE_TYPE) {
-						cat_file_print_type_by_id(object_type);
-					}
-					else if (flags == CAT_FILE_EXIT)
-						exit(0);
-				}
-				else if (flags == CAT_FILE_SIZE) {
-					printf("%ld\n", size);
-					exit(0);
-				}
-			}
-			else {
-				ptr = out;
-			}
-
-			write(STDOUT_FILENO, ptr, have);
-
-		} while(strm.avail_out == 0);
-	} while(ret != Z_STREAM_END);
-
-	(void)inflateEnd(&strm);
+		case CAT_FILE_TYPE:
+			deflate_caller(objectfd,
+			    cat_file_get_loose_headers_callback,
+			    &looseobjectinfo);
+			cat_file_print_type_by_id(looseobjectinfo.type);
+			break;
+		case CAT_FILE_SIZE:
+			deflate_caller(objectfd,
+			    cat_file_get_loose_headers_callback,
+			    &looseobjectinfo);
+//			cat_file_print_type_by_id(looseobjectinfo.type);
+			printf("%lu\n", looseobjectinfo.size);
+			break;
+	}
 
 	return 1;
 }
@@ -240,7 +224,7 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 		fprintf(stderr, "mmap(2) error, exiting.\n");
 		exit(0);
 	}
-	close(packfd);
+//	close(packfd);
 
 	if (memcmp(idxmap, "PACK", 4)) {
 		fprintf(stderr, "error: file %s is not a GIT packfile\n", idxfile);
@@ -259,7 +243,7 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	nobjects = *(idxmap + loc + 3);
 
 	// Classify Object
-	struct objectinfo *objectinfo = (struct objectinfo *)(idxmap + offset);
+	struct objectinfohdr *objectinfohdr = (struct objectinfohdr *)(idxmap + offset);
 
 	// Used for size
 	unsigned long size;
@@ -284,15 +268,17 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
                 used++;
         }
 
+	lseek(packfd, offset + used, SEEK_CUR);
+
 	switch(flags) {
 		case CAT_FILE_PRINT:
-			pack_uncompress_object(idxmap, size, offset + used);
+			pack_uncompress_object(packfd);
 			break;
 		case CAT_FILE_SIZE:
 			printf("%lu\n", size);
 			break;
 		case CAT_FILE_TYPE:
-			cat_file_print_type_by_id(objectinfo->type);
+			cat_file_print_type_by_id(objectinfohdr->type);
 			break;
 	}
 }

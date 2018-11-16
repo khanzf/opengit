@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <sha.h>
 #include <zlib.h>
+#include "zlib_handler.h"
 #include "hash_object.h"
 #include "common.h"
 #include "ini.h"
@@ -79,10 +80,8 @@ hash_object_create_zlib(FILE *source, FILE *dest, unsigned char *header, unsigne
 	int ret, flush;
 	z_stream strm;
 	int have;
-//	char in[Z_CHUNK];
-//	char out[Z_CHUNK];
-	Bytef in[Z_CHUNK];
-	Bytef out[Z_CHUNK];
+	Bytef in[CHUNK];
+	Bytef out[CHUNK];
 	char filepath[PATH_MAX + NAME_MAX];
 
 	sprintf(filepath, "%s/objects/%c%c", dotgitpath, checksum[0], checksum[1]);
@@ -99,19 +98,19 @@ hash_object_create_zlib(FILE *source, FILE *dest, unsigned char *header, unsigne
 	strm.avail_in = strlen((const char *)header) + 1;
 
 	do {
-		strm.avail_out = Z_CHUNK;
+		strm.avail_out = CHUNK;
 		strm.next_out = out;
 		if (deflate (& strm, Z_NO_FLUSH) < 0) {
 			fprintf(stderr, "returned a bad status of.\n");
 			exit(0);
 		}
-		have = Z_CHUNK - strm.avail_out;
+		have = CHUNK - strm.avail_out;
 		fwrite(out, 1, have, dest);
 	} while(strm.avail_out == 0);
 
 	/* Beginning of file content */
 	do {
-		strm.avail_in = fread(in, 1, Z_CHUNK, source);
+		strm.avail_in = fread(in, 1, CHUNK, source);
 		if (ferror(source)) {
 			(void)deflateEnd(&strm);
 			return Z_ERRNO;
@@ -121,10 +120,10 @@ hash_object_create_zlib(FILE *source, FILE *dest, unsigned char *header, unsigne
 		strm.next_in = in;
 
 		do {
-			strm.avail_out = Z_CHUNK;
+			strm.avail_out = CHUNK;
 			strm.next_out = out;
 			ret = deflate(&strm, flush);
-			have = Z_CHUNK - strm.avail_out;
+			have = CHUNK - strm.avail_out;
 			if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
 				(void)deflateEnd(&strm);
 				return Z_ERRNO;

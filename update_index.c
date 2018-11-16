@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sha.h>
-#include <zlib.h>
 #include "common.h"
 #include "index.h"
 #include "ini.h"
