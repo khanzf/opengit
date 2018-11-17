@@ -65,44 +65,72 @@ cat_file_print_type_by_id(int object_type)
 	}
 }
 
-unsigned char *
-cat_file_get_loose_headers_callback(unsigned char *buf, int size, void *arg)
+int
+cat_file_get_loose_headers(unsigned char *buf, int size, void *arg)
 {
-	struct looseobjectinfo *looseobjectinfo = arg;
-	unsigned char *location;
+	struct loosearg *loosearg = arg;
 	unsigned char *endptr;
+	int hdr_offset = 0;
 
-	looseobjectinfo->size = 0;
-
+	// Is there a cleaner way to do this?
 	if (!memcmp(buf, "commit ", 7)) {
-		looseobjectinfo->type = OBJ_COMMIT;
-		location = buf + 7;
-		looseobjectinfo->size = strtol((char *)buf + 7, (char **)&endptr, 10);
+		loosearg->type = OBJ_COMMIT;
+		loosearg->size = strtol((char *)buf + 7, (char **)&endptr, 10);
+		hdr_offset = 8 + (endptr - (buf+7));
 	}
-	else if (!memcmp(buf, "tree", 4)) {
-		looseobjectinfo->type = OBJ_TREE;
-		location = buf + 5;
+	else if (!memcmp(buf, "tree ", 5)) {
+		loosearg->type = OBJ_TREE;
+		loosearg->size = strtol((char *)buf + 5, (char **)&endptr, 10);
+		hdr_offset = 6 + (endptr - (buf+5));
 	}
 	else if (!memcmp(buf, "blob ", 5)) {
-		looseobjectinfo->type = OBJ_BLOB;
-		location = buf + 5;
-		looseobjectinfo->size = strtol((char *)buf + 5, (char **)&endptr, 10);
+		loosearg->type = OBJ_BLOB;
+		loosearg->size = strtol((char *)buf + 5, (char **)&endptr, 10);
+		hdr_offset = 6 + (endptr - buf);
 	}
 	else if (!memcmp(buf, "tag", 3)) {
-		looseobjectinfo->type = OBJ_TAG;
-		location = buf + 3;
+		loosearg->type = OBJ_TAG;
+		hdr_offset = 3;
 	}
 	else if (!memcmp(buf, "obj_ofs_delta", 13)) {
-		looseobjectinfo->type = OBJ_REF_DELTA;
-		location = buf + 14;
+		loosearg->type = OBJ_REF_DELTA;
+		hdr_offset = 15;
 	}
 	else if (!memcmp(buf, "obj_ref_delta", 13)) {
-		looseobjectinfo->type = OBJ_REF_DELTA;
-		location = buf + 14;
+		loosearg->type = OBJ_REF_DELTA;
+		hdr_offset = 15;
 	}
 
-	return NULL;
-//	return &endptr;
+	return hdr_offset;
+}
+
+unsigned char *
+cat_loose_object_callback(unsigned char *buf, int size, void *arg)
+{
+	struct loosearg *loosearg = arg;
+	int hdr_offset;
+
+	if (loosearg->step == 0) {
+		loosearg->step++;
+		hdr_offset = cat_file_get_loose_headers(buf, size, arg);
+		switch(loosearg->cmd) {
+		case CAT_FILE_TYPE:
+			cat_file_get_loose_headers(buf, size, arg);
+			cat_file_print_type_by_id(loosearg->type);
+			return NULL;
+		case CAT_FILE_SIZE:
+			printf("%lu\n", loosearg->size);
+			return NULL;
+		case CAT_FILE_PRINT:
+			size -= hdr_offset;
+			buf += hdr_offset;
+			break;
+		}
+	}
+
+	write(loosearg->fd, buf, size);
+
+	return buf;
 }
 
 int
@@ -110,36 +138,19 @@ cat_file_get_content_loose(char *sha_str, uint8_t flags)
 {
 	char objectpath[PATH_MAX];
 	int objectfd;
-	struct writer_args writer_args;
-	struct looseobjectinfo looseobjectinfo;
+	struct loosearg loosearg;
 
 	sprintf(objectpath, "%s/objects/%c%c/%s", dotgitpath, sha_str[0], sha_str[1], sha_str+2);
 	objectfd = open(objectpath, O_RDONLY);
 	if (objectfd == -1)
 		return 0;
 
-	switch(flags) {
-		case CAT_FILE_PRINT:
-			writer_args.fd = STDOUT_FILENO;
-			writer_args.sent = 0;
-			deflate_caller(objectfd,
-			    write_callback,
-			    &writer_args);
-			break;
-		case CAT_FILE_TYPE:
-			deflate_caller(objectfd,
-			    cat_file_get_loose_headers_callback,
-			    &looseobjectinfo);
-			cat_file_print_type_by_id(looseobjectinfo.type);
-			break;
-		case CAT_FILE_SIZE:
-			deflate_caller(objectfd,
-			    cat_file_get_loose_headers_callback,
-			    &looseobjectinfo);
-//			cat_file_print_type_by_id(looseobjectinfo.type);
-			printf("%lu\n", looseobjectinfo.size);
-			break;
-	}
+	loosearg.fd = STDOUT_FILENO;
+	loosearg.cmd = flags;
+	loosearg.step = 0;
+	loosearg.sent = 0;
+
+	deflate_caller(objectfd, cat_loose_object_callback, &loosearg);
 
 	return 1;
 }
@@ -224,7 +235,6 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 		fprintf(stderr, "mmap(2) error, exiting.\n");
 		exit(0);
 	}
-//	close(packfd);
 
 	if (memcmp(idxmap, "PACK", 4)) {
 		fprintf(stderr, "error: file %s is not a GIT packfile\n", idxfile);
@@ -236,7 +246,8 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	version = *(idxmap + loc + 3);
 	if (version != 2) {
 		fprintf(stderr, "error: unsupported version: %d\n", version);
-		exit(128); // XXX replace 128 with proper return macro value
+		// XXX replace 128 with proper return macro value
+		exit(128);
 	}
 
 	loc += 4;

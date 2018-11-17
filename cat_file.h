@@ -8,7 +8,12 @@
 #define CAT_FILE_SIZE		0x04
 #define CAT_FILE_EXIT		0x08
 
-struct looseobjectinfo {
+struct loosearg {
+	int fd;
+	uint8_t cmd;
+	int step;
+	long sent;
+
 	int type;
 	long size;
 };
