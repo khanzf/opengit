@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sha.h>
+#include "zlib_handler.h"
 #include "log.h"
 #include "common.h"
 #include "ini.h"
@@ -37,10 +37,115 @@ log_usage(int type)
 	return 129;
 }
 
+unsigned char *
+log_display_cb(unsigned char *buf, int size, void *arg)
+{
+	char *tmp, *content, *token;
+	struct logarg *logarg = arg;
+	int offset = 0;
+
+	if (logarg->status == LOG_STATUS_COMMIT) {
+		logarg->status = 1;
+		offset = 11;
+	}
+
+	if (logarg->status == LOG_STATUS_HEADERS) {
+		// Added content to headers
+		logarg->headers = realloc(logarg->headers, logarg->size + size - offset);
+		memset(logarg->headers + logarg->size, 0, size);
+		strncpy(logarg->headers + logarg->size, (char *)buf + offset, size - offset);
+
+		content = strstr(logarg->headers, "\n\n");
+		if (content != NULL) {
+			logarg->status = 2; // Found
+			content = content + 2;
+			logarg->status = 3;
+
+			tmp = strdup(logarg->headers);
+
+			printf("commit %s\n", logarg->sha);
+			// process headers
+			while((token = strsep(&tmp, "\n")) != NULL) {
+				if (strncmp(token, "parent ", 7) == 0) {
+					strncpy(logarg->sha, token+7, 40);
+					logarg->status |= LOG_STATUS_PARENT;
+				}
+				else if (strncmp(token, "author ", 7) == 0) {
+					printf("%s\n", token);
+					logarg->status |= LOG_STATUS_AUTHOR;
+				}
+			}
+
+			printf("%s", content);
+		}
+
+		free(tmp);
+	}
+	else {
+		printf("%s", buf);
+	}
+
+	return NULL;
+}
+
 void
 log_display_commits()
 {
-	printf("Log commits\n");
+	int headfd;
+	char headfile[PATH_MAX];
+	char refpath[PATH_MAX];
+	char ref[PATH_MAX];
+	int l;
+	int startfd;
+	struct logarg logarg;
+
+	bzero(&logarg, sizeof(struct logarg));
+
+	sprintf(headfile, "%s/HEAD", dotgitpath);
+	headfd = open(headfile, O_RDONLY);
+	if (headfd == -1) {
+		fprintf(stderr, "Error, no HEAD file found. We prob aren't in a git directory\n");
+		exit(128);
+	}
+
+	read(headfd, ref, 5);
+	if (strncmp(ref, "ref: ", 5) == 0) {
+		ref[6] = '\0';
+		l = read(headfd, ref, PATH_MAX) - 1;
+		if (ref[l] == '\n')
+			ref[l] = '\0';
+		sprintf(refpath, "%s/%s", dotgitpath, ref);
+	}
+	else {
+		fprintf(stderr, "Currently not supporting the raw hash in HEAD\n");
+		exit(128);
+	}
+	close(headfd);
+
+	headfd = open(refpath, O_RDONLY);
+	if (headfd == -1) {
+		fprintf("failed to open: %s\n", refpath);
+		exit(128);
+	}
+
+	read(headfd, logarg.sha, 40);
+
+	char objectpath[PATH_MAX];
+	int objectfd;
+
+	logarg.status = LOG_STATUS_PARENT;
+	while(logarg.status & LOG_STATUS_PARENT) {
+		logarg.status = 0;
+		sprintf(objectpath, "%s/objects/%c%c/%s",
+		    dotgitpath, logarg.sha[0], logarg.sha[1],
+		    logarg.sha+2);
+		objectfd = open(objectpath, O_RDONLY);
+		deflate_caller(objectfd, log_display_cb, &logarg);
+		close(objectfd);
+
+		putchar('\n');
+	}
+
 }
 
 int
