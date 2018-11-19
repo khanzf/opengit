@@ -37,10 +37,32 @@ log_usage(int type)
 	return 129;
 }
 
+void
+log_print_commit_headers(struct logarg *logarg)
+{
+	char *token, *tmp;
+
+	tmp = strdup(logarg->headers);
+	printf("\e[0;33mcommit %s\e[0m\n", logarg->sha);
+
+	while((token = strsep(&tmp, "\n")) != NULL) {
+		if (strncmp(token, "parent ", 7) == 0) {
+			strncpy(logarg->sha, token+7, 40);
+			logarg->status |= LOG_STATUS_PARENT;
+		}
+		else if (strncmp(token, "author ", 7) == 0) {
+			printf("Author:\t%s\n", token);
+			printf("Date:\t%s\n", token);
+			logarg->status |= LOG_STATUS_AUTHOR;
+		}
+	}
+
+}
+
 unsigned char *
 log_display_cb(unsigned char *buf, int size, void *arg)
 {
-	char *tmp, *content, *token;
+	char *content;
 	struct logarg *logarg = arg;
 	int offset = 0;
 
@@ -59,27 +81,11 @@ log_display_cb(unsigned char *buf, int size, void *arg)
 		if (content != NULL) {
 			logarg->status = 2; // Found
 			content = content + 2;
-			logarg->status = 3;
 
-			tmp = strdup(logarg->headers);
-
-			printf("commit %s\n", logarg->sha);
-			// process headers
-			while((token = strsep(&tmp, "\n")) != NULL) {
-				if (strncmp(token, "parent ", 7) == 0) {
-					strncpy(logarg->sha, token+7, 40);
-					logarg->status |= LOG_STATUS_PARENT;
-				}
-				else if (strncmp(token, "author ", 7) == 0) {
-					printf("%s\n", token);
-					logarg->status |= LOG_STATUS_AUTHOR;
-				}
-			}
-
+			log_print_commit_headers(logarg);
+			putchar('\n');
 			printf("%s", content);
 		}
-
-		free(tmp);
 	}
 	else {
 		printf("%s", buf);
@@ -160,10 +166,8 @@ log_main(int argc, char *argv[])
 	while((ch = getopt_long(argc, argv, "", long_options, NULL)) != -1)
 		switch(ch) {
 		case 0:
-			printf("0\n");
 			break;
 		case 1:
-			printf("1\n");
 			break;
 		default:
 			printf("Currently not implemented\n");
