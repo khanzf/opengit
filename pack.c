@@ -20,7 +20,7 @@ pack_uncompress_object(int packfd)
 	struct writer_args writer_args;
 	writer_args.fd = STDOUT_FILENO;
 	writer_args.sent = 0;
-	deflate_caller(packfd, write_callback, &writer_args);
+	deflate_caller(packfd, write_cb, &writer_args);
 }
 
 int

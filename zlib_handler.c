@@ -6,7 +6,7 @@
 #include "zlib_handler.h"
 
 unsigned char *
-write_callback(unsigned char *buf, int size, void *arg)
+write_cb(unsigned char *buf, int size, void *arg)
 {
 	struct writer_args *writer_args = arg;
 

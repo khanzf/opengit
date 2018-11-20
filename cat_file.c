@@ -105,7 +105,7 @@ cat_file_get_loose_headers(unsigned char *buf, int size, void *arg)
 }
 
 unsigned char *
-cat_loose_object_callback(unsigned char *buf, int size, void *arg)
+cat_loose_object_cb(unsigned char *buf, int size, void *arg)
 {
 	struct loosearg *loosearg = arg;
 	int hdr_offset;
@@ -150,7 +150,7 @@ cat_file_get_content_loose(char *sha_str, uint8_t flags)
 	loosearg.step = 0;
 	loosearg.sent = 0;
 
-	deflate_caller(objectfd, cat_loose_object_callback, &loosearg);
+	deflate_caller(objectfd, cat_loose_object_cb, &loosearg);
 
 	return 1;
 }

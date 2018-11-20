@@ -19,7 +19,7 @@ static struct option long_options[] =
 	{NULL, 0, NULL, 0}
 };
 
-int
+void
 log_usage(int type)
 {
 	fprintf(stderr, "usage: git log [<options>] [<revision-range>] [[--] <path>...]\n");
@@ -33,8 +33,7 @@ log_usage(int type)
 	fprintf(stderr, "                          do not decorate refs that match <pattern>\n");
 	fprintf(stderr, "    --decorate[=...]      decorate options\n");
 	fprintf(stderr, "    -L <n,m:file>         Process line range n,m in file, counting from 1\n\n");
-	exit(129);
-	return 129;
+	exit(128);
 }
 
 void

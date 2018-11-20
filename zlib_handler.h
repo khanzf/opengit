@@ -11,6 +11,6 @@ struct writer_args {
 typedef unsigned char *inflated_handler(unsigned char *, int size, void *data);
 
 int deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg);
-unsigned char *write_callback(unsigned char *buf, int size, void *arg);
+unsigned char *write_cb(unsigned char *buf, int size, void *arg);
 
 #endif
