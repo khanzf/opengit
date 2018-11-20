@@ -41,8 +41,12 @@ void
 log_print_commit_headers(struct logarg *logarg)
 {
 	char *token, *tmp;
+	char *tofree;
+	char *datestr;
+	char author[255];
+	long t;
 
-	tmp = strdup(logarg->headers);
+	tofree = tmp = strdup(logarg->headers);
 	printf("\e[0;33mcommit %s\e[0m\n", logarg->sha);
 
 	while((token = strsep(&tmp, "\n")) != NULL) {
@@ -51,11 +55,18 @@ log_print_commit_headers(struct logarg *logarg)
 			logarg->status |= LOG_STATUS_PARENT;
 		}
 		else if (strncmp(token, "author ", 7) == 0) {
-			printf("Author:\t%s\n", token);
-			printf("Date:\t%s\n", token);
+			t = strtol(token + 38, NULL, 10);
+			datestr = ctime(&t);
+			datestr[24] = '\0';
+			strncpy(author, token+7, strlen(token)-23);
+			printf("Author:\t%s\n", author);
+			printf("Date:\t%s %s\n", datestr, token + strlen(token)-5);
 			logarg->status |= LOG_STATUS_AUTHOR;
 		}
 	}
+
+	free(tmp);
+	free(tofree);
 
 }
 
@@ -102,7 +113,6 @@ log_display_commits()
 	char refpath[PATH_MAX];
 	char ref[PATH_MAX];
 	int l;
-	int startfd;
 	struct logarg logarg;
 
 	bzero(&logarg, sizeof(struct logarg));
@@ -130,7 +140,7 @@ log_display_commits()
 
 	headfd = open(refpath, O_RDONLY);
 	if (headfd == -1) {
-		fprintf("failed to open: %s\n", refpath);
+		fprintf(stderr, "failed to open: %s\n", refpath);
 		exit(128);
 	}
 
@@ -149,7 +159,8 @@ log_display_commits()
 		deflate_caller(objectfd, log_display_cb, &logarg);
 		close(objectfd);
 
-		putchar('\n');
+		if (logarg.status & LOG_STATUS_PARENT)
+			putchar('\n');
 	}
 
 }
