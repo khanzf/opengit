@@ -97,29 +97,25 @@ log_display_cb(unsigned char *buf, int size, void *arg)
 			printf("%s", content);
 		}
 	}
-	else {
+	else
 		printf("%s", buf);
-	}
 
 	return NULL;
 }
 
 void
-log_display_commits()
+log_get_start_sha(struct logarg *logarg)
 {
 	int headfd;
 	char headfile[PATH_MAX];
 	char refpath[PATH_MAX];
 	char ref[PATH_MAX];
 	int l;
-	struct logarg logarg;
-
-	bzero(&logarg, sizeof(struct logarg));
 
 	sprintf(headfile, "%s/HEAD", dotgitpath);
 	headfd = open(headfile, O_RDONLY);
 	if (headfd == -1) {
-		fprintf(stderr, "Error, no HEAD file found. We prob aren't in a git directory\n");
+		fprintf(stderr, "Error, no HEAD file found. This may not be a git directory\n");
 		exit(128);
 	}
 
@@ -138,30 +134,58 @@ log_display_commits()
 	close(headfd);
 
 	headfd = open(refpath, O_RDONLY);
-	if (headfd == -1) {
-		fprintf(stderr, "failed to open: %s\n", refpath);
+	if(headfd == -1) {
+		fprintf(stderr, "failed to open %s\n", refpath);
 		exit(128);
 	}
 
-	read(headfd, logarg.sha, 40);
+	read(headfd, logarg->sha, 40);
+}
 
-	char objectpath[PATH_MAX];
+int
+log_get_loose_object(struct logarg *logarg)
+{
 	int objectfd;
+	char objectpath[PATH_MAX];
+
+	sprintf(objectpath, "%s/objects/%c%c/%s",
+	    dotgitpath, logarg->sha[0], logarg->sha[1],
+	    logarg->sha+2);
+	objectfd = open(objectpath, O_RDONLY);
+	if (objectfd == -1) {
+		close(objectfd);
+		return 0;
+	}
+	deflate_caller(objectfd, log_display_cb, logarg);
+	close(objectfd);
+
+	return 1;
+}
+
+int
+log_get_pack_object(struct logarg *logarg)
+{
+	return 0;
+}
+
+void
+log_display_commits()
+{
+	struct logarg logarg;
+
+	bzero(&logarg, sizeof(struct logarg));
+	log_get_start_sha(&logarg);
 
 	logarg.status = LOG_STATUS_PARENT;
 	while(logarg.status & LOG_STATUS_PARENT) {
 		logarg.status = 0;
-		sprintf(objectpath, "%s/objects/%c%c/%s",
-		    dotgitpath, logarg.sha[0], logarg.sha[1],
-		    logarg.sha+2);
-		objectfd = open(objectpath, O_RDONLY);
-		deflate_caller(objectfd, log_display_cb, &logarg);
-		close(objectfd);
-
+		if (!log_get_loose_object(&logarg) && !log_get_pack_object(&logarg)) {
+			fprintf(stderr, "The object %s not found, git repository may be corrupt.\n", logarg.sha);
+			exit(128);
+		}
 		if (logarg.status & LOG_STATUS_PARENT)
 			putchar('\n');
 	}
-
 }
 
 int
