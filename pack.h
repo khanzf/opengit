@@ -52,5 +52,6 @@ struct packhdr {
 
 int pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap);
 void pack_uncompress_object(int packfd);
+int pack_get_packfile_offset(char *sha_str, char *filename);
 
 #endif

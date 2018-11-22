@@ -158,52 +158,10 @@ cat_file_get_content_loose(char *sha_str, uint8_t flags)
 void
 cat_file_get_content_pack(char *sha_str, uint8_t flags)
 {
-	DIR *d;
-	struct dirent *dir;
-	char packdir[PATH_MAX];
-	char idxfile[PATH_MAX];
-	int packfd;
-	char *file_ext;
-	unsigned char *idxmap;
-	struct stat sb;
-	int offset = 0;
-	uint8_t sha_bin[20];
-	int i;
+	char filename[PATH_MAX];
+	int offset;
 
-	for (i=0;i<20;i++)
-		sscanf(sha_str+i*2, "%2hhx", &sha_bin[i]);
-
-	sprintf(packdir, "%s/objects/pack", dotgitpath);
-	d = opendir(packdir);
-
-	/* Find hash in idx file or die */
-	if (d) {
-		while((dir = readdir(d)) != NULL) {
-			file_ext = strrchr(dir->d_name, '.');
-			if (!file_ext || strncmp(file_ext, ".idx", 4))
-				continue;
-			sprintf(idxfile, "%s/objects/pack/%s", dotgitpath, dir->d_name);
-
-			packfd = open(idxfile, O_RDONLY);
-			fstat(packfd, &sb);
-			idxmap = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, packfd, 0);
-
-			if (idxmap == NULL) {
-				fprintf(stderr, "mmap(2) error, exiting.\n");
-				exit(0);
-			}
-			close(packfd);
-
-			offset = pack_find_sha_offset(sha_bin, idxmap);
-
-			munmap(idxmap, sb.st_size);
-
-			if (offset != -1)
-				break;
-		}
-	}
-
-	// Process CAT_FILE_EXIT here
+	offset = pack_get_packfile_offset(sha_str, filename);
 	if (flags == CAT_FILE_EXIT) {
 		if (offset == -1)
 			exit(1);
@@ -220,10 +178,13 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	int version;
 	int nobjects;
 	int loc;
+	int packfd;
+	struct stat sb;
+	unsigned char *idxmap;
 
-	strncpy(idxfile+strlen(idxfile)-4, ".pack", 6);
+	strncpy(filename+strlen(filename)-4, ".pack", 6);
 
-	packfd = open(idxfile, O_RDONLY);
+	packfd = open(filename, O_RDONLY);
 	if (packfd == -1) {
 		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
 		exit(128); // XXX replace 128 with proper return macro value
@@ -237,7 +198,6 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	}
 
 	if (memcmp(idxmap, "PACK", 4)) {
-		fprintf(stderr, "error: file %s is not a GIT packfile\n", idxfile);
 		fprintf(stderr, "error: bad object HEAD\n");
 		exit(128);
 	}
