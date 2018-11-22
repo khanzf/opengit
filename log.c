@@ -13,6 +13,7 @@
 #include "log.h"
 #include "common.h"
 #include "ini.h"
+#include "pack.h"
 
 static struct option long_options[] =
 {
@@ -165,7 +166,36 @@ log_get_loose_object(struct logarg *logarg)
 int
 log_get_pack_object(struct logarg *logarg)
 {
-	return 0;
+	char filename[PATH_MAX];
+	int offset;
+	int packfd;
+	struct objectinfohdr objectinfohdr;
+	struct objectinfo objectinfo;
+
+	offset = pack_get_packfile_offset(logarg->sha, filename);
+	if (offset == -1)
+		return 0;
+
+
+	strncpy(filename+strlen(filename)-4, ".pack", 6);
+	packfd = open(filename, O_RDONLY);
+	if (packfd == -1) {
+		fprintf(stderr, "fatal: git log: could not get object info\n");
+		exit(128);
+	}
+	pack_parse_header(packfd);
+
+	lseek(packfd, offset, SEEK_SET);
+	read(packfd, &objectinfohdr, sizeof(struct objectinfohdr));
+
+	lseek(packfd, offset, SEEK_SET);
+	pack_object_header(packfd, offset, &objectinfo);
+
+	lseek(packfd, offset + objectinfo.used, SEEK_SET);
+	deflate_caller(packfd, log_display_cb, logarg);
+	close(packfd);
+
+	return 1;
 }
 
 void
