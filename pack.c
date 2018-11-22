@@ -107,6 +107,25 @@ pack_parse_header(int packfd)
 	nobjects = ntohl(nobjects);
 }
 
+void
+pack_object_header(int packfd, int offset, struct objectinfo *objectinfo)
+{
+	unsigned long sevenbit;
+
+	objectinfo->used = 1;
+
+	read(packfd, &sevenbit, sizeof(unsigned long));
+	objectinfo->size = sevenbit & 0x0F;
+
+	while(sevenbit & 0x80) {
+		lseek(packfd, offset + objectinfo->used, SEEK_SET);
+		read(packfd, &sevenbit, sizeof(unsigned long));
+		objectinfo->size += (sevenbit & 0x7F) << (4 + (7*(objectinfo->used-1)));
+		objectinfo->used++;
+	}
+
+}
+
 int
 pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap)
 {

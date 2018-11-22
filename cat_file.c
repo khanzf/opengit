@@ -162,6 +162,8 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	char filename[PATH_MAX];
 	int offset;
 	int packfd;
+	struct objectinfohdr objectinfohdr;
+	struct objectinfo objectinfo;
 
 	offset = pack_get_packfile_offset(sha_str, filename);
 	if (flags == CAT_FILE_EXIT) {
@@ -180,50 +182,23 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	packfd = open(filename, O_RDONLY);
 	if (packfd == -1) {
 		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
-		exit(128); // XXX replace 128 with proper return macro value
+		exit(128);
 	}
-
 	pack_parse_header(packfd);
 
 	lseek(packfd, offset, SEEK_SET);
-	struct objectinfohdr objectinfohdr;
-
 	read(packfd, &objectinfohdr, sizeof(struct objectinfohdr));
 
-	// Used for size
-	unsigned long size;
-	unsigned long sevenbit;
-	unsigned long used = 0;
-
 	lseek(packfd, offset, SEEK_SET);
-
-	read(packfd, &sevenbit, sizeof(unsigned long)); // 8
-        used++;
-        size = sevenbit & 0x0F;
-
-	/*
-		The next 'while' block calculates the object size
-	        Git's size count is all sorts of screwy
-	        In short, we are adding up the value of the lower 4 bits.
-	        If the highest bit of the lower 8-bits is 1, then look at the next 8 bits
-	        Those lower 4 bits are shifted over by 4 + (7 times the iteration we are on).
-	        And this value is added to the size total.
-	*/
-        while(sevenbit & 0x80) {
-		lseek(packfd, offset + used, SEEK_SET);
-		read(packfd, &sevenbit, sizeof(unsigned long));
-		size += (sevenbit & 0x7F) << (4 + (7*(used-1)));
-		used++;
-	}
-
-	lseek(packfd, offset + used, SEEK_SET);
+	pack_object_header(packfd, offset, &objectinfo);
 
 	switch(flags) {
 		case CAT_FILE_PRINT:
+			lseek(packfd, offset + objectinfo.used, SEEK_SET);
 			pack_uncompress_object(packfd);
 			break;
 		case CAT_FILE_SIZE:
-			printf("%lu\n", size);
+			printf("%lu\n", objectinfo.size);
 			break;
 		case CAT_FILE_TYPE:
 			cat_file_print_type_by_id(objectinfohdr.type);
