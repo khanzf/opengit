@@ -182,6 +182,7 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	packfd = open(filename, O_RDONLY);
 	if (packfd == -1) {
 		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
+		fprintf(stderr, "This The git repository may be corrupt.\n");
 		exit(128);
 	}
 	pack_parse_header(packfd);
@@ -204,6 +205,8 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 			cat_file_print_type_by_id(objectinfohdr.type);
 			break;
 	}
+
+	close(packfd);
 }
 
 int
