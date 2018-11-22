@@ -1,3 +1,4 @@
+#include <netinet/in.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <dirent.h>
@@ -160,6 +161,7 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 {
 	char filename[PATH_MAX];
 	int offset;
+	int packfd;
 
 	offset = pack_get_packfile_offset(sha_str, filename);
 	if (flags == CAT_FILE_EXIT) {
@@ -174,56 +176,30 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 		exit(128);
 	}
 
-	/* Pack file part */
-	int version;
-	int nobjects;
-	int loc;
-	int packfd;
-	struct stat sb;
-	unsigned char *idxmap;
-
 	strncpy(filename+strlen(filename)-4, ".pack", 6);
-
 	packfd = open(filename, O_RDONLY);
 	if (packfd == -1) {
 		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
 		exit(128); // XXX replace 128 with proper return macro value
 	}
-	fstat(packfd, &sb);
 
-	idxmap = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, packfd, 0);
-	if (idxmap == MAP_FAILED) { // XXX Should this be MAP_FAILED?
-		fprintf(stderr, "mmap(2) error, exiting.\n");
-		exit(0);
-	}
+	pack_parse_header(packfd);
 
-	if (memcmp(idxmap, "PACK", 4)) {
-		fprintf(stderr, "error: bad object HEAD\n");
-		exit(128);
-	}
+	lseek(packfd, offset, SEEK_SET);
+	struct objectinfohdr objectinfohdr;
 
-	loc = 4;
-	version = *(idxmap + loc + 3);
-	if (version != 2) {
-		fprintf(stderr, "error: unsupported version: %d\n", version);
-		// XXX replace 128 with proper return macro value
-		exit(128);
-	}
-
-	loc += 4;
-	nobjects = *(idxmap + loc + 3);
-
-	// Classify Object
-	struct objectinfohdr *objectinfohdr = (struct objectinfohdr *)(idxmap + offset);
+	read(packfd, &objectinfohdr, sizeof(struct objectinfohdr));
 
 	// Used for size
 	unsigned long size;
-	unsigned long *sevenbit;
+	unsigned long sevenbit;
 	unsigned long used = 0;
 
-        sevenbit = (unsigned long *)(idxmap + offset);
+	lseek(packfd, offset, SEEK_SET);
+
+	read(packfd, &sevenbit, sizeof(unsigned long)); // 8
         used++;
-        size = *sevenbit & 0x0F;
+        size = sevenbit & 0x0F;
 
 	/*
 		The next 'while' block calculates the object size
@@ -233,13 +209,14 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	        Those lower 4 bits are shifted over by 4 + (7 times the iteration we are on).
 	        And this value is added to the size total.
 	*/
-        while(*sevenbit & 0x80) {
-                sevenbit = (unsigned long *)(idxmap + offset + used);
-                size += (*sevenbit & 0x7F) << (4 + (7*(used-1)));
-                used++;
-        }
+        while(sevenbit & 0x80) {
+		lseek(packfd, offset + used, SEEK_SET);
+		read(packfd, &sevenbit, sizeof(unsigned long));
+		size += (sevenbit & 0x7F) << (4 + (7*(used-1)));
+		used++;
+	}
 
-	lseek(packfd, offset + used, SEEK_CUR);
+	lseek(packfd, offset + used, SEEK_SET);
 
 	switch(flags) {
 		case CAT_FILE_PRINT:
@@ -249,7 +226,7 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 			printf("%lu\n", size);
 			break;
 		case CAT_FILE_TYPE:
-			cat_file_print_type_by_id(objectinfohdr->type);
+			cat_file_print_type_by_id(objectinfohdr.type);
 			break;
 	}
 }

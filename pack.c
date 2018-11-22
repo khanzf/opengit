@@ -80,6 +80,33 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 	return offset;
 }
 
+void
+pack_parse_header(int packfd)
+{
+// XXX Currently this is just read and disgarded. Going forward, it should be tracked
+// and possibly even used, especially the 'version' value.
+	int version;
+	int nobjects;
+	unsigned char buf[4];
+
+	read(packfd, buf, 4);
+
+	if (memcmp(buf, "PACK", 4)) {
+		fprintf(stderr, "error: bad object header. Git repository may be corrupt.\n");
+		exit(128);
+	}
+
+	read(packfd, &version, 4);
+	version = ntohl(version);
+	if (version != 2) {
+		fprintf(stderr, "error: unsupported version: %d\n", version);
+		exit(128);
+	}
+
+	read(packfd, &nobjects, 4);
+	nobjects = ntohl(nobjects);
+}
+
 int
 pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap)
 {
