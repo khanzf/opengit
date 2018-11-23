@@ -10,6 +10,7 @@
 #include "hash_object.h"
 #include "update_index.h"
 #include "cat_file.h"
+#include "clone.h"
 
 static struct cmd cmds[] = {
 	{"remote",		remote_main},
@@ -17,7 +18,8 @@ static struct cmd cmds[] = {
 	{"hash-object",		hash_object_main},
 	{"update-index",	update_index_main},
 	{"cat-file",		cat_file_main},
-	{"log",			log_main}
+	{"log",			log_main},
+	{"clone",		clone_main}
 };
 
 int cmd_count = nitems(cmds);
@@ -38,7 +40,8 @@ main(int argc, char *argv[])
 		usage();
 
 	for (ch = 0; ch < cmd_count; ch++) {
-		if (strncmp(cmds[ch].c_arg, argv[1], strlen(cmds[ch].c_arg)) == 0) {
+		if (strncmp(cmds[ch].c_arg, argv[1], strlen(cmds[ch].c_arg)) == 0 &&
+		    strncmp(cmds[ch].c_arg, argv[1], strlen(argv[1])) == 0) {
 			break;
 		}
 	}
