@@ -1,6 +1,6 @@
 MAN=
 
-CFLAGS=	-Wall -lmd -lz
+CFLAGS=	-Wall -lmd -lz -lfetch
 
 PROG=	ogit	
 
