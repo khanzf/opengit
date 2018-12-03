@@ -40,6 +40,7 @@ clone_http(char *url)
 	char *token, *string, *tofree;
 	int r;
 	long offset;
+	char sha[41]; // HEAD sha
 
 	sprintf(fetchurl, "%s/info/refs?service=git-upload-pack", url);
 	web = fetchGetURL(fetchurl, NULL);
@@ -52,8 +53,6 @@ clone_http(char *url)
 		memcpy(response+offset-1, out, r);
 		offset += r;
 	} while(r >= 1024);
-
-	//write(1, response, offset);
 
 	position = (char *)response;
 	sscanf(position, "%03lx", &offset);
@@ -136,8 +135,13 @@ clone_http(char *url)
 		branch[r].name = strdup(token + 45);
 	}
 	free(tofree);
-
 	free(response);
+
+	memcpy(sha, position, 40);
+	sha[40] = '\0';
+
+	printf("HEAD: %s\n", sha);
+
 
 	exit(0);
 }
