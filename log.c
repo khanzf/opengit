@@ -85,7 +85,6 @@ log_display_cb(unsigned char *buf, int size, void *arg)
 	if (logarg->status == LOG_STATUS_HEADERS) {
 		// Added content to headers
 		logarg->headers = realloc(logarg->headers, logarg->size + size - offset);
-		memset(logarg->headers + logarg->size, 0, size);
 		strncpy(logarg->headers + logarg->size, (char *)buf + offset, size - offset);
 
 		content = strstr(logarg->headers, "\n\n");
