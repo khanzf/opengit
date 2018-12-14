@@ -29,7 +29,7 @@ clone_usage(int type)
 }
 
 void
-clone_http(char *url)
+clone_http_get_head(char *url, char *sha)
 {
 	struct smart_head smart_head;
 	FILE *web;
@@ -40,7 +40,7 @@ clone_http(char *url)
 	char *token, *string, *tofree;
 	int r;
 	long offset;
-	char sha[41]; // HEAD sha
+//	char sha[41]; // HEAD sha
 
 	sprintf(fetchurl, "%s/info/refs?service=git-upload-pack", url);
 	web = fetchGetURL(fetchurl, NULL);
@@ -50,19 +50,19 @@ clone_http(char *url)
 	do {
 		r = fread(out, 1, 1024, web);
 		response = realloc(response, offset+r);
-		memcpy(response+offset-1, out, r);
+		memcpy(response+offset, out, r);
 		offset += r;
 	} while(r >= 1024);
 
 	position = (char *)response;
-	sscanf(position, "%03lx", &offset);
+	sscanf(position, "%04lx", &offset);
 	position += offset;
 
 	if (strncmp(position, "0000", 4)) {
 		fprintf(stderr, "Protocol mismatch.\n");
 		exit(128);
 	}
-	position += 3;
+	position += 4;
 
 	sscanf(position, "%04lx", &offset);
 	position += 4;
@@ -122,28 +122,17 @@ clone_http(char *url)
 	free(tofree);
 
 	position += offset;
-	tofree = string = strdup(position);
-	r = 0;
-
-	while((token = strsep(&string, "\n")) != NULL) {
-		if (!strncmp(token, "0000", 4))
-			break;
-		branch = realloc(branch, sizeof(struct branch) * (r+1));
-		sscanf(token, "%04lx", &offset);
-		strncpy(branch[r].sha, token+4, 40);
-		branch[r].sha[40] = '\0';
-		branch[r].name = strdup(token + 45);
-	}
-	free(tofree);
-	free(response);
-
 	memcpy(sha, position, 40);
 	sha[40] = '\0';
+}
 
-	printf("HEAD: %s\n", sha);
+void
+clone_http(char *url)
+{
+	char headsha[41];
 
-
-	exit(0);
+	clone_http_get_head(url, headsha);
+	printf("Headsha: %s\n", headsha);
 }
 
 int
