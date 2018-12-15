@@ -2,6 +2,7 @@
 #include <netinet/in.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <curl/curl.h>
 #include <stdio.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -36,11 +37,10 @@ clone_http_get_head(char *url, char *sha)
 	char fetchurl[1000];
 	char out[1024];
 	char *response, *position;
-	struct branch *branch;
+//	struct branch *branch;
 	char *token, *string, *tofree;
 	int r;
 	long offset;
-//	char sha[41]; // HEAD sha
 
 	sprintf(fetchurl, "%s/info/refs?service=git-upload-pack", url);
 	web = fetchGetURL(fetchurl, NULL);
@@ -126,13 +126,225 @@ clone_http_get_head(char *url, char *sha)
 	sha[40] = '\0';
 }
 
+int
+clone_http_build_done(char **content, int content_length)
+{
+	*content = realloc(*content, content_length + 14);
+	strncpy(*content+content_length, "00000009done\n\0", 14);
+	return 13; // Always the same length
+}
+
+int
+clone_http_build_want(char **content, int content_length, char *capabilities, const char *sha)
+{
+	char line[3000]; // XXX Bad approach
+	int len;
+
+	// size + want + space + SHA(40) + space + capabilities + newline
+	len = 4 + 4 + 1 + 40 + 1 +strlen(capabilities) + 1;
+
+	sprintf(line, "%04xwant %s %s\n", len, sha, capabilities);
+	*content = realloc(*content, content_length + len + 1);
+	strncpy(*content+content_length, line, len+1);
+
+	return len;
+}
+
+int
+clone_build_post_content(const char *sha, char **content)
+{
+	int content_length;
+	char *capabilities = "multi_ack_detailed no-done side-band-64k thin-pack ofs-delta deepen-since deepen-not agent=git/2.19.2.windows.1";
+
+	content_length = 0;
+
+	content_length += clone_http_build_want(content, content_length, capabilities, sha);
+	content_length += clone_http_build_done(content, content_length);
+
+	return content_length;
+}
+
+// XXX This may be moved to pack.[ch]
+void
+process_nak()
+{
+	// Currently unimplemented
+}
+
+void
+process_unknown(unsigned char *reply, struct parseread *parseread, int offset, int size)
+{
+	if (parseread->psize == 0)
+		write(parseread->fd, reply+5, size-5);
+	else
+		write(parseread->fd, reply, size);
+}
+
+
+void
+process_remote(unsigned char *reply, struct parseread *parseread)
+{
+	char buf[200];
+	strncpy(buf, (char *)reply+5, parseread->osize-5);
+	buf[parseread->osize-5] = '\0';
+
+	printf("Remote: %s", buf);
+}
+
+void
+process_objects(unsigned char *reply, struct parseread *parseread, int offset, int size)
+{
+	switch(parseread->state) {
+	case STATE_NAK:
+		process_nak();
+		break;
+	case STATE_REMOTE:
+		process_remote(reply, parseread);
+		break;
+	default:
+		process_unknown(reply, parseread, offset, size);
+		break;
+	}
+}
+
+// XXX This may be moved to pack.[ch]
+size_t
+clone_pack_protocol_process(void *buffer, size_t size, size_t nmemb, void *userp)
+{
+	unsigned char *reply;
+	struct parseread *parseread = userp;
+	int offset = 0;
+	char tmp[5];
+	int check;
+	int pool;
+
+	/*
+	 * Check if there are any left-over bits from the previous iteration
+	 * If so, add them to the reply and increase the pool size
+	 * Otherwise, use the given values
+	*/
+	if (parseread->cremnant > 0) {
+		reply = malloc(nmemb + parseread->cremnant + 1);
+		memcpy(reply+parseread->cremnant, buffer, size * nmemb);
+		memcpy(reply, parseread->bremnant, parseread->cremnant);
+		pool = (size * nmemb) + parseread->cremnant;
+	}
+	else {
+		reply = buffer;
+		pool = size * nmemb;
+	}
+
+	/*
+	 * Iterate up to the pool size being 4 bytes, in the event that the last
+	 * four bytes are the beginning of a new object
+	 */
+	while(offset + 4 < pool) {
+		if (parseread->state == STATE_NEWLINE) {
+			bzero(tmp, 5);
+			memcpy(tmp, reply+offset, 4); tmp[4] = '\0';
+			check = sscanf(tmp, "%04x", &parseread->osize);
+
+			if (parseread->osize == 0) {
+				offset += 4;
+				break;
+			}
+
+			parseread->psize = 0;
+
+			if ( strncmp((char *)reply+offset+4, "NAK\n", 4)==0)
+				parseread->state = STATE_NAK;
+			else if (reply[offset+4] == 0x02)
+				parseread->state = STATE_REMOTE;
+			else
+				parseread->state = STATE_UNKNOWN;
+		}
+
+		/*
+		 * If the pool minus the offset is greater or equal to the remaining necessary bytes
+		 * This means we completed the data in that object and can reset to a new state
+		 */
+		if ((pool - offset) >= (parseread->osize - parseread->psize) ) {
+			process_objects(reply+offset, parseread, offset, (parseread->osize - parseread->psize) );
+			offset += (parseread->osize - parseread->psize);
+			parseread->state = STATE_NEWLINE;
+		}
+		/* Otherwise, we need more bytes */
+		else if ((pool - offset) < (parseread->osize - parseread->psize)) {
+			process_objects(reply+offset, parseread, offset, pool-offset);
+			parseread->psize += (pool - offset);
+			offset = pool;
+		}
+
+	}
+
+	/* The while-loop could break and the offset has not caught up to the pool
+	 * In this case, we need to cache those 4 bytes, update the parseread->cremnant
+	 * value and return offset + parseread->cremnant (which should be nmemb * size)
+	 */
+	if (pool-offset > 0)
+		memcpy(parseread->bremnant, reply+offset, pool-offset);
+	if (parseread->cremnant > 0)
+		free(reply);
+	parseread->cremnant = nmemb - offset;
+
+	return offset + parseread->cremnant;
+
+}
+
+void
+clone_http_get_sha(char *url, char *sha, int packfd)
+{
+	CURL *curl;
+	CURLcode res;
+	char git_upload_pack[1000];
+	char *content = NULL;
+	int content_length;
+	struct curl_slist *list = NULL;
+	struct parseread parseread;
+
+	sprintf(git_upload_pack, "%s/git-upload-pack", url);
+
+	parseread.state = STATE_NEWLINE;
+	parseread.cremnant = 0;
+	parseread.fd = packfd;
+
+	content_length = clone_build_post_content(sha, &content);
+
+	curl = curl_easy_init();
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_URL, git_upload_pack);
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, content);
+		list = curl_slist_append(list, "Content-Type: application/x-git-upload-pack-request");
+		list = curl_slist_append(list, "Accept: application/x-git-upload-pack-result");
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)content_length);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &parseread);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, clone_pack_protocol_process);
+
+		res = curl_easy_perform(curl);
+		if (curl != CURLE_OK)
+			fprintf(stderr, "curl_easy_perform() failed: %s\n",
+				curl_easy_strerror(res));
+	}
+
+	curl_easy_cleanup(curl);
+	free(content);
+
+}
+
 void
 clone_http(char *url)
 {
 	char headsha[41];
+	int packfd;
+
+	packfd = open("packout.pack", O_RDWR | O_CREAT, 0660);
 
 	clone_http_get_head(url, headsha);
-	printf("Headsha: %s\n", headsha);
+	clone_http_get_sha(url, headsha, packfd);
+
+	close(packfd);
 }
 
 int

@@ -37,6 +37,21 @@ struct branch {
         char *name;
 };
 
+#define STATE_NEWLINE			0
+#define STATE_NAK			1
+#define STATE_REMOTE			2
+#define STATE_PACK			3
+#define STATE_UNKNOWN			999
+
+struct parseread {
+	int state;		// current state
+	int osize;		// object size
+	int psize;		// processed size
+	int cremnant;		// Remnant count
+	char bremnant[4];	// Remnant byes
+	int fd;
+};
+
 int clone_main(int argc, char *argv[]);
 
 #endif
