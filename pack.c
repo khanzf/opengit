@@ -108,7 +108,7 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 }
 
 void
-pack_parse_header(int packfd)
+pack_parse_header(int packfd, struct packfilehdr *packfilehdr)
 {
 // XXX Currently this is just read and disgarded. Going forward, it should be tracked
 // and possibly even used, especially the 'version' value.
@@ -124,14 +124,14 @@ pack_parse_header(int packfd)
 	}
 
 	read(packfd, &version, 4);
-	version = ntohl(version);
+	packfilehdr->version = ntohl(version);
 	if (version != 2) {
 		fprintf(stderr, "error: unsupported version: %d\n", version);
 		exit(128);
 	}
 
 	read(packfd, &nobjects, 4);
-	nobjects = ntohl(nobjects);
+	packfilehdr->nobjects = ntohl(nobjects);
 }
 
 void

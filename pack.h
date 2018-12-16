@@ -65,6 +65,12 @@ struct fan {
 };
 
 // pack file headers
+struct packfilehdr {
+//	char sig[4];
+	int version;
+	int nobjects;
+};
+
 struct objectinfohdr {
 	uint8_t	size:4;
 	uint8_t	type:3;
@@ -87,7 +93,7 @@ struct packhdr {
 int pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap);
 void pack_uncompress_object(int packfd);
 int pack_get_packfile_offset(char *sha_str, char *filename);
-void pack_parse_header(int packfd);
+void pack_parse_header(int packfd, struct packfilehdr *packfilehdr);
 void pack_object_header(int packfd, int offset, struct objectinfo *objectinfo);
 
 #endif
