@@ -38,6 +38,7 @@
 #include "update_index.h"
 #include "cat_file.h"
 #include "clone.h"
+#include "index_pack.h"
 
 static struct cmd cmds[] = {
 	{"remote",		remote_main},
@@ -46,7 +47,8 @@ static struct cmd cmds[] = {
 	{"update-index",	update_index_main},
 	{"cat-file",		cat_file_main},
 	{"log",			log_main},
-	{"clone",		clone_main}
+	{"clone",		clone_main},
+	{"index-pack",		index_pack_main}
 };
 
 int cmd_count = nitems(cmds);

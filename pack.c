@@ -50,11 +50,13 @@ pack_uncompress_object(int packfd)
 	deflate_caller(packfd, write_cb, &writer_args);
 }
 
-int
-pack_get_pack_get_content_type(unsigned char *idxmap, int offset)
+unsigned char *
+pack_deflated_bytes_cb(unsigned char *buf, int __unused size, void *arg, int deflated_bytes)
 {
-	return (idxmap[offset] >> 4) & 7;
+	int *offset = arg;
+	*offset += deflated_bytes;
 
+	return buf;
 }
 
 int
@@ -110,8 +112,6 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 void
 pack_parse_header(int packfd, struct packfilehdr *packfilehdr)
 {
-// XXX Currently this is just read and disgarded. Going forward, it should be tracked
-// and possibly even used, especially the 'version' value.
 	int version;
 	int nobjects;
 	unsigned char buf[4];
@@ -125,7 +125,7 @@ pack_parse_header(int packfd, struct packfilehdr *packfilehdr)
 
 	read(packfd, &version, 4);
 	packfilehdr->version = ntohl(version);
-	if (version != 2) {
+	if (packfilehdr->version != 2) {
 		fprintf(stderr, "error: unsupported version: %d\n", version);
 		exit(128);
 	}

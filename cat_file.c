@@ -134,7 +134,7 @@ cat_file_get_loose_headers(unsigned char *buf, int size, void *arg)
 }
 
 unsigned char *
-cat_loose_object_cb(unsigned char *buf, int size, void *arg)
+cat_loose_object_cb(unsigned char *buf, int size, void *arg, int __unused deflated_bytes)
 {
 	struct loosearg *loosearg = arg;
 	int hdr_offset;

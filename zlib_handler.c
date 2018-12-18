@@ -33,7 +33,7 @@
 #include "zlib_handler.h"
 
 unsigned char *
-write_cb(unsigned char *buf, int size, void *arg)
+write_cb(unsigned char *buf, int size, void *arg, int __unused deflate_bytes)
 {
 	struct writer_args *writer_args = arg;
 
@@ -49,6 +49,7 @@ deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg) {
 	unsigned have;
 	z_stream strm;
 	int ret;
+	int input_len;
 	
 	strm.zalloc = Z_NULL;
 	strm.zfree = Z_NULL;
@@ -60,7 +61,7 @@ deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg) {
 		return ret;
 
 	do {
-		strm.avail_in = read(sourcefd, in, CHUNK);
+		input_len = strm.avail_in = read(sourcefd, in, CHUNK);
 		if (strm.avail_in == -1) {
 			(void)inflateEnd(&strm);
 			perror("read from source file");
@@ -85,7 +86,7 @@ deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg) {
 			have = CHUNK - strm.avail_out;
 
 			// Return value of 0 code means exit
-			if (inflated_handler(out, have, arg) != NULL)
+			if (inflated_handler(out, have, arg, input_len - strm.avail_in) != NULL)
 				goto end_inflation;
 
 		} while(strm.avail_out == 0);

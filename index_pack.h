@@ -25,19 +25,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __ZLIB_HANDLER__H
-#define __ZLIB_HANDLER__H
+#ifndef __PACK_INDEX_H__
+#define __PACK_INDEX_H__
 
-#define CHUNK 16384
-
-struct writer_args {
-	int fd;
-	long sent;
-};
-
-typedef unsigned char *inflated_handler(unsigned char *, int, void *, int);
-
-int deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg);
-unsigned char *write_cb(unsigned char *buf, int size, void *arg, int __unused deflate_bytes);
+int index_pack_main(int argc, char *argv[]);
 
 #endif

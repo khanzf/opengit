@@ -39,13 +39,13 @@ Header source Documentation/technical/multi-pack-index.txt
     These are for files located in .git/objects/pack/[*].idx
 */
 
-// From Documentation/technical/pack-format.txt
+/* From Documentation/technical/pack-format.txt */
 #define OBJ_COMMIT		1
 #define OBJ_TREE		2
 #define OBJ_BLOB		3
-#define OBJ_TAG		4
-#define OBJ_OFS_DELTA	6
-#define OBJ_REF_DELTA	7
+#define OBJ_TAG			4
+#define OBJ_OFS_DELTA		6
+#define OBJ_REF_DELTA		7
 
 // idx file headers
 struct offset {
@@ -95,5 +95,8 @@ void pack_uncompress_object(int packfd);
 int pack_get_packfile_offset(char *sha_str, char *filename);
 void pack_parse_header(int packfd, struct packfilehdr *packfilehdr);
 void pack_object_header(int packfd, int offset, struct objectinfo *objectinfo);
+unsigned char *pack_deflated_bytes_cb(unsigned char *buf, int __unused size, void *arg, \
+	int deflated_bytes);
+
 
 #endif
