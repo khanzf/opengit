@@ -37,10 +37,10 @@
 #include <fcntl.h>
 #include <sha.h>
 #include <zlib.h>
-#include "zlib_handler.h"
+#include "lib/zlib_handler.h"
+#include "lib/common.h"
+#include "lib/ini.h"
 #include "hash_object.h"
-#include "common.h"
-#include "ini.h"
 
 static struct option long_options[] =
 {

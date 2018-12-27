@@ -36,11 +36,11 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include "zlib_handler.h"
+#include "lib/zlib_handler.h"
+#include "lib/common.h"
+#include "lib/pack.h"
+#include "lib/ini.h"
 #include "log.h"
-#include "common.h"
-#include "ini.h"
-#include "pack.h"
 
 static struct option long_options[] =
 {

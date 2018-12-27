@@ -34,9 +34,9 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include "lib/common.h"
+#include "lib/ini.h"
 #include "remote.h"
-#include "ini.h"
-#include "common.h"
 
 static struct option long_options[] =
 {

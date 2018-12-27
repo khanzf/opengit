@@ -39,11 +39,11 @@
 #include <getopt.h>
 #include <fcntl.h>
 #include <zlib.h>
-#include "zlib_handler.h"
+#include "lib/zlib_handler.h"
+#include "lib/common.h"
+#include "lib/pack.h"
+#include "lib/ini.h"
 #include "cat_file.h"
-#include "common.h"
-#include "pack.h"
-#include "ini.h"
 
 static struct option long_options[] =
 {

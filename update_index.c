@@ -37,9 +37,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sha.h>
-#include "common.h"
-#include "index.h"
-#include "ini.h"
+#include "lib/common.h"
+#include "lib/index.h"
+#include "lib/ini.h"
 
 static struct option long_options[] =
 {

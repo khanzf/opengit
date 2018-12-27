@@ -31,14 +31,14 @@
 #include <getopt.h>
 #include <string.h>
 
-#include "ogit.h"
-#include "init.h"
-#include "common.h"
-#include "hash_object.h"
+#include "lib/common.h"
 #include "update_index.h"
+#include "hash_object.h"
+#include "index_pack.h"
 #include "cat_file.h"
 #include "clone.h"
-#include "index_pack.h"
+#include "ogit.h"
+#include "init.h"
 
 static struct cmd cmds[] = {
 	{"remote",		remote_main},

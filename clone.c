@@ -40,10 +40,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <fetch.h>
+#include "lib/zlib_handler.h"
+#include "lib/common.h"
+#include "lib/ini.h"
 #include "clone.h"
-#include "zlib_handler.h"
-#include "common.h"
-#include "ini.h"
 
 static struct option long_options[] =
 {

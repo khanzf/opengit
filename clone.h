@@ -29,7 +29,7 @@
 #ifndef __CLONE_H__
 #define __CLONE_H__
 
-#include "common.h"
+#include "lib/common.h"
 
 #define CLONE_MULTI_ACK				BIT(0)
 #define CLONE_MULTI_ACK_DETAILED		BIT(1)
