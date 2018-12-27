@@ -98,7 +98,7 @@ log_print_commit_headers(struct logarg *logarg)
 }
 
 unsigned char *
-log_display_cb(unsigned char *buf, int size, void *arg, int __unused deflated_bytes)
+log_display_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *arg)
 {
 	char *content;
 	struct logarg *logarg = arg;

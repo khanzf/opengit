@@ -111,8 +111,7 @@ void pack_uncompress_object(int packfd);
 int pack_get_packfile_offset(char *sha_str, char *filename);
 void pack_parse_header(int packfd, struct packfilehdr *packfilehdr);
 void pack_object_header(int packfd, int offset, struct objectinfo *objectinfo);
-unsigned char *pack_get_index_bytes_cb(unsigned char *buf, int size, void *arg, \
-	int deflated_bytes);
+unsigned char *pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *arg);
 
 
 #endif

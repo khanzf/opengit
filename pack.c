@@ -52,7 +52,7 @@ pack_uncompress_object(int packfd)
 
 /* Used by index-pack to compute SHA and get offset bytes */
 unsigned char *
-pack_get_index_bytes_cb(unsigned char *buf, int size, void *arg, int deflated_bytes)
+pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *arg)
 {
 	struct index_generate_arg *index_generate_arg = arg;
 

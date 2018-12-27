@@ -35,9 +35,9 @@ struct writer_args {
 	long sent;
 };
 
-typedef unsigned char *inflated_handler(unsigned char *, int, void *, int);
+typedef unsigned char *inflated_handler(unsigned char *, int, int, void *);
 
 int deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg);
-unsigned char *write_cb(unsigned char *buf, int size, void *arg, int __unused deflate_bytes);
+unsigned char *write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg);
 
 #endif

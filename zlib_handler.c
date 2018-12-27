@@ -33,7 +33,7 @@
 #include "zlib_handler.h"
 
 unsigned char *
-write_cb(unsigned char *buf, int size, void *arg, int __unused deflate_bytes)
+write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)
 {
 	struct writer_args *writer_args = arg;
 
@@ -89,7 +89,7 @@ deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg) {
 			// Return value of 0 code means exit
 			use = input_len - strm.avail_in;
 			input_len -= use;
-			if (inflated_handler(out, have, arg, use) == NULL)
+			if (inflated_handler(out, have, use, arg) == NULL)
 				goto end_inflation;
 
 		} while(strm.avail_out == 0);
