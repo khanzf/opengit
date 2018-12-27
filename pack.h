@@ -28,7 +28,10 @@
 #ifndef PACK_H
 #define PACK_H
 
+#include <sys/types.h>
 #include <stdint.h>
+#include <sha.h>
+
 
 /*
 Header source Documentation/technical/multi-pack-index.txt
@@ -90,12 +93,25 @@ struct packhdr {
 	uint8_t		sig[4];
 };
 
+/* Used to store object information when creating the index */
+struct object_index_entry {
+	int offset;
+	int type;
+	char sha[41];
+};
+
+/* Used in the callback to get index information */
+struct index_generate_arg {
+	int bytes;
+	SHA1_CTX *shactx;
+};
+
 int pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap);
 void pack_uncompress_object(int packfd);
 int pack_get_packfile_offset(char *sha_str, char *filename);
 void pack_parse_header(int packfd, struct packfilehdr *packfilehdr);
 void pack_object_header(int packfd, int offset, struct objectinfo *objectinfo);
-unsigned char *pack_deflated_bytes_cb(unsigned char *buf, int __unused size, void *arg, \
+unsigned char *pack_get_index_bytes_cb(unsigned char *buf, int size, void *arg, \
 	int deflated_bytes);
 
 

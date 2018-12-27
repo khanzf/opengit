@@ -97,16 +97,23 @@ index_pack_main(int argc, char *argv[])
 	}
 	pack_parse_header(packfd, &packfilehdr);
 	offset = 4 * 3; 
-	printf("The number of objects: %d\n", packfilehdr.nobjects);
+
+	struct object_index_entry *object_index_entry;
+	struct index_generate_arg index_generate_arg;
+	SHA1_CTX object_context;
+
+	object_index_entry = malloc(sizeof(struct object_index_entry) *  packfilehdr.nobjects);
 
 	struct objectinfohdr objectinfohdr;
+
+	unsigned char p;
+	off_t base_offset;
 
 	// Same as GNU git's parse_pack_objects
 
 	for(x = 0; x < packfilehdr.nobjects; x++) {
 		lseek(packfd, offset, SEEK_SET);
 		read(packfd, &objectinfohdr, sizeof(struct objectinfohdr));
-		printf("Type: %d\n", objectinfohdr.type);
 
 		lseek(packfd, offset, SEEK_SET);
 		pack_object_header(packfd, offset, &objectinfo);
@@ -115,27 +122,50 @@ index_pack_main(int argc, char *argv[])
 		lseek(packfd, offset, SEEK_SET);
 
 		switch(objectinfohdr.type) {
-		case OBJ_OFS_DELTA:
-			printf("First\n");
-			exit(0);
-			break;
 		case OBJ_REF_DELTA:
-			printf("Second\n");
-			exit(1);
+			offset += 2;
+			lseek(packfd, 2, SEEK_CUR);
+			offset += 20; // 40 bytes, 20 chars
+			lseek(packfd, 20, SEEK_CUR);
+			break;
+		case OBJ_OFS_DELTA:
+			read(packfd, &p, 1);
+			offset += 1;
+
+			base_offset = p & 127;
+			while(p & 128) {
+				base_offset += 1;
+				read(packfd, &p, 1);
+				offset += 1;
+
+				base_offset = (base_offset << 7) + (p & 127);
+			}
+
+			SHA1_Init(&object_context);
+			index_generate_arg.shactx = &object_context;
+			index_generate_arg.bytes = 0;
+			deflate_caller(packfd, pack_get_index_bytes_cb, &index_generate_arg);
+			offset += index_generate_arg.bytes;
 			break;
 		case OBJ_COMMIT:
 		case OBJ_TREE:
 		case OBJ_BLOB:
 		case OBJ_TAG:
 		default:
-			printf("Offset before: %d\n", offset);
-			deflate_caller(packfd, pack_deflated_bytes_cb, (void *)&offset);
-			printf("Offset after: %d\n", offset);
+			SHA1_Init(&object_context);
+			index_generate_arg.shactx = &object_context;
+			index_generate_arg.bytes = 0;
+			deflate_caller(packfd, pack_get_index_bytes_cb, &index_generate_arg);
+			object_index_entry[x].offset = index_generate_arg.bytes;
+			SHA1_End(&object_context, object_index_entry[x].sha);
+
+			offset += index_generate_arg.bytes;
 			break;
 		}
-	}
-	getchar();
 
+	}
+
+	free(object_index_entry);
 	close(packfd);
 
 	return (ret);

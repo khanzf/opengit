@@ -50,6 +50,7 @@ deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg) {
 	z_stream strm;
 	int ret;
 	int input_len;
+	int use;
 	
 	strm.zalloc = Z_NULL;
 	strm.zfree = Z_NULL;
@@ -61,7 +62,7 @@ deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg) {
 		return ret;
 
 	do {
-		input_len = strm.avail_in = read(sourcefd, in, CHUNK);
+		strm.avail_in = input_len = read(sourcefd, in, CHUNK);
 		if (strm.avail_in == -1) {
 			(void)inflateEnd(&strm);
 			perror("read from source file");
@@ -86,7 +87,9 @@ deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg) {
 			have = CHUNK - strm.avail_out;
 
 			// Return value of 0 code means exit
-			if (inflated_handler(out, have, arg, input_len - strm.avail_in) != NULL)
+			use = input_len - strm.avail_in;
+			input_len -= use;
+			if (inflated_handler(out, have, arg, use) == NULL)
 				goto end_inflation;
 
 		} while(strm.avail_out == 0);

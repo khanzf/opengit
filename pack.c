@@ -50,11 +50,14 @@ pack_uncompress_object(int packfd)
 	deflate_caller(packfd, write_cb, &writer_args);
 }
 
+/* Used by index-pack to compute SHA and get offset bytes */
 unsigned char *
-pack_deflated_bytes_cb(unsigned char *buf, int __unused size, void *arg, int deflated_bytes)
+pack_get_index_bytes_cb(unsigned char *buf, int size, void *arg, int deflated_bytes)
 {
-	int *offset = arg;
-	*offset += deflated_bytes;
+	struct index_generate_arg *index_generate_arg = arg;
+
+	SHA1_Update(index_generate_arg->shactx, buf, size);
+	index_generate_arg->bytes += deflated_bytes;
 
 	return buf;
 }
