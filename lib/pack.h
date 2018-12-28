@@ -43,12 +43,23 @@ Header source Documentation/technical/multi-pack-index.txt
 */
 
 /* From Documentation/technical/pack-format.txt */
+#define OBJ_NONE		0
 #define OBJ_COMMIT		1
 #define OBJ_TREE		2
 #define OBJ_BLOB		3
 #define OBJ_TAG			4
 #define OBJ_OFS_DELTA		6
 #define OBJ_REF_DELTA		7
+
+static const char *object_name[] = {
+	NULL,
+	"commit",
+	"tree",
+	"blob",
+	"tag",
+	"obj_ofs_delta",
+	"obj_ref_delta"
+};
 
 // idx file headers
 struct offset {
@@ -103,7 +114,7 @@ struct object_index_entry {
 /* Used in the callback to get index information */
 struct index_generate_arg {
 	int bytes;
-	SHA1_CTX *shactx;
+	SHA1_CTX shactx;
 };
 
 int pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap);

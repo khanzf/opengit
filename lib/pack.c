@@ -55,10 +55,8 @@ unsigned char *
 pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *arg)
 {
 	struct index_generate_arg *index_generate_arg = arg;
-
-	SHA1_Update(index_generate_arg->shactx, buf, size);
+	SHA1_Update(&index_generate_arg->shactx, buf, size);
 	index_generate_arg->bytes += deflated_bytes;
-
 	return buf;
 }
 

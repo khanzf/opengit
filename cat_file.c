@@ -69,29 +69,11 @@ cat_file_get_content(char *sha_str, uint8_t flags)
 void
 cat_file_print_type_by_id(int object_type)
 {
-	switch(object_type) {
-	case OBJ_COMMIT:
-		printf("commit\n");
-		break;
-	case OBJ_TREE:
-		printf("tree\n");
-		break;
-	case OBJ_BLOB:
-		printf("blob\n");
-		break;
-	case OBJ_TAG:
-		printf("tag\n");
-		break;
-	case OBJ_OFS_DELTA:
-		printf("obj_ofs_delta\n");
-		break;
-	case OBJ_REF_DELTA:
-		printf("obj_ref_delta\n");
-		break;
-	default:
+	if (object_type <= 0 || object_type >= 8) {
 		fprintf(stderr, "Unknown type, exiting.\n");
-		exit(1);
+		exit(128);
 	}
+	printf("%s\n", object_name[object_type]);
 }
 
 int
