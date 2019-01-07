@@ -173,7 +173,6 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	int offset;
 	int packfd;
 	struct packfilehdr packfilehdr;
-	struct objectinfohdr objectinfohdr;
 	struct objectinfo objectinfo;
 
 	offset = pack_get_packfile_offset(sha_str, filename);
@@ -199,9 +198,6 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	pack_parse_header(packfd, &packfilehdr);
 
 	lseek(packfd, offset, SEEK_SET);
-	read(packfd, &objectinfohdr, sizeof(struct objectinfohdr));
-
-	lseek(packfd, offset, SEEK_SET);
 	pack_object_header(packfd, offset, &objectinfo);
 
 	switch(flags) {
@@ -213,7 +209,7 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 			printf("%lu\n", objectinfo.size);
 			break;
 		case CAT_FILE_TYPE:
-			cat_file_print_type_by_id(objectinfohdr.type);
+			cat_file_print_type_by_id(objectinfo.type);
 			break;
 	}
 

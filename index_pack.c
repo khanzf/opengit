@@ -100,7 +100,6 @@ index_pack_main(int argc, char *argv[])
 
 	struct object_index_entry *object_index_entry;
 	struct index_generate_arg index_generate_arg;
-	struct objectinfohdr objectinfohdr;
 	off_t base_offset;
 	unsigned char p;
 	char hdr[32];
@@ -110,8 +109,6 @@ index_pack_main(int argc, char *argv[])
 
 	/* Same as GNU git's parse_pack_objects, first pass */
 	for(x = 0; x < packfilehdr.nobjects; x++) {
-		lseek(packfd, offset, SEEK_SET);
-		read(packfd, &objectinfohdr, sizeof(struct objectinfohdr));
 
 		lseek(packfd, offset, SEEK_SET);
 		pack_object_header(packfd, offset, &objectinfo);
@@ -119,7 +116,7 @@ index_pack_main(int argc, char *argv[])
 		offset += objectinfo.used;
 		lseek(packfd, offset, SEEK_SET);
 
-		switch(objectinfohdr.type) {
+		switch(objectinfo.type) {
 		case OBJ_REF_DELTA:
 			lseek(packfd, 2, SEEK_CUR);
 			read(packfd, object_index_entry[x].sha, 20);
@@ -153,7 +150,7 @@ index_pack_main(int argc, char *argv[])
 			index_generate_arg.bytes = 0;
 			SHA1_Init(&index_generate_arg.shactx);
 
-			hdrlen = sprintf(hdr, "%s %lu", object_name[objectinfohdr.type],
+			hdrlen = sprintf(hdr, "%s %lu", object_name[objectinfo.type],
 			    objectinfo.size) + 1;
 			SHA_Update(&index_generate_arg.shactx, hdr, hdrlen);
 			deflate_caller(packfd, pack_get_index_bytes_cb, &index_generate_arg);

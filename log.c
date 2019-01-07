@@ -196,7 +196,6 @@ log_get_pack_object(struct logarg *logarg)
 	int offset;
 	int packfd;
 	struct packfilehdr packfilehdr;
-	struct objectinfohdr objectinfohdr;
 	struct objectinfo objectinfo;
 
 	offset = pack_get_packfile_offset(logarg->sha, filename);
@@ -211,9 +210,6 @@ log_get_pack_object(struct logarg *logarg)
 		exit(128);
 	}
 	pack_parse_header(packfd, &packfilehdr);
-
-	lseek(packfd, offset, SEEK_SET);
-	read(packfd, &objectinfohdr, sizeof(struct objectinfohdr));
 
 	lseek(packfd, offset, SEEK_SET);
 	pack_object_header(packfd, offset, &objectinfo);

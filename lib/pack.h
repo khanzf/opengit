@@ -85,18 +85,12 @@ struct packfilehdr {
 	int nobjects;
 };
 
-struct objectinfohdr {
-	uint8_t	size:4;
-	uint8_t	type:3;
-	uint8_t	more:1;
-	uint8_t	unused[56];
-} __packed;
-
 struct objectinfo {
 	int offset; // The object header from the file's start
 
 	unsigned long size; // Size of the object content
 	unsigned long used; // Bytes the header consumes
+	unsigned int type;
 };
 
 // Shared by both idx and pack files

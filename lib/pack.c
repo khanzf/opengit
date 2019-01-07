@@ -144,6 +144,7 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo)
 
 	read(packfd, &sevenbit, sizeof(unsigned long));
 	objectinfo->size = sevenbit & 0x0F;
+	objectinfo->type = (sevenbit >> 4) & 0x7;
 
 	while(sevenbit & 0x80) {
 		lseek(packfd, offset + objectinfo->used, SEEK_SET);
