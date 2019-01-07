@@ -48,6 +48,7 @@ Header source Documentation/technical/multi-pack-index.txt
 #define OBJ_TREE		2
 #define OBJ_BLOB		3
 #define OBJ_TAG			4
+// Reserved			5
 #define OBJ_OFS_DELTA		6
 #define OBJ_REF_DELTA		7
 
@@ -57,6 +58,7 @@ static const char *object_name[] = {
 	"tree",
 	"blob",
 	"tag",
+	NULL,
 	"obj_ofs_delta",
 	"obj_ref_delta"
 };
