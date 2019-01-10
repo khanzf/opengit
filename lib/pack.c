@@ -107,6 +107,8 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 		}
 	}
 
+	closedir(d);
+
 	return offset;
 }
 
