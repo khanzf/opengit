@@ -30,7 +30,6 @@
 #include <netinet/in.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <curl/curl.h>
 #include <stdio.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -65,7 +64,6 @@ clone_http_get_head(char *url, char *sha)
 	char fetchurl[1000];
 	char out[1024];
 	char *response, *position;
-//	struct branch *branch;
 	char *token, *string, *tofree;
 	int r;
 	long offset;

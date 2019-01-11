@@ -29,7 +29,6 @@
 #include <netinet/in.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <curl/curl.h>
 #include <stdio.h>
 #include <limits.h>
 #include <stdlib.h>
