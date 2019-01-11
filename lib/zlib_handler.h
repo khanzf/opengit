@@ -28,16 +28,26 @@
 #ifndef __ZLIB_HANDLER__H
 #define __ZLIB_HANDLER__H
 
-#define CHUNK 16384
+/*
+ * Used to recover a full object in a single buffer
+ * not processed incrementally
+ */
+struct decompressed_object {
+	char *data;
+	int size;
+};
 
 struct writer_args {
 	int fd;
 	long sent;
 };
 
+#define CHUNK 16384
+
 typedef unsigned char *inflated_handler(unsigned char *, int, int, void *);
 
 int deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg);
 unsigned char *write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg);
+unsigned char *buffer_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg);
 
 #endif

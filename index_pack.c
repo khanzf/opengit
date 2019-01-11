@@ -116,7 +116,7 @@ index_pack_main(int argc, char *argv[])
 		offset += objectinfo.used;
 		lseek(packfd, offset, SEEK_SET);
 
-		switch(objectinfo.type) {
+		switch(objectinfo.ftype) {
 		case OBJ_REF_DELTA:
 			lseek(packfd, 2, SEEK_CUR);
 			read(packfd, object_index_entry[x].sha, 20);
@@ -150,8 +150,8 @@ index_pack_main(int argc, char *argv[])
 			index_generate_arg.bytes = 0;
 			SHA1_Init(&index_generate_arg.shactx);
 
-			hdrlen = sprintf(hdr, "%s %lu", object_name[objectinfo.type],
-			    objectinfo.size) + 1;
+			hdrlen = sprintf(hdr, "%s %lu", object_name[objectinfo.ftype],
+			    objectinfo.psize) + 1;
 			SHA_Update(&index_generate_arg.shactx, hdr, hdrlen);
 			deflate_caller(packfd, pack_get_index_bytes_cb, &index_generate_arg);
 			object_index_entry[x].offset = index_generate_arg.bytes;

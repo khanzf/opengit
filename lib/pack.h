@@ -88,11 +88,15 @@ struct packfilehdr {
 };
 
 struct objectinfo {
-	int offset; // The object header from the file's start
+	unsigned long offset; // The object header from the file's start
 
-	unsigned long size; // Size of the object content
+	unsigned long psize; // Size of the object content
+	unsigned long isize; // Inflated size
 	unsigned long used; // Bytes the header consumes
-	unsigned int type;
+	unsigned int ftype; // Final type
+	unsigned int ptype; // Pack type
+
+	unsigned char *data; // Fully cleaned data
 };
 
 // Shared by both idx and pack files
@@ -114,11 +118,14 @@ struct index_generate_arg {
 };
 
 int pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap);
-void pack_uncompress_object(int packfd);
+void pack_print_uncompress_object(int packfd, struct objectinfo *objectinfo);
 int pack_get_packfile_offset(char *sha_str, char *filename);
 void pack_parse_header(int packfd, struct packfilehdr *packfilehdr);
 void pack_object_header(int packfd, int offset, struct objectinfo *objectinfo);
 unsigned char *pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *arg);
+
+// Change this name
+struct objectinfo drilldown(int packfd, int offset, struct decompressed_object *decompressed_base);
 
 
 #endif

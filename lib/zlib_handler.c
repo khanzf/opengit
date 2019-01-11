@@ -33,6 +33,18 @@
 #include "zlib_handler.h"
 
 unsigned char *
+buffer_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)
+{
+	struct decompressed_object *decompressed_object = arg;
+
+	decompressed_object->data = realloc(decompressed_object->data, decompressed_object->size + size);
+	memcpy(decompressed_object->data + decompressed_object->size, buf, size);
+	decompressed_object->size += size;
+
+	return buf;
+}
+
+unsigned char *
 write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)
 {
 	struct writer_args *writer_args = arg;

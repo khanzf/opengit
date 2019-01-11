@@ -41,13 +41,158 @@
 
 #include <netinet/in.h>
 
-void
-pack_uncompress_object(int packfd)
+unsigned long
+readvint(unsigned char **datap, unsigned char *top)
 {
-	struct writer_args writer_args;
-	writer_args.fd = STDOUT_FILENO;
-	writer_args.sent = 0;
-	deflate_caller(packfd, write_cb, &writer_args);
+        unsigned char *data = *datap;
+        unsigned long opcode, size = 0;
+        int i = 0;
+        do {
+                opcode = *data++;
+                size |= (opcode & 0x7f) << i;
+                i += 7;
+        } while (opcode & BIT(7) && data < top);
+        *datap = data;
+        return size;
+}
+
+void
+applypatch(struct decompressed_object *base, struct decompressed_object *delta, struct objectinfo *objectinfo)
+{
+	unsigned long size;
+	unsigned char *data, *top;
+	unsigned char *out, opcode;
+
+	data = (unsigned char *) delta->data;
+	top = (unsigned char *) delta->data + delta->size;
+
+	size = readvint(&data, top);
+	if (size != base->size) {
+		printf("Error, bad original set\n");
+		exit(0);
+	}
+
+	size = readvint(&data, top);
+
+	objectinfo->data = malloc(size);
+	objectinfo->isize = size;
+	out = objectinfo->data;
+
+	unsigned long cp_off, cp_size;
+
+	while(data < top) {
+		opcode = *data++;
+		if (opcode & BIT(7)) {
+			cp_off = 0;
+			cp_size = 0;
+
+			/* Offset in base */
+			if (opcode & BIT(0))
+				cp_off |= (*data++ << 0);
+			if (opcode & BIT(1))
+				cp_off |= (*data++ << 8);
+			if (opcode & BIT(2))
+				cp_off |= (*data++ << 16);
+			if (opcode & BIT(3))
+				cp_off |= (*data++ << 24);
+
+			/* Length to copy */
+			if (opcode & BIT(4))
+				cp_size |= (*data++ << 0);
+			if (opcode & BIT(5))
+				cp_size |= (*data++ << 8);
+			if (opcode & BIT(6))
+				cp_size |= (*data++ << 16);
+
+			if (cp_size == 0)
+				cp_size = 0x10000;
+
+			if (cp_off + cp_size > base->size) { // || cp_size > size) {
+				printf("Bad length: First\n");
+				exit(0);
+			}
+			memcpy(out, (char *) base->data + cp_off, cp_size);
+			out += cp_size;
+		} else if (opcode) {
+			memcpy(out, data, opcode);
+			out += opcode;
+			data += opcode;
+		} else {
+			printf("Unexpected opcode 0x00, exiting.\n");
+			exit(0);
+		}
+	}
+}
+
+struct objectinfo
+pack_delta_content(int packfd, int offset, struct decompressed_object *decompressed_base)
+{
+	struct objectinfo base_objectinfo;
+	struct objectinfo next_objectinfo;
+	struct decompressed_object decompressed_child;
+
+	/* Figure out what type of header it is */
+	lseek(packfd, offset, SEEK_SET);
+	pack_object_header(packfd, offset, &base_objectinfo);
+
+	/* If it is the base, decompress data and return it */
+	if (base_objectinfo.ptype != OBJ_OFS_DELTA && base_objectinfo.ptype != OBJ_REF_DELTA) {
+		decompressed_child.data = NULL; decompressed_child.size = 0;
+
+		lseek(packfd, offset + base_objectinfo.used, SEEK_SET);
+		deflate_caller(packfd, buffer_cb, &decompressed_child);
+		decompressed_base->data = decompressed_child.data;
+		decompressed_base->size = decompressed_child.size;
+		
+		return base_objectinfo;
+	}
+
+	/* This is a delta, so continue */
+	lseek(packfd, offset + base_objectinfo.used, SEEK_SET);
+
+	int c;
+	unsigned long delta = 0;
+
+	/* Read the size of the delta object */
+	read(packfd, &c, 1);
+	delta = c & 0x7f;
+	while (c & BIT(7)) {
+		delta++;
+		read(packfd, &c, 1);
+		delta = (delta << 7) + (c & 0x7f);
+	}
+	decompressed_base->data = NULL;
+	decompressed_base->size = 0;
+	deflate_caller(packfd, buffer_cb, decompressed_base);
+
+	/* Get parent object (or further deltas) */
+	next_objectinfo = pack_delta_content(packfd, offset - delta, &decompressed_child);
+
+	// Apply the patch
+
+	applypatch(&decompressed_child, decompressed_base, &base_objectinfo);
+	free(decompressed_child.data);
+	free(decompressed_base->data);
+
+	return base_objectinfo;
+}
+
+void
+pack_print_uncompress_object(int packfd, struct objectinfo *objectinfo)
+{
+	if (objectinfo->ptype != OBJ_OFS_DELTA) {
+		struct writer_args writer_args;
+		writer_args.fd = STDOUT_FILENO;
+		writer_args.sent = 0;
+		lseek(packfd, objectinfo->offset + objectinfo->used, SEEK_SET);
+		deflate_caller(packfd, write_cb, &writer_args);
+	}
+	else {
+		struct decompressed_object x;
+		*objectinfo = pack_delta_content(packfd, objectinfo->offset, &x);
+		printf("%lu\n", objectinfo->isize);
+		free(objectinfo->data);
+	}
 }
 
 /* Used by index-pack to compute SHA and get offset bytes */
@@ -137,24 +282,91 @@ pack_parse_header(int packfd, struct packfilehdr *packfilehdr)
 	packfilehdr->nobjects = ntohl(nobjects);
 }
 
+/*
+ * This function pack_object_header checks the object type. If found the
+ * type is not OBJ_OFS_DELTA or OBJ_REF_DELTA, it will immediately return
+ * and the variable 'objectinfo' will contain the type as objectinfo->ftype.
+ * Otherwise, it calls object_header_ofs to drill down and find the base
+ * object type.
+ *
+ * This is separated from applying the deltas. Applying a delta will repeat this
+ * process. I opted to repeat this process when actually applying the deltas:
+ * - It is not CPU intensive to disk intensive to calculate just the type
+ * - To isolate applying the deltas from the rest of the operations
+ */
+
+void
+object_header_ofs(int packfd, int offset, struct objectinfo *childinfo)
+{
+	unsigned long c;
+	lseek(packfd, offset, SEEK_SET);
+
+	read(packfd, &c, sizeof(unsigned long));
+	childinfo->used = 1;
+	childinfo->psize = c & 0xf;
+	childinfo->ptype = (c >> 4) & 0x7;
+
+	if (childinfo->ptype != OBJ_OFS_DELTA) {
+		childinfo->ftype = childinfo->ptype;
+		return;
+	}
+
+	while(c & 0x80) {
+		lseek(packfd, offset + childinfo->used, SEEK_SET);
+		read(packfd, &c, sizeof(unsigned long));
+		childinfo->psize += (c & 0x7F) << (4 + (7*(childinfo->used-1)));
+		childinfo->used++;
+	}
+
+	int q;
+	unsigned long delta;
+
+	lseek(packfd, offset + childinfo->used, SEEK_SET);
+
+	read(packfd, &q, 1);
+	delta = q & 0x7f;
+	while(q & BIT(7)) {
+		delta++;
+		read(packfd, &q, 1);
+		delta = (delta << 7) + (q & 0x7f);
+	}
+
+	object_header_ofs(packfd, offset - delta, childinfo);
+}
+
 void
 pack_object_header(int packfd, int offset, struct objectinfo *objectinfo)
 {
-	unsigned long sevenbit;
+	unsigned long c;
 
+	objectinfo->offset = offset;
 	objectinfo->used = 1;
 
-	read(packfd, &sevenbit, sizeof(unsigned long));
-	objectinfo->size = sevenbit & 0x0F;
-	objectinfo->type = (sevenbit >> 4) & 0x7;
+	read(packfd, &c, sizeof(unsigned long));
+	objectinfo->psize = c & 0x0F;
+	objectinfo->ptype = (c >> 4) & 0x7;
 
-	while(sevenbit & 0x80) {
+	while(c & 0x80) {
 		lseek(packfd, offset + objectinfo->used, SEEK_SET);
-		read(packfd, &sevenbit, sizeof(unsigned long));
-		objectinfo->size += (sevenbit & 0x7F) << (4 + (7*(objectinfo->used-1)));
+		read(packfd, &c, sizeof(unsigned long));
+		objectinfo->psize += (c & 0x7F) << (4 + (7*(objectinfo->used-1)));
 		objectinfo->used++;
 	}
 
+	if (objectinfo->ptype != OBJ_OFS_DELTA && objectinfo->ptype != OBJ_REF_DELTA) {
+		objectinfo->ftype = objectinfo->ptype;
+		return;
+	}
+	else {
+		objectinfo->isize = objectinfo->psize;
+	}
+
+	/* We have to dig deeper */
+	struct objectinfo childinfo;
+	childinfo.ptype = OBJ_OFS_DELTA;
+	object_header_ofs(packfd, offset, &childinfo);
+	objectinfo->ftype = childinfo.ftype;
+	return;
 }
 
 int

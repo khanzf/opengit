@@ -170,7 +170,7 @@ void
 cat_file_get_content_pack(char *sha_str, uint8_t flags)
 {
 	char filename[PATH_MAX];
-	int offset;
+	unsigned long offset;
 	int packfd;
 	struct packfilehdr packfilehdr;
 	struct objectinfo objectinfo;
@@ -200,16 +200,36 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	lseek(packfd, offset, SEEK_SET);
 	pack_object_header(packfd, offset, &objectinfo);
 
+	if (objectinfo.ftype == OBJ_OFS_DELTA) {
+		int c;
+		unsigned long r = 0;
+
+		// Reads header of read ofs delta
+		do {
+			read(packfd, &c, 1);
+			r |= c & 0x7f;
+			if (!(c & BIT(7)))
+				break;
+			r++;
+			r <<= 7;
+		} while(c & BIT(7));
+
+		lseek(packfd, offset - r, SEEK_SET);
+	}
+	else if (objectinfo.ftype == OBJ_REF_DELTA) {
+		printf("obj_ref_delta --- supposed to apply patch\n");
+	}
+
 	switch(flags) {
 		case CAT_FILE_PRINT:
-			lseek(packfd, offset + objectinfo.used, SEEK_SET);
-			pack_uncompress_object(packfd);
+			pack_print_uncompress_object(packfd, &objectinfo);
 			break;
 		case CAT_FILE_SIZE:
-			printf("%lu\n", objectinfo.size);
+			//pack_print_size(packfd, &objectinfo);
+			printf("%lu\n", objectinfo.psize);
 			break;
 		case CAT_FILE_TYPE:
-			cat_file_print_type_by_id(objectinfo.type);
+			cat_file_print_type_by_id(objectinfo.ftype);
 			break;
 	}
 
