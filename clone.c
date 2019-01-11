@@ -358,6 +358,7 @@ clone_http_get_sha(char *url, char *sha, int packfd)
 		}
 	}
 
+	fclose(packptr);
 	free(content);
 
 }
