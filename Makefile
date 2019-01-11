@@ -1,6 +1,6 @@
 MAN=
 
-CFLAGS=	-Wall -lmd -lz -lfetch -lcurl -I /usr/local/include -L /usr/local/lib
+CFLAGS=	-Wall -lmd -lz -lfetch -I /usr/local/include -L /usr/local/lib
 
 PROG=	ogit	
 

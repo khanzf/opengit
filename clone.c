@@ -322,41 +322,44 @@ clone_pack_protocol_process(void *buffer, size_t size, size_t nmemb, void *userp
 void
 clone_http_get_sha(char *url, char *sha, int packfd)
 {
-	CURL *curl;
-	CURLcode res;
 	char git_upload_pack[1000];
 	char *content = NULL;
 	int content_length;
-	struct curl_slist *list = NULL;
 	struct parseread parseread;
+	struct url *fetchurl;
+	FILE *packptr;
 
 	sprintf(git_upload_pack, "%s/git-upload-pack", url);
 
+	fetchurl = fetchParseURL(git_upload_pack);
+	if (fetchurl == NULL) {
+		fprintf(stderr, "Unable to parse url: %s\n", url);
+		exit(128);
+	}
 	parseread.state = STATE_NEWLINE;
 	parseread.cremnant = 0;
 	parseread.fd = packfd;
 
 	content_length = clone_build_post_content(sha, &content);
 
-	curl = curl_easy_init();
-	if (curl) {
-		curl_easy_setopt(curl, CURLOPT_URL, git_upload_pack);
-		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, content);
-		list = curl_slist_append(list, "Content-Type: application/x-git-upload-pack-request");
-		list = curl_slist_append(list, "Accept: application/x-git-upload-pack-result");
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)content_length);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &parseread);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, clone_pack_protocol_process);
-
-		res = curl_easy_perform(curl);
-		if (curl != CURLE_OK)
-			fprintf(stderr, "curl_easy_perform() failed: %s\n",
-				curl_easy_strerror(res));
+	setenv("HTTP_ACCEPT", "application/x-git-upload-pack-result", 1);
+	packptr = fetchReqHTTP(fetchurl, "POST", NULL, "application/x-git-upload-pack-request", content);
+	if (packptr == NULL) {
+		fprintf(stderr, "Unable to contact url: %s\n", url);
+		exit(128);
 	}
 
-	curl_easy_cleanup(curl);
+	size_t sz;
+	int ret;
+	char buf[1024];
+	while((sz = fread(buf, 1, 1024, packptr)) > 0) {
+		ret = clone_pack_protocol_process(buf, 1, sz, &parseread);
+		if (ret != sz) {
+			fprintf(stderr, "Error parsing http response. Exiting.\n");
+			exit(128);
+		}
+	}
+
 	free(content);
 
 }
