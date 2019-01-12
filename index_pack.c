@@ -115,7 +115,7 @@ index_pack_main(int argc, char *argv[])
 		offset += objectinfo.used;
 		lseek(packfd, offset, SEEK_SET);
 
-		switch(objectinfo.ftype) {
+		switch(objectinfo.ptype) {
 		case OBJ_REF_DELTA:
 			lseek(packfd, 2, SEEK_CUR);
 			read(packfd, object_index_entry[x].sha, 20);
