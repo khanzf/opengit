@@ -33,8 +33,8 @@
  * not processed incrementally
  */
 struct decompressed_object {
-	char *data;
-	int size;
+	unsigned char *data;
+	unsigned long size;
 };
 
 struct writer_args {

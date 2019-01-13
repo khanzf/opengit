@@ -167,6 +167,24 @@ cat_file_get_content_loose(char *sha_str, uint8_t flags)
 }
 
 void
+print_content(int packfd, struct objectinfo *objectinfo)
+{
+	if (objectinfo->ptype != OBJ_OFS_DELTA) {
+		struct writer_args writer_args;
+		writer_args.fd = STDOUT_FILENO;
+		writer_args.sent = 0;
+		lseek(packfd, objectinfo->offset + objectinfo->used, SEEK_SET);
+		deflate_caller(packfd, write_cb, &writer_args);
+	}
+	else {
+		pack_delta_content(packfd, objectinfo);
+		write(STDOUT_FILENO, objectinfo->data, objectinfo->isize);
+		free(objectinfo->data);
+		free(objectinfo->deltas);
+	}
+}
+
+void
 cat_file_get_content_pack(char *sha_str, uint8_t flags)
 {
 	char filename[PATH_MAX];
@@ -174,6 +192,9 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	int packfd;
 	struct packfilehdr packfilehdr;
 	struct objectinfo objectinfo;
+
+	// This is a test
+	objectinfo.deltas = NULL;
 
 	offset = pack_get_packfile_offset(sha_str, filename);
 	if (flags == CAT_FILE_EXIT) {
@@ -222,11 +243,12 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 
 	switch(flags) {
 		case CAT_FILE_PRINT:
-			pack_print_uncompress_object(packfd, &objectinfo);
+			pack_delta_content(packfd, &objectinfo);
+			print_content(packfd, &objectinfo);
 			break;
 		case CAT_FILE_SIZE:
-			//pack_print_size(packfd, &objectinfo);
-			printf("%lu\n", objectinfo.psize);
+			pack_delta_content(packfd, &objectinfo);
+			printf("%lu\n", objectinfo.isize);
 			break;
 		case CAT_FILE_TYPE:
 			cat_file_print_type_by_id(objectinfo.ftype);

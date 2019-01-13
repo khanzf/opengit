@@ -96,6 +96,12 @@ struct objectinfo {
 	unsigned int ftype; // Final type
 	unsigned int ptype; // Pack type
 
+	// ofs_delta offsets
+	unsigned long *deltas;	// Absolute value of deltas
+	int ndeltas;		// Number of deltas
+	unsigned long base;	// Absolute offset of the base
+
+
 	unsigned char *data; // Fully cleaned data
 };
 
@@ -118,14 +124,11 @@ struct index_generate_arg {
 };
 
 int pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap);
-void pack_print_uncompress_object(int packfd, struct objectinfo *objectinfo);
 int pack_get_packfile_offset(char *sha_str, char *filename);
 void pack_parse_header(int packfd, struct packfilehdr *packfilehdr);
 void pack_object_header(int packfd, int offset, struct objectinfo *objectinfo);
 unsigned char *pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *arg);
-
-// Change this name
-struct objectinfo drilldown(int packfd, int offset, struct decompressed_object *decompressed_base);
+void pack_delta_content(int packfd, struct objectinfo *objectinfo);
 
 
 #endif
