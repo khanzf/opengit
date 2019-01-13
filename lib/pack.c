@@ -331,6 +331,7 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo)
 
 	if (objectinfo->ptype != OBJ_OFS_DELTA && objectinfo->ptype != OBJ_REF_DELTA) {
 		objectinfo->ftype = objectinfo->ptype;
+		objectinfo->ndeltas = 0;
 		return;
 	}
 	else {
