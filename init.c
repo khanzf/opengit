@@ -136,9 +136,7 @@ init_main(int argc, char *argv[])
 {
 	int ret = 0;
 	int ch;
-
 	char *project_directory = NULL;
-
 	uint8_t flags = 0;
 
 	argc--; argv++;
