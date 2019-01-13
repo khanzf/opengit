@@ -4,3 +4,5 @@ ogit.full
 *.o
 *.core
 .depend*
+cscope.out
+tags
