@@ -197,7 +197,6 @@ print_size(int packfd, struct objectinfo *objectinfo)
 	}
 	else {
 		pack_delta_content(packfd, objectinfo);
-		write(STDOUT_FILENO, objectinfo->data, objectinfo->isize);
 		printf("%lu\n", objectinfo->isize);
 		free(objectinfo->data);
 		free(objectinfo->deltas);
