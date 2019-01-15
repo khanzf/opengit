@@ -68,7 +68,7 @@ applypatch(struct decompressed_object *base, struct decompressed_object *delta, 
 
 	size = readvint(&data, top);
 	if (size != base->size) {
-		printf("Error, bad original set\n");
+		fprintf(stderr, "Error, bad original set\n");
 		exit(0);
 	}
 
@@ -106,7 +106,7 @@ applypatch(struct decompressed_object *base, struct decompressed_object *delta, 
 				cp_size = 0x10000;
 
 			if (cp_off + cp_size > base->size) { // || cp_size > size) {
-				printf("Bad length: First\n");
+				fprintf(stderr, "Bad length: First\n");
 				exit(0);
 			}
 			memcpy(out, (char *) base->data + cp_off, cp_size);
@@ -116,7 +116,7 @@ applypatch(struct decompressed_object *base, struct decompressed_object *delta, 
 			out += opcode;
 			data += opcode;
 		} else {
-			printf("Unexpected opcode 0x00, exiting.\n");
+			fprintf(stderr, "Unexpected opcode 0x00, exiting.\n");
 			exit(0);
 		}
 	}
