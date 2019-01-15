@@ -82,7 +82,6 @@ struct fan {
 
 // pack file headers
 struct packfilehdr {
-//	char sig[4];
 	int version;
 	int nobjects;
 };
@@ -90,19 +89,18 @@ struct packfilehdr {
 struct objectinfo {
 	unsigned long offset; // The object header from the file's start
 
-	unsigned long psize; // Size of the object content
-	unsigned long isize; // Inflated size
-	unsigned long used; // Bytes the header consumes
-	unsigned int ftype; // Final type
-	unsigned int ptype; // Pack type
+	unsigned long psize; 	// Size of the object content
+	unsigned long isize; 	// Inflated size
+	unsigned long used; 	// Bytes the header consumes
+	unsigned int ftype; 	// Final type
+	unsigned int ptype; 	// Pack type
 
-	// ofs_delta offsets
-	unsigned long *deltas;	// Absolute value of deltas
+	/* Values used by ofs_delta objects */
+	unsigned long base;	// Offset of base + base hdr
+	unsigned long *deltas;	// Offset of deltas + delta hdrs
 	int ndeltas;		// Number of deltas
-	unsigned long base;	// Absolute offset of the base
 
-
-	unsigned char *data; // Fully cleaned data
+	unsigned char *data;	// Pointer to inflated data
 };
 
 // Shared by both idx and pack files

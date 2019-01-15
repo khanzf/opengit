@@ -25,6 +25,7 @@
  * SUCH DAMAGE.
  */
 
+#include <netinet/in.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <dirent.h>
@@ -38,8 +39,6 @@
 #include "pack.h"
 #include "common.h"
 #include "ini.h"
-
-#include <netinet/in.h>
 
 unsigned long
 readvint(unsigned char **datap, unsigned char *top)
@@ -139,24 +138,25 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo)
 {
 	struct decompressed_object base_object, delta_object;
 	int q;
+
 	base_object.data = NULL;
 	base_object.size = 0;
 	lseek(packfd, objectinfo->base, SEEK_SET);
 	deflate_caller(packfd, buffer_cb, &base_object);
 
 	for(q=objectinfo->ndeltas;q>0;q--) {
-		lseek(packfd, objectinfo->deltas[q-1], SEEK_SET);
+		lseek(packfd, objectinfo->deltas[q], SEEK_SET);
 
 		delta_object.data = NULL;
 		delta_object.size = 0;
 		deflate_caller(packfd, buffer_cb, &delta_object);
-
 		applypatch(&base_object, &delta_object, objectinfo);
 		free(base_object.data);
 		free(delta_object.data);
 		base_object.data = objectinfo->data;
 		base_object.size = objectinfo->isize;
 	}
+
 }
 
 /* Used by index-pack to compute SHA and get offset bytes */
@@ -265,86 +265,104 @@ pack_parse_header(int packfd, struct packfilehdr *packfilehdr)
  * the final non-deltified data.
  */
 
+/* Starts at a new object header, not the delta */
 void
-object_header_ofs(int packfd, int offset, int layer, struct objectinfo *childinfo, struct objectinfo *objectinfo)
+object_header_ofs(int packfd, int offset, int layer, struct objectinfo *objectinfo, struct objectinfo *childinfo)
 {
-	unsigned long c;
+	uint8_t c;
+	unsigned shift;
+	unsigned long used;
 	lseek(packfd, offset, SEEK_SET);
 
-	read(packfd, &c, sizeof(unsigned long));
-	childinfo->used = 1;
-	childinfo->psize = c & 0xf;
-	childinfo->ptype = (c >> 4) & 0x7;
+	read(packfd, &c, 1);
+	used = 1;
+	childinfo->psize = c & 15;
+	childinfo->ptype = (c >> 4) & 7;
+
+	shift = 4;
 
 	while(c & 0x80) {
-		lseek(packfd, offset + childinfo->used, SEEK_SET);
-		read(packfd, &c, sizeof(unsigned long));
-		childinfo->psize += (c & 0x7F) << (4 + (7*(childinfo->used-1)));
-		childinfo->used++;
+		read(packfd, &c, 1);
+		childinfo->psize += (c & 0x7F) << shift;
+		shift += 7;
+		used++;
 	}
 
 	if (childinfo->ptype != OBJ_OFS_DELTA) {
+		struct decompressed_object decompressed_object;
+		decompressed_object.data = NULL;
+		decompressed_object.size = 0;
 		childinfo->ftype = childinfo->ptype;
-		objectinfo->deltas = malloc(sizeof(unsigned long) * (layer + 1));
-		objectinfo->base = offset + childinfo->used;
-		return;
+		objectinfo->deltas = malloc(sizeof(unsigned long) * layer);
+		objectinfo->base = offset + used;
 	}
+	else {
+		unsigned long delta;
+		unsigned long ofshdr = 1;
 
-	int q;
-	unsigned long delta;
-	int r = 1;
+		read(packfd, &c, 1);
+		delta = c & 0x7f;
+		while(c & 0x80) {
+			delta++;
+			ofshdr++;
+			read(packfd, &c, 1);
+			delta = (delta << 7) + (c & 0x7f);
+		}
+		object_header_ofs(packfd, offset - delta, layer+1, objectinfo, childinfo);
+		objectinfo->deltas[layer] = offset + used + ofshdr;
+		objectinfo->ndeltas++;
 
-	lseek(packfd, offset + childinfo->used, SEEK_SET);
-
-	read(packfd, &q, 1);
-	delta = q & 0x7f;
-	while(q & BIT(7)) {
-		r++;
-		delta++;
-		read(packfd, &q, 1);
-		delta = (delta << 7) + (q & 0x7f);
 	}
-
-	object_header_ofs(packfd, offset - delta, layer+1, childinfo, objectinfo);
-	objectinfo->deltas[layer] = offset + childinfo->used + r;
-	objectinfo->ndeltas++;
 }
 
 void
 pack_object_header(int packfd, int offset, struct objectinfo *objectinfo)
 {
-	unsigned long c;
+	uint8_t c;
+	unsigned shift;
+
+	lseek(packfd, offset, SEEK_SET);
 
 	objectinfo->offset = offset;
 	objectinfo->used = 1;
 
-	read(packfd, &c, sizeof(unsigned long));
-	objectinfo->psize = c & 0x0F;
-	objectinfo->ptype = (c >> 4) & 0x7;
+	read(packfd, &c, 1);
+	objectinfo->ptype = (c >> 4) & 7;
+	objectinfo->psize = c & 15;
+	shift = 4;
 
-	while(c & 0x80) {
-		lseek(packfd, offset + objectinfo->used, SEEK_SET);
-		read(packfd, &c, sizeof(unsigned long));
-		objectinfo->psize += (c & 0x7F) << (4 + (7*(objectinfo->used-1)));
+	while(c & 0x80) { 
+		read(packfd, &c, 1);
+		objectinfo->psize += (c & 0x7f) << shift;
+		shift += 7;
 		objectinfo->used++;
 	}
+	objectinfo->base = offset + objectinfo->used;
 
 	if (objectinfo->ptype != OBJ_OFS_DELTA && objectinfo->ptype != OBJ_REF_DELTA) {
 		objectinfo->ftype = objectinfo->ptype;
 		objectinfo->ndeltas = 0;
-		return;
 	}
 	else {
-		objectinfo->isize = objectinfo->psize;
+		unsigned long delta;
+		unsigned long ofshdrsize = 1;
+		read(packfd, &c, 1);
+		delta = c & 0x7f;
+		
+		while(c & 0x80) {
+			ofshdrsize++;
+			delta += 1;
+			read(packfd, &c, 1);
+			delta = (delta << 7) + (c & 0x7f);
+		}
+		/* We have to dig deeper */
+		objectinfo->ndeltas = 0;
+
+		struct objectinfo childinfo;
+		object_header_ofs(packfd, offset, 1, objectinfo, &childinfo);
+		objectinfo->deltas[0] = offset + objectinfo->used + ofshdrsize;
 	}
 
-	/* We have to dig deeper */
-	struct objectinfo childinfo;
-	objectinfo->ndeltas = 0;
-	objectinfo->base = 0;
-	childinfo.ptype = OBJ_OFS_DELTA;
-	object_header_ofs(packfd, offset, 0, &childinfo, objectinfo);
-	objectinfo->ftype = childinfo.ftype;
 
 	return;
 }

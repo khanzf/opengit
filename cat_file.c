@@ -203,27 +203,6 @@ print_size(int packfd, struct objectinfo *objectinfo)
 	}
 }
 
-/*
-void
-print_size(int packfd, struct objectinfo *objectinfo)
-{
-	if (objectinfo->ptype != OBJ_OFS_DELTA) {
-		struct decompressed_object decompressed_object;
-		decompressed_object.size = 0;
-		lseek(packfd, objectinfo->offset + objectinfo->used, SEEK_SET);
-		deflate_caller(packfd, buffer_cb, &decompressed_object);
-		printf("%lu\n", decompressed_object.size);
-		free(decompressed_object.data);
-	}
-	else {
-		pack_delta_content(packfd, objectinfo);
-		printf("%lu\n", objectinfo->isize);
-		free(objectinfo->data);
-		free(objectinfo->deltas);
-	}
-}
-*/
-
 void
 cat_file_get_content_pack(char *sha_str, uint8_t flags)
 {
@@ -258,6 +237,7 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	lseek(packfd, offset, SEEK_SET);
 	pack_object_header(packfd, offset, &objectinfo);
 
+	// XXX This if-condition might not be necessary
 	if (objectinfo.ftype == OBJ_OFS_DELTA) {
 		int c;
 		unsigned long r = 0;
@@ -280,11 +260,9 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 
 	switch(flags) {
 		case CAT_FILE_PRINT:
-			//pack_delta_content(packfd, &objectinfo);
 			print_content(packfd, &objectinfo);
 			break;
 		case CAT_FILE_SIZE:
-			//pack_delta_content(packfd, &objectinfo);
 			print_size(packfd, &objectinfo);
 			break;
 		case CAT_FILE_TYPE:
