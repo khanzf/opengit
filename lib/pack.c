@@ -292,7 +292,7 @@ object_header_ofs(int packfd, int offset, int layer, struct objectinfo *objectin
 		struct decompressed_object decompressed_object;
 		decompressed_object.data = NULL;
 		decompressed_object.size = 0;
-		childinfo->ftype = childinfo->ptype;
+		objectinfo->ftype = childinfo->ptype;
 		objectinfo->deltas = malloc(sizeof(unsigned long) * layer);
 		objectinfo->base = offset + used;
 	}
