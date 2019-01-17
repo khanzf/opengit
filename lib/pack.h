@@ -96,7 +96,9 @@ struct objectinfo {
 	unsigned int ptype; 	// Pack type
 
 	/* Values used by ofs_delta objects */
-	unsigned long ofsbase;	// Offset of base + base hdr
+	unsigned long deflated_size;
+	unsigned long ofsbase;	// Offset of object + object hdr
+	unsigned long ofshdrsize; // The sizeof the ofs hdr 
 	unsigned long *deltas;	// Offset of deltas + delta hdrs
 	int ndeltas;		// Number of deltas
 

@@ -141,15 +141,17 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo)
 
 	base_object.data = NULL;
 	base_object.size = 0;
-	printf("ofsbase, should be around 1291+2 %lu\n", objectinfo->ofsbase);
+	base_object.deflated_size = 0;
 	lseek(packfd, objectinfo->ofsbase, SEEK_SET);
 	deflate_caller(packfd, buffer_cb, &base_object);
+	objectinfo->deflated_size = base_object.deflated_size;
 
 	for(q=objectinfo->ndeltas;q>0;q--) {
 		lseek(packfd, objectinfo->deltas[q], SEEK_SET);
 
 		delta_object.data = NULL;
 		delta_object.size = 0;
+		delta_object.deflated_size = 0;
 		deflate_caller(packfd, buffer_cb, &delta_object);
 		applypatch(&base_object, &delta_object, objectinfo);
 		free(base_object.data);
@@ -157,6 +159,14 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo)
 		base_object.data = objectinfo->data;
 		base_object.size = objectinfo->isize;
 	}
+
+	/*
+	 * This instance of deflated_size is the 0th in the list which
+	 * means it is the deflated_size of the current OBJ_OFS_DELTA,
+	 * not of the parent deltas.
+	 */
+	objectinfo->deflated_size = delta_object.deflated_size;
+
 
 }
 
@@ -356,7 +366,8 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo)
 			delta = (delta << 7) + (c & 0x7f);
 		}
 		objectinfo->ndeltas = 0;
-
+		objectinfo->ofshdrsize = ofshdrsize;
+		objectinfo->ofsbase = offset + objectinfo->used + ofshdrsize;
 		object_header_ofs(packfd, offset, 1, objectinfo, &childinfo);
 		objectinfo->deltas[0] = offset + objectinfo->used + ofshdrsize;
 	}

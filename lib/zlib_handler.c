@@ -33,13 +33,14 @@
 #include "zlib_handler.h"
 
 unsigned char *
-buffer_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)
+buffer_cb(unsigned char *buf, int size, int deflated_size, void *arg)
 {
 	struct decompressed_object *decompressed_object = arg;
 
 	decompressed_object->data = realloc(decompressed_object->data, decompressed_object->size + size);
 	memcpy(decompressed_object->data + decompressed_object->size, buf, size);
 	decompressed_object->size += size;
+	decompressed_object->deflated_size += deflated_size;
 
 	return buf;
 }

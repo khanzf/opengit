@@ -99,8 +99,8 @@ index_pack_main(int argc, char *argv[])
 
 	struct object_index_entry *object_index_entry;
 	struct index_generate_arg index_generate_arg;
-	off_t base_offset;
-	unsigned char p;
+//	off_t base_offset;
+//	unsigned char p;
 	char hdr[32];
 	int hdrlen;
 
@@ -111,47 +111,47 @@ index_pack_main(int argc, char *argv[])
 
 		lseek(packfd, offset, SEEK_SET);
 		pack_object_header(packfd, offset, &objectinfo);
-
-		offset += objectinfo.used;
-		lseek(packfd, offset, SEEK_SET);
+		bzero(object_index_entry[x].sha, 41);
 
 		switch(objectinfo.ptype) {
 		case OBJ_REF_DELTA:
+			fprintf(stderr, "OBJ_REF_DELTA: currently not implemented. Exiting.\n"); exit(0);
+			offset += objectinfo.used;
+			lseek(packfd, offset, SEEK_SET);
 			lseek(packfd, 2, SEEK_CUR);
 			read(packfd, object_index_entry[x].sha, 20);
 			object_index_entry[x].sha[40] = '\0';
 			offset += 22; /* 20 bytes + 2 for the header */
 			break;
 		case OBJ_OFS_DELTA:
-			bzero(object_index_entry[x].sha, 41);
-			read(packfd, &p, 1);
-			offset += 1;
-
-			base_offset = p & 127;
-			while(p & 128) {
-				base_offset += 1;
-				read(packfd, &p, 1);
-				offset += 1;
-
-				base_offset = (base_offset << 7) + (p & 127);
-			}
-
 			SHA1_Init(&index_generate_arg.shactx);
-			index_generate_arg.bytes = 0;
-			deflate_caller(packfd, pack_get_index_bytes_cb, &index_generate_arg);
-			offset += index_generate_arg.bytes;
+			pack_delta_content(packfd, &objectinfo);
+			hdrlen = sprintf(hdr, "%s %lu", object_name[objectinfo.ftype],
+			    objectinfo.isize) + 1;
+			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
+			SHA1_Update(&index_generate_arg.shactx, objectinfo.data, objectinfo.isize);
+			SHA1_End(&index_generate_arg.shactx, object_index_entry[x].sha);
+			// The next two are allocated in pack_delta_content
+			free(objectinfo.data);
+			free(objectinfo.deltas);
+
+			offset = objectinfo.offset + objectinfo.used + objectinfo.ofshdrsize + objectinfo.deflated_size;
+
 			break;
 		case OBJ_COMMIT:
 		case OBJ_TREE:
 		case OBJ_BLOB:
 		case OBJ_TAG:
 		default:
+			offset += objectinfo.used;
+			lseek(packfd, offset, SEEK_SET);
 			index_generate_arg.bytes = 0;
 			SHA1_Init(&index_generate_arg.shactx);
 
 			hdrlen = sprintf(hdr, "%s %lu", object_name[objectinfo.ftype],
-			    objectinfo.psize) + 1;
-			SHA_Update(&index_generate_arg.shactx, hdr, hdrlen);
+			    objectinfo.psize) + 1; // XXX This should be isize, not psize
+			// XXX this should be SHA1_Update, not SHA_Update
+			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
 			deflate_caller(packfd, pack_get_index_bytes_cb, &index_generate_arg);
 			object_index_entry[x].offset = index_generate_arg.bytes;
 
