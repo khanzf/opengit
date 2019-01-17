@@ -36,7 +36,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include "lib/zlib_handler.h"
+#include "lib/zlib-handler.h"
 #include "lib/common.h"
 #include "lib/pack.h"
 #include "lib/ini.h"

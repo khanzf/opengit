@@ -35,7 +35,7 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "zlib_handler.h"
+#include "zlib-handler.h"
 #include "pack.h"
 #include "common.h"
 #include "ini.h"

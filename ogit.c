@@ -32,10 +32,10 @@
 #include <string.h>
 
 #include "lib/common.h"
-#include "update_index.h"
-#include "hash_object.h"
-#include "index_pack.h"
-#include "cat_file.h"
+#include "update-index.h"
+#include "hash-object.h"
+#include "index-pack.h"
+#include "cat-file.h"
 #include "clone.h"
 #include "ogit.h"
 #include "init.h"

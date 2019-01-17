@@ -39,7 +39,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <fetch.h>
-#include "lib/zlib_handler.h"
+#include "lib/zlib-handler.h"
 #include "lib/common.h"
 #include "lib/ini.h"
 #include "clone.h"

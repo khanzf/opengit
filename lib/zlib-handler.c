@@ -30,7 +30,7 @@
 #include <zlib.h>
 #include <unistd.h>
 #include <string.h>
-#include "zlib_handler.h"
+#include "zlib-handler.h"
 
 unsigned char *
 buffer_cb(unsigned char *buf, int size, int deflated_size, void *arg)
