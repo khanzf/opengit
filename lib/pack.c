@@ -141,7 +141,8 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo)
 
 	base_object.data = NULL;
 	base_object.size = 0;
-	lseek(packfd, objectinfo->base, SEEK_SET);
+	printf("ofsbase, should be around 1291+2 %lu\n", objectinfo->ofsbase);
+	lseek(packfd, objectinfo->ofsbase, SEEK_SET);
 	deflate_caller(packfd, buffer_cb, &base_object);
 
 	for(q=objectinfo->ndeltas;q>0;q--) {
@@ -289,12 +290,9 @@ object_header_ofs(int packfd, int offset, int layer, struct objectinfo *objectin
 	}
 
 	if (childinfo->ptype != OBJ_OFS_DELTA) {
-		struct decompressed_object decompressed_object;
-		decompressed_object.data = NULL;
-		decompressed_object.size = 0;
 		objectinfo->ftype = childinfo->ptype;
 		objectinfo->deltas = malloc(sizeof(unsigned long) * layer);
-		objectinfo->base = offset + used;
+		objectinfo->ofsbase = offset + used;
 	}
 	else {
 		unsigned long delta;
@@ -337,15 +335,17 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo)
 		shift += 7;
 		objectinfo->used++;
 	}
-	objectinfo->base = offset + objectinfo->used;
 
 	if (objectinfo->ptype != OBJ_OFS_DELTA && objectinfo->ptype != OBJ_REF_DELTA) {
 		objectinfo->ftype = objectinfo->ptype;
 		objectinfo->ndeltas = 0;
 	}
 	else {
+		/* We have to dig deeper */
 		unsigned long delta;
 		unsigned long ofshdrsize = 1;
+		struct objectinfo childinfo;
+
 		read(packfd, &c, 1);
 		delta = c & 0x7f;
 		
@@ -355,10 +355,8 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo)
 			read(packfd, &c, 1);
 			delta = (delta << 7) + (c & 0x7f);
 		}
-		/* We have to dig deeper */
 		objectinfo->ndeltas = 0;
 
-		struct objectinfo childinfo;
 		object_header_ofs(packfd, offset, 1, objectinfo, &childinfo);
 		objectinfo->deltas[0] = offset + objectinfo->used + ofshdrsize;
 	}
