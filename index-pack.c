@@ -99,8 +99,6 @@ index_pack_main(int argc, char *argv[])
 
 	struct object_index_entry *object_index_entry;
 	struct index_generate_arg index_generate_arg;
-//	off_t base_offset;
-//	unsigned char p;
 	char hdr[32];
 	int hdrlen;
 
@@ -111,7 +109,7 @@ index_pack_main(int argc, char *argv[])
 
 		lseek(packfd, offset, SEEK_SET);
 		pack_object_header(packfd, offset, &objectinfo);
-		bzero(object_index_entry[x].sha, 41);
+		//bzero(object_index_entry[x].sha, 41);
 
 		switch(objectinfo.ptype) {
 		case OBJ_REF_DELTA:
@@ -119,8 +117,8 @@ index_pack_main(int argc, char *argv[])
 			offset += objectinfo.used;
 			lseek(packfd, offset, SEEK_SET);
 			lseek(packfd, 2, SEEK_CUR);
-			read(packfd, object_index_entry[x].sha, 20);
-			object_index_entry[x].sha[40] = '\0';
+			read(packfd, object_index_entry[x].digest, 20);
+			//object_index_entry[x].sha[40] = '\0';
 			offset += 22; /* 20 bytes + 2 for the header */
 			break;
 		case OBJ_OFS_DELTA:
@@ -130,7 +128,8 @@ index_pack_main(int argc, char *argv[])
 			    objectinfo.isize) + 1;
 			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
 			SHA1_Update(&index_generate_arg.shactx, objectinfo.data, objectinfo.isize);
-			SHA1_End(&index_generate_arg.shactx, object_index_entry[x].sha);
+			SHA1_Final(object_index_entry[x].digest,
+			    &index_generate_arg.shactx);
 			// The next two are allocated in pack_delta_content
 			free(objectinfo.data);
 			free(objectinfo.deltas);
@@ -155,16 +154,55 @@ index_pack_main(int argc, char *argv[])
 			deflate_caller(packfd, pack_get_index_bytes_cb, &index_generate_arg);
 			object_index_entry[x].offset = index_generate_arg.bytes;
 
-			SHA1_End(&index_generate_arg.shactx, object_index_entry[x].sha);
-
+			SHA1_Final(object_index_entry[x].digest, &index_generate_arg.shactx);
 			offset += index_generate_arg.bytes;
 			break;
 		}
+//		for(q=0;q<20;q++)
+//			printf("%02x", object_index_entry[x].digest[q]);
+//		printf("\n");
 	}
 
-	free(object_index_entry);
 	close(packfd);
+	// Now the idx file
 
+	qsort(object_index_entry, packfilehdr.nobjects, sizeof(struct object_index_entry), sortindexentry);
+
+	int idxfd;
+	int hashnum;
+	int reversed;
+	idxfd = open("packout.idx", O_WRONLY | O_CREAT, 0660);
+	if (idxfd == -1) {
+		fprintf(stderr, "Unable to open packout.idx for writing\n");
+		exit(idxfd);
+	}
+
+	// Write the header 
+	write(idxfd, "\377tOc", 4);		// Header
+	write(idxfd, "\x00\x00\x00\x02", 4);	// Version
+
+	/* Writing the Fan Table */
+
+	/* Writing hash count */
+	hashnum = 0;
+	for(x = 0; x < 256 ; x++) {
+		while(object_index_entry[hashnum].digest[0] == x)
+			hashnum++;
+		reversed = htonl(hashnum);
+		write(idxfd, &reversed, 4);
+	}
+
+	/* Writing hashes */
+	for(x = 0; x < packfilehdr.nobjects; x++)
+		write(idxfd, object_index_entry[x].digest, 20);
+
+	/* Write the SHA1 checksum of the corresponding packfile? */
+	for(x = 0; x < packfilehdr.nobjects; x++) {
+	}
+
+	close(idxfd);
+
+	free(object_index_entry);
 	return (ret);
 }
 

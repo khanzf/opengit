@@ -40,6 +40,14 @@
 #include "common.h"
 #include "ini.h"
 
+int
+sortindexentry(const void *a, const void *b)
+{
+	struct object_index_entry *x = (struct object_index_entry *)a;
+	struct object_index_entry *y = (struct object_index_entry *)b;
+	return memcmp(x->digest, y->digest, 20);
+}
+
 unsigned long
 readvint(unsigned char **datap, unsigned char *top)
 {

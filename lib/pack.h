@@ -114,7 +114,7 @@ struct packhdr {
 struct object_index_entry {
 	int offset;
 	int type;
-	char sha[41];
+	unsigned char digest[20];
 };
 
 /* Used in the callback to get index information */
@@ -129,6 +129,7 @@ void pack_parse_header(int packfd, struct packfilehdr *packfilehdr);
 void pack_object_header(int packfd, int offset, struct objectinfo *objectinfo);
 unsigned char *pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *arg);
 void pack_delta_content(int packfd, struct objectinfo *objectinfo);
+int sortindexentry(const void *a, const void *b);
 
 
 #endif
