@@ -69,7 +69,10 @@ clone_http_get_head(char *url, char *sha)
 	long offset;
 
 	sprintf(fetchurl, "%s/info/refs?service=git-upload-pack", url);
-	web = fetchGetURL(fetchurl, NULL);
+	if ((web = fetchGetURL(fetchurl, NULL)) == NULL) {
+		fprintf(stderr, "Unable to clone repository: %s\n", url);
+		exit(128);
+	}
 	offset = 0;
 	smart_head.cap = 0;
 	response = NULL;
