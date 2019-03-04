@@ -106,7 +106,7 @@ index_pack_main(int argc, char *argv[])
 
 	object_index_entry = malloc(sizeof(struct object_index_entry) * packfilehdr.nobjects);
 
-	/* Same as GNU git's parse_pack_objects, first pass */
+	/* Same as GPL git's parse_pack_objects, first pass */
 	for(x = 0; x < packfilehdr.nobjects; x++) {
 		objectinfo.crc = 0x00; // Same as crc32(0, NULL, 0);
 		lseek(packfd, offset, SEEK_SET);

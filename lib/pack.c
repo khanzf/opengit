@@ -143,7 +143,7 @@ applypatch(struct decompressed_object *base, struct decompressed_object *delta, 
  *
  * This function also calculates the crc32 value. The code is not as clean as
  * it should be, but this is the best approach I had without using a file-scope
- * variable, which is GNU git's approach.
+ * variable, which is GPL git's approach.
  */
 
 void

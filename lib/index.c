@@ -37,7 +37,7 @@
     and updating it at the end of the function
 */
 /*
-    This code is very confusing and is worse on the GNU git side.
+    This code is very confusing and is worse on the GPL git side.
     This is the best I could do to make it readable.
 */
 struct cache_tree *
