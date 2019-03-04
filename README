@@ -1,5 +1,5 @@
 OpenGit
-Open Source replacement for GNU git
+Open Source replacement for GPL git
 
 Written for and dedicated to the BSD systems
 Using the BSD-2-Clause license
@@ -7,7 +7,7 @@ Using the BSD-2-Clause license
 Farhan Khan <khanzf@gmail.com>
 
 Objectives
-* Laterally compatible with GNU git. You should be able to symlink git to
+* Laterally compatible with GPL git. You should be able to symlink git to
   ogit and no one should be the wiser.
 * Code clarity (not the case at the moment)
 * BSD-2-Clause licensed
