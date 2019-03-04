@@ -56,7 +56,7 @@ write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)
 }
 
 int
-deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg) {
+deflate_caller(int sourcefd, inflated_handler inflated_handler, uint32_t *crcv, void *arg) {
 	unsigned char in[CHUNK];
 	unsigned char out[CHUNK];
 	unsigned have;
@@ -64,6 +64,7 @@ deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg) {
 	int ret;
 	int input_len;
 	int use;
+	int burn = 0;
 	
 	strm.zalloc = Z_NULL;
 	strm.zfree = Z_NULL;
@@ -89,6 +90,7 @@ deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg) {
 			strm.avail_out = CHUNK;
 			strm.next_out = out;
 			ret = inflate(&strm, Z_NO_FLUSH);
+
 			switch(ret) {
 			case Z_NEED_DICT:
 				ret = Z_DATA_ERROR;
@@ -101,6 +103,9 @@ deflate_caller(int sourcefd, inflated_handler inflated_handler, void *arg) {
 
 			// Return value of 0 code means exit
 			use = input_len - strm.avail_in;
+			if (crcv != NULL)
+				*crcv = crc32(*crcv, in+burn, use);
+			burn+=use;
 			input_len -= use;
 			if (inflated_handler(out, have, use, arg) == NULL)
 				goto end_inflation;

@@ -88,6 +88,7 @@ struct packfilehdr {
 
 struct objectinfo {
 	unsigned long offset; // The object header from the file's start
+	uint32_t crc;
 
 	unsigned long psize; 	// Size of the object content
 	unsigned long isize; 	// Inflated size
@@ -103,6 +104,7 @@ struct objectinfo {
 	int ndeltas;		// Number of deltas
 
 	unsigned char *data;	// Pointer to inflated data
+
 };
 
 // Shared by both idx and pack files
@@ -114,6 +116,7 @@ struct packhdr {
 struct object_index_entry {
 	int offset;
 	int type;
+	uint32_t crc;
 	unsigned char digest[20];
 };
 
