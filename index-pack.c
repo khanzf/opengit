@@ -112,6 +112,8 @@ index_pack_main(int argc, char *argv[])
 		lseek(packfd, offset, SEEK_SET);
 		pack_object_header(packfd, offset, &objectinfo);
 
+//		printf("CHECK1: %02x\n", objectinfo.offset);
+
 		switch(objectinfo.ptype) {
 		case OBJ_REF_DELTA:
 			fprintf(stderr, "OBJ_REF_DELTA: currently not implemented. Exiting.\n"); exit(0);
@@ -152,7 +154,7 @@ index_pack_main(int argc, char *argv[])
 			    objectinfo.psize) + 1; // XXX This should be isize, not psize
 			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
 			deflate_caller(packfd, pack_get_index_bytes_cb, &objectinfo.crc, &index_generate_arg);
-			object_index_entry[x].offset = index_generate_arg.bytes;
+			//object_index_entry[x].offset = index_generate_arg.bytes;
 
 			SHA1_Final(object_index_entry[x].digest, &index_generate_arg.shactx);
 			offset += index_generate_arg.bytes;
@@ -160,6 +162,7 @@ index_pack_main(int argc, char *argv[])
 		}
 
 		object_index_entry[x].crc = objectinfo.crc;
+		object_index_entry[x].offset = objectinfo.offset;
 	}
 
 	close(packfd);
@@ -194,6 +197,27 @@ index_pack_main(int argc, char *argv[])
 	/* Writing hashes */
 	for(x = 0; x < packfilehdr.nobjects; x++)
 		write(idxfd, object_index_entry[x].digest, 20);
+
+	// XXX This needs to be sorted by sha
+	/* Write the crc32 table */
+	uint32_t crc32tmp;
+	for(x = 0; x < packfilehdr.nobjects; x++) {
+		crc32tmp = htonl(object_index_entry[x].crc);
+		write(idxfd, &crc32tmp, 4);
+	}
+
+//	write(idxfd, "\xAA\xAA\xAA\xAA", 4);
+
+	// XXX This needs to be sorted by sha
+	/* Write the 32-bit offset table */
+	uint64_t offsettmp;
+	for(x = 0; x < packfilehdr.nobjects; x++) {
+		offsettmp = htonl(object_index_entry[x].offset);
+		write(idxfd, &offsettmp, 4);
+		printf("Search: %02x\n", object_index_entry[x].offset);
+	}
+
+	/* Currently does not write large files */
 
 	/* Write the SHA1 checksum of the corresponding packfile? */
 //	for(x = 0; x < packfilehdr.nobjects; x++) {
