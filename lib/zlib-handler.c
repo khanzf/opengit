@@ -63,6 +63,18 @@ write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)
 	return buf;
 }
 
+/*
+ * This function's objective is to deflate arbitrary data. It takes five
+ * arguments:
+ * - sourcefd: The file descriptor of the source
+ * - deflated handler and darg: Used to process the deflated bytes beyond
+ *   deflating. The darg variable is the argument for the handler function.
+ *   This is used when calculating the checksum of the packfile.
+ * - inflated handler and iarg: Similar to deflated handler, this processes
+ *   the inflated bytes with iarg as the variable.
+ *   This is used to know where to store the inflated data, whether in a
+ *   buffer, calculate a value with them or write them somewhere
+ */
 int
 deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg, inflated_handler inflated_handler, void *arg) {
 	unsigned char in[CHUNK];
