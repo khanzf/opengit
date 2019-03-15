@@ -161,7 +161,7 @@ cat_file_get_content_loose(char *sha_str, uint8_t flags)
 	loosearg.step = 0;
 	loosearg.sent = 0;
 
-	deflate_caller(objectfd, cat_loose_object_cb, NULL, &loosearg);
+	deflate_caller(objectfd, NULL, NULL, cat_loose_object_cb, &loosearg);
 
 	return 1;
 }
@@ -174,7 +174,7 @@ print_content(int packfd, struct objectinfo *objectinfo)
 		writer_args.fd = STDOUT_FILENO;
 		writer_args.sent = 0;
 		lseek(packfd, objectinfo->offset + objectinfo->used, SEEK_SET);
-		deflate_caller(packfd, write_cb, NULL, &writer_args);
+		deflate_caller(packfd, NULL, NULL, write_cb, &writer_args);
 	}
 	else {
 		pack_delta_content(packfd, objectinfo);
@@ -192,7 +192,7 @@ print_size(int packfd, struct objectinfo *objectinfo)
 		decompressed_object.size = 0;
 		decompressed_object.data = NULL;
 		lseek(packfd, objectinfo->offset + objectinfo->used, SEEK_SET);
-		deflate_caller(packfd, buffer_cb, NULL, &decompressed_object);
+		deflate_caller(packfd, NULL, NULL, buffer_cb, &decompressed_object);
 		printf("%lu\n", decompressed_object.size);
 	}
 	else {

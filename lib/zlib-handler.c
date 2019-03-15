@@ -45,6 +45,14 @@ buffer_cb(unsigned char *buf, int size, int deflated_size, void *arg)
 	return buf;
 }
 
+int
+zlib_update_crc(unsigned char *data, int use, void *darg)
+{
+	uint32_t *crcv = darg;
+	*crcv = crc32(*crcv, data, use);
+	return 0;
+}
+
 unsigned char *
 write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)
 {
@@ -56,7 +64,7 @@ write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)
 }
 
 int
-deflate_caller(int sourcefd, inflated_handler inflated_handler, uint32_t *crcv, void *arg) {
+deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg, inflated_handler inflated_handler, void *arg) {
 	unsigned char in[CHUNK];
 	unsigned char out[CHUNK];
 	unsigned have;
@@ -103,8 +111,10 @@ deflate_caller(int sourcefd, inflated_handler inflated_handler, uint32_t *crcv, 
 
 			// Return value of 0 code means exit
 			use = input_len - strm.avail_in;
-			if (crcv != NULL)
-				*crcv = crc32(*crcv, in+burn, use);
+			if (deflated_handler)
+				deflated_handler(in+burn, use, darg);
+//			if (crcv != NULL)
+//				*crcv = crc32(*crcv, in+burn, use);
 			burn+=use;
 			input_len -= use;
 			if (inflated_handler(out, have, use, arg) == NULL)

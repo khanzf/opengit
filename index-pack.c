@@ -108,7 +108,7 @@ index_pack_main(int argc, char *argv[])
 
 	/* Same as GPL git's parse_pack_objects, first pass */
 	for(x = 0; x < packfilehdr.nobjects; x++) {
-		objectinfo.crc = 0x00; // Same as crc32(0, NULL, 0);
+		objectinfo.crc = 0x00;
 		lseek(packfd, offset, SEEK_SET);
 		pack_object_header(packfd, offset, &objectinfo);
 
@@ -153,7 +153,7 @@ index_pack_main(int argc, char *argv[])
 			hdrlen = sprintf(hdr, "%s %lu", object_name[objectinfo.ftype],
 			    objectinfo.psize) + 1; // XXX This should be isize, not psize
 			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
-			deflate_caller(packfd, pack_get_index_bytes_cb, &objectinfo.crc, &index_generate_arg);
+			deflate_caller(packfd, zlib_update_crc, &objectinfo.crc, pack_get_index_bytes_cb, &index_generate_arg);
 			//object_index_entry[x].offset = index_generate_arg.bytes;
 
 			SHA1_Final(object_index_entry[x].digest, &index_generate_arg.shactx);

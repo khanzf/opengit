@@ -156,7 +156,7 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo)
 	base_object.size = 0;
 	base_object.deflated_size = 0;
 	lseek(packfd, objectinfo->ofsbase, SEEK_SET);
-	deflate_caller(packfd, buffer_cb, NULL, &base_object);
+	deflate_caller(packfd, NULL, NULL, buffer_cb, &base_object);
 	objectinfo->deflated_size = base_object.deflated_size;
 
 	for(q=objectinfo->ndeltas;q>0;q--) {
@@ -166,7 +166,10 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo)
 		delta_object.size = 0;
 		delta_object.deflated_size = 0;
 		/* Only calculate the crc32 for the first iteration */
-		deflate_caller(packfd, buffer_cb, (q == 1) ? &objectinfo->crc : NULL, &delta_object);
+		if (q == 1)
+			deflate_caller(packfd, zlib_update_crc, &objectinfo->crc, buffer_cb, &delta_object);
+		else
+			deflate_caller(packfd, NULL, NULL, buffer_cb, &delta_object);
 		applypatch(&base_object, &delta_object, objectinfo);
 		free(base_object.data);
 		free(delta_object.data);

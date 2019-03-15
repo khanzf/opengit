@@ -183,7 +183,7 @@ log_get_loose_object(struct logarg *logarg)
 		close(objectfd);
 		return 0;
 	}
-	deflate_caller(objectfd, log_display_cb, NULL, logarg);
+	deflate_caller(objectfd, NULL, NULL, log_display_cb, logarg);
 	close(objectfd);
 
 	return 1;
@@ -215,7 +215,7 @@ log_get_pack_object(struct logarg *logarg)
 	pack_object_header(packfd, offset, &objectinfo);
 
 	lseek(packfd, offset + objectinfo.used, SEEK_SET);
-	deflate_caller(packfd, log_display_cb, NULL, logarg);
+	deflate_caller(packfd, NULL, NULL, log_display_cb, logarg);
 	close(packfd);
 
 	return 1;
