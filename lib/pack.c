@@ -36,10 +36,27 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <zlib.h>
+#include <sha.h>
+#include "buffering.h"
 #include "zlib-handler.h"
 #include "pack.h"
 #include "common.h"
 #include "ini.h"
+
+static int burn = 0;
+
+int
+read_sha_update(void *buf, size_t count, void *arg)
+{
+	if (!arg)
+		return 1;
+	SHA1_CTX *context = arg;
+	SHA1_Update(context, buf, count);
+
+	burn += count;
+
+	return 0;
+}
 
 int
 sortindexentry(const void *a, const void *b)
@@ -155,6 +172,7 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo)
 	base_object.data = NULL;
 	base_object.size = 0;
 	base_object.deflated_size = 0;
+
 	lseek(packfd, objectinfo->ofsbase, SEEK_SET);
 	deflate_caller(packfd, NULL, NULL, buffer_cb, &base_object);
 	objectinfo->deflated_size = base_object.deflated_size;
@@ -248,27 +266,28 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 }
 
 void
-pack_parse_header(int packfd, struct packfilehdr *packfilehdr)
+pack_parse_header(int packfd, struct packfilehdr *packfilehdr,
+    SHA1_CTX *packctx)
 {
 	int version;
 	int nobjects;
 	unsigned char buf[4];
 
-	read(packfd, buf, 4);
+	buf_read(packfd, buf, 4, read_sha_update, packctx);
 
 	if (memcmp(buf, "PACK", 4)) {
 		fprintf(stderr, "error: bad object header. Git repository may be corrupt.\n");
 		exit(128);
 	}
 
-	read(packfd, &version, 4);
+	buf_read(packfd, &version, 4, read_sha_update, packctx);
 	packfilehdr->version = ntohl(version);
 	if (packfilehdr->version != 2) {
 		fprintf(stderr, "error: unsupported version: %d\n", version);
 		exit(128);
 	}
 
-	read(packfd, &nobjects, 4);
+	buf_read(packfd, &nobjects, 4, read_sha_update, packctx);
 	packfilehdr->nobjects = ntohl(nobjects);
 }
 
@@ -293,13 +312,16 @@ pack_parse_header(int packfd, struct packfilehdr *packfilehdr)
 
 /* Starts at a new object header, not the delta */
 void
-object_header_ofs(int packfd, int offset, int layer, struct objectinfo *objectinfo, struct objectinfo *childinfo)
+object_header_ofs(int packfd, int offset, int layer,
+    struct objectinfo *objectinfo, struct objectinfo *childinfo,
+    SHA1_CTX *packctx)
 {
 	uint8_t c;
 	unsigned shift;
 	unsigned long used;
 	lseek(packfd, offset, SEEK_SET);
 
+//	buf_read(packfd, &c, 1, read_sha_update, packctx);
 	read(packfd, &c, 1);
 	used = 1;
 	childinfo->psize = c & 15;
@@ -308,6 +330,7 @@ object_header_ofs(int packfd, int offset, int layer, struct objectinfo *objectin
 	shift = 4;
 
 	while(c & 0x80) {
+//		buf_read(packfd, &c, 1, read_sha_update, packctx);
 		read(packfd, &c, 1);
 		childinfo->psize += (c & 0x7F) << shift;
 		shift += 7;
@@ -323,22 +346,25 @@ object_header_ofs(int packfd, int offset, int layer, struct objectinfo *objectin
 		unsigned long delta;
 		unsigned long ofshdr = 1;
 
-		read(packfd, &c, 1);
+		buf_read(packfd, &c, 1, read_sha_update, packctx);
+//		read(packfd, &c, 1);
 		delta = c & 0x7f;
 		while(c & 0x80) {
 			delta++;
 			ofshdr++;
+			//buf_read(packfd, &c, 1, read_sha_update, packctx);
 			read(packfd, &c, 1);
 			delta = (delta << 7) + (c & 0x7f);
 		}
-		object_header_ofs(packfd, offset - delta, layer+1, objectinfo, childinfo);
+		object_header_ofs(packfd, offset - delta, layer+1, objectinfo, childinfo, packctx);
 		objectinfo->deltas[layer] = offset + used + ofshdr;
 		objectinfo->ndeltas++;
 	}
 }
 
 void
-pack_object_header(int packfd, int offset, struct objectinfo *objectinfo)
+pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
+    SHA1_CTX *packctx)
 {
 	uint8_t c;
 	unsigned shift;
@@ -348,14 +374,15 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo)
 	objectinfo->offset = offset;
 	objectinfo->used = 1;
 
-	read(packfd, &c, 1);
+	buf_read(packfd, &c, 1, read_sha_update, packctx);
+
 	objectinfo->crc = crc32(objectinfo->crc, &c, 1);
 	objectinfo->ptype = (c >> 4) & 7;
 	objectinfo->psize = c & 15;
 	shift = 4;
 
 	while(c & 0x80) { 
-		read(packfd, &c, 1);
+		buf_read(packfd, &c, 1, read_sha_update, packctx);
 		objectinfo->crc = crc32(objectinfo->crc, &c, 1);
 		objectinfo->psize += (c & 0x7f) << shift;
 		shift += 7;
@@ -372,23 +399,28 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo)
 		unsigned long ofshdrsize = 1;
 		struct objectinfo childinfo;
 
-		read(packfd, &c, 1);
+		buf_read(packfd, &c, 1, read_sha_update, packctx);
+//		read(packfd, &c, 1);
 		objectinfo->crc = crc32(objectinfo->crc, &c, 1);
 		delta = c & 0x7f;
 		
 		while(c & 0x80) {
 			ofshdrsize++;
 			delta += 1;
-			read(packfd, &c, 1);
+			buf_read(packfd, &c, 1, read_sha_update, packctx);
+//			read(packfd, &c, 1);
 			objectinfo->crc = crc32(objectinfo->crc, &c, 1);
 			delta = (delta << 7) + (c & 0x7f);
 		}
+
 		objectinfo->ndeltas = 0;
 		objectinfo->ofshdrsize = ofshdrsize;
 		objectinfo->ofsbase = offset + objectinfo->used + ofshdrsize;
-		object_header_ofs(packfd, offset, 1, objectinfo, &childinfo);
+		object_header_ofs(packfd, offset, 1, objectinfo, &childinfo, packctx);
 		objectinfo->deltas[0] = offset + objectinfo->used + ofshdrsize;
 	}
+
+	lseek(packfd, objectinfo->ofsbase, SEEK_SET);
 
 	return;
 }

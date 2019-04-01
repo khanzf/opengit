@@ -40,6 +40,7 @@
 #include <fcntl.h>
 #include <zlib.h>
 #include "lib/zlib-handler.h"
+#include "lib/buffering.h"
 #include "lib/common.h"
 #include "lib/pack.h"
 #include "lib/ini.h"
@@ -232,10 +233,10 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 		fprintf(stderr, "This The git repository may be corrupt.\n");
 		exit(128);
 	}
-	pack_parse_header(packfd, &packfilehdr);
+	pack_parse_header(packfd, &packfilehdr, NULL);
 
 	lseek(packfd, offset, SEEK_SET);
-	pack_object_header(packfd, offset, &objectinfo);
+	pack_object_header(packfd, offset, &objectinfo, NULL);
 
 	// XXX This if-condition might not be necessary
 	if (objectinfo.ftype == OBJ_OFS_DELTA) {
@@ -244,7 +245,7 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 
 		// Reads header of read ofs delta
 		do {
-			read(packfd, &c, 1);
+			buf_read(packfd, &c, 1, NULL, NULL);
 			r |= c & 0x7f;
 			if (!(c & BIT(7)))
 				break;

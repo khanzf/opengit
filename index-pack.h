@@ -28,6 +28,12 @@
 #ifndef __PACK_INDEX_H__
 #define __PACK_INDEX_H__
 
+/* Used to process both the crc and ctx data */
+struct two_darg {
+	void *crc;
+	void *sha;
+};
+
 int index_pack_main(int argc, char *argv[]);
 
 #endif

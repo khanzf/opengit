@@ -25,11 +25,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <zlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sha.h>
 #include "zlib-handler.h"
 
 unsigned char *
@@ -43,6 +45,13 @@ buffer_cb(unsigned char *buf, int size, int deflated_size, void *arg)
 	decompressed_object->deflated_size += deflated_size;
 
 	return buf;
+}
+int
+zlib_update_sha(unsigned char *data, int use, void *darg)
+{
+	SHA1_CTX *ctxv = darg;
+	SHA1_Update(ctxv, data, use);
+	return 0;
 }
 
 int
@@ -76,7 +85,8 @@ write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)
  *   buffer, calculate a value with them or write them somewhere
  */
 int
-deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg, inflated_handler inflated_handler, void *arg) {
+deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg,
+    inflated_handler inflated_handler, void *arg) {
 	unsigned char in[CHUNK];
 	unsigned char out[CHUNK];
 	unsigned have;
@@ -125,8 +135,6 @@ deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg, infl
 			use = input_len - strm.avail_in;
 			if (deflated_handler)
 				deflated_handler(in+burn, use, darg);
-//			if (crcv != NULL)
-//				*crcv = crc32(*crcv, in+burn, use);
 			burn+=use;
 			input_len -= use;
 			if (inflated_handler(out, have, use, arg) == NULL)

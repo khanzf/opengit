@@ -209,10 +209,10 @@ log_get_pack_object(struct logarg *logarg)
 		fprintf(stderr, "fatal: git log: could not get object info\n");
 		exit(128);
 	}
-	pack_parse_header(packfd, &packfilehdr);
+	pack_parse_header(packfd, &packfilehdr, NULL);
 
 	lseek(packfd, offset, SEEK_SET);
-	pack_object_header(packfd, offset, &objectinfo);
+	pack_object_header(packfd, offset, &objectinfo, NULL);
 
 	lseek(packfd, offset + objectinfo.used, SEEK_SET);
 	deflate_caller(packfd, NULL, NULL, log_display_cb, logarg);

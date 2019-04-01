@@ -40,9 +40,11 @@
 #include <fetch.h>
 #include <zlib.h>
 #include "lib/zlib-handler.h"
+#include "lib/buffering.h"
 #include "lib/common.h"
 #include "lib/ini.h"
 #include "lib/pack.h"
+#include "index-pack.h"
 #include "clone.h"
 
 static struct option long_options[] =
@@ -53,8 +55,19 @@ static struct option long_options[] =
 void
 index_pack_usage(int type)
 {
-	fprintf(stderr, "usage: git index-pack [-v] [-o <index-file>] [--keep | --keep=<msg>] [--verify] [--strict] (<pack-file> | --stdin [--fix-thin] [<pack-file>])\n");
+	fprintf(stderr, "usage: ogit index-pack [-v] [-o <index-file>] [--keep | --keep=<msg>] [--verify] [--strict] (<pack-file> | --stdin [--fix-thin] [<pack-file>])\n");
 	exit(128);
+}
+
+int
+crc_sha_run(unsigned char *data, int use, void *darg)
+{
+	struct two_darg *two_darg = darg;
+
+	zlib_update_crc(data, use, two_darg->crc);
+	zlib_update_sha(data, use, two_darg->sha);
+
+	return 0;
 }
 
 int
@@ -89,13 +102,16 @@ index_pack_main(int argc, char *argv[])
 	int offset;
 	struct objectinfo objectinfo;
 	int x;
+	SHA1_CTX packctx;
+	SHA1_Init(&packctx);
 
 	packfd = open(argv[1], O_RDONLY);
 	if (packfd == -1) {
 		fprintf(stderr, "fatal: cannot open packfile '%s'\n", argv[1]);
 		exit(128);
 	}
-	pack_parse_header(packfd, &packfilehdr);
+
+	pack_parse_header(packfd, &packfilehdr, &packctx);
 	offset = 4 * 3; 
 
 	struct object_index_entry *object_index_entry;
@@ -110,34 +126,37 @@ index_pack_main(int argc, char *argv[])
 	for(x = 0; x < packfilehdr.nobjects; x++) {
 		objectinfo.crc = 0x00;
 		lseek(packfd, offset, SEEK_SET);
-		pack_object_header(packfd, offset, &objectinfo);
-
-//		printf("CHECK1: %02x\n", objectinfo.offset);
+		pack_object_header(packfd, offset, &objectinfo, &packctx);
 
 		switch(objectinfo.ptype) {
 		case OBJ_REF_DELTA:
 			fprintf(stderr, "OBJ_REF_DELTA: currently not implemented. Exiting.\n"); exit(0);
 			offset += objectinfo.used;
 			lseek(packfd, offset, SEEK_SET);
-			read(packfd, tmpref, 2);
+			buf_read(packfd, tmpref, 2, read_sha_update,
+			    &packctx);
 			objectinfo.crc = crc32(objectinfo.crc, tmpref, 2);
-			read(packfd, object_index_entry[x].digest, 20);
+			buf_read(packfd, object_index_entry[x].digest, 20,
+			    read_sha_update, &packctx);
 			offset += 22; /* 20 bytes + 2 for the header */
 			break;
 		case OBJ_OFS_DELTA:
 			SHA1_Init(&index_generate_arg.shactx);
 			pack_delta_content(packfd, &objectinfo);
-			hdrlen = sprintf(hdr, "%s %lu", object_name[objectinfo.ftype],
+			hdrlen = sprintf(hdr, "%s %lu",
+			    object_name[objectinfo.ftype],
 			    objectinfo.isize) + 1;
 			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
-			SHA1_Update(&index_generate_arg.shactx, objectinfo.data, objectinfo.isize);
+			SHA1_Update(&index_generate_arg.shactx,
+			    objectinfo.data, objectinfo.isize);
 			SHA1_Final(object_index_entry[x].digest,
 			    &index_generate_arg.shactx);
 			// The next two are allocated in pack_delta_content
 			free(objectinfo.data);
 			free(objectinfo.deltas);
 
-			offset = objectinfo.offset + objectinfo.used + objectinfo.ofshdrsize + objectinfo.deflated_size;
+			offset = objectinfo.offset + objectinfo.used +
+			    objectinfo.ofshdrsize + objectinfo.deflated_size;
 
 			break;
 		case OBJ_COMMIT:
@@ -150,13 +169,19 @@ index_pack_main(int argc, char *argv[])
 			index_generate_arg.bytes = 0;
 			SHA1_Init(&index_generate_arg.shactx);
 
-			hdrlen = sprintf(hdr, "%s %lu", object_name[objectinfo.ftype],
+			hdrlen = sprintf(hdr, "%s %lu",
+			    object_name[objectinfo.ftype],
 			    objectinfo.psize) + 1; // XXX This should be isize, not psize
 			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
-			deflate_caller(packfd, zlib_update_crc, &objectinfo.crc, pack_get_index_bytes_cb, &index_generate_arg);
+			struct two_darg two_darg;
+			two_darg.crc = &objectinfo.crc;
+			two_darg.sha = &packctx;
+			deflate_caller(packfd, crc_sha_run, &two_darg, pack_get_index_bytes_cb, &index_generate_arg);
+			// original deflate_caller(packfd, zlib_update_crc, &objectinfo.crc, pack_get_index_bytes_cb, &index_generate_arg);
 			//object_index_entry[x].offset = index_generate_arg.bytes;
 
-			SHA1_Final(object_index_entry[x].digest, &index_generate_arg.shactx);
+			SHA1_Final(object_index_entry[x].digest,
+			    &index_generate_arg.shactx);
 			offset += index_generate_arg.bytes;
 			break;
 		}
@@ -168,7 +193,8 @@ index_pack_main(int argc, char *argv[])
 	close(packfd);
 	// Now the idx file
 
-	qsort(object_index_entry, packfilehdr.nobjects, sizeof(struct object_index_entry), sortindexentry);
+	qsort(object_index_entry, packfilehdr.nobjects,
+	    sizeof(struct object_index_entry), sortindexentry);
 
 	int idxfd;
 	int hashnum;
@@ -214,7 +240,7 @@ index_pack_main(int argc, char *argv[])
 	for(x = 0; x < packfilehdr.nobjects; x++) {
 		offsettmp = htonl(object_index_entry[x].offset);
 		write(idxfd, &offsettmp, 4);
-		printf("Search: %02x\n", object_index_entry[x].offset);
+//		printf("Search: %02x\n", object_index_entry[x].offset);
 	}
 
 	/* Currently does not write large files */

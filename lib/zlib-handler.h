@@ -51,6 +51,7 @@ typedef unsigned char *inflated_handler(unsigned char *, int, int, void *);
 int deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg, inflated_handler inflated_handler, void *arg);
 unsigned char *write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg);
 unsigned char *buffer_cb(unsigned char *buf, int size, int deflate_size, void *arg);
+int zlib_update_sha(unsigned char *data, int use, void *darg);
 int zlib_update_crc(unsigned char *data, int use, void *darg);
 
 #endif
