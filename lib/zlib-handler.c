@@ -46,6 +46,7 @@ buffer_cb(unsigned char *buf, int size, int deflated_size, void *arg)
 
 	return buf;
 }
+
 int
 zlib_update_sha(unsigned char *data, int use, void *darg)
 {
@@ -61,6 +62,18 @@ zlib_update_crc(unsigned char *data, int use, void *darg)
 	*crcv = crc32(*crcv, data, use);
 	return 0;
 }
+
+int
+zlib_update_crc_sha(unsigned char *data, int use, void *darg)
+{
+        struct two_darg *two_darg = darg;
+
+	zlib_update_crc(data, use, two_darg->crc);
+	zlib_update_sha(data, use, two_darg->sha);
+
+	return 0;
+}
+
 
 unsigned char *
 write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)

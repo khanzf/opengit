@@ -43,8 +43,6 @@
 #include "common.h"
 #include "ini.h"
 
-static int burn = 0;
-
 int
 read_sha_update(void *buf, size_t count, void *arg)
 {
@@ -52,8 +50,6 @@ read_sha_update(void *buf, size_t count, void *arg)
 		return 1;
 	SHA1_CTX *context = arg;
 	SHA1_Update(context, buf, count);
-
-	burn += count;
 
 	return 0;
 }
@@ -164,7 +160,7 @@ applypatch(struct decompressed_object *base, struct decompressed_object *delta, 
  */
 
 void
-pack_delta_content(int packfd, struct objectinfo *objectinfo)
+pack_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx)
 {
 	struct decompressed_object base_object, delta_object;
 	int q;
@@ -177,17 +173,23 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo)
 	deflate_caller(packfd, NULL, NULL, buffer_cb, &base_object);
 	objectinfo->deflated_size = base_object.deflated_size;
 
-	for(q=objectinfo->ndeltas;q>0;q--) {
+	for(q=objectinfo->ndeltas-1;q>=0;q--) {
 		lseek(packfd, objectinfo->deltas[q], SEEK_SET);
 
 		delta_object.data = NULL;
 		delta_object.size = 0;
 		delta_object.deflated_size = 0;
 		/* Only calculate the crc32 for the first iteration */
-		if (q == 1)
-			deflate_caller(packfd, zlib_update_crc, &objectinfo->crc, buffer_cb, &delta_object);
+		if (q == 0) {
+			struct two_darg two_darg;
+			two_darg.crc =  &objectinfo->crc;
+			two_darg.sha = packctx;
+			deflate_caller(packfd, zlib_update_crc_sha, &two_darg, buffer_cb, &delta_object);
+		}
 		else
 			deflate_caller(packfd, NULL, NULL, buffer_cb, &delta_object);
+
+
 		applypatch(&base_object, &delta_object, objectinfo);
 		free(base_object.data);
 		free(delta_object.data);
@@ -201,6 +203,7 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo)
 	 * not of the parent deltas.
 	 */
 	objectinfo->deflated_size = delta_object.deflated_size;
+
 }
 
 /* Used by index-pack to compute SHA and get offset bytes */
@@ -321,7 +324,6 @@ object_header_ofs(int packfd, int offset, int layer,
 	unsigned long used;
 	lseek(packfd, offset, SEEK_SET);
 
-//	buf_read(packfd, &c, 1, read_sha_update, packctx);
 	read(packfd, &c, 1);
 	used = 1;
 	childinfo->psize = c & 15;
@@ -330,9 +332,8 @@ object_header_ofs(int packfd, int offset, int layer,
 	shift = 4;
 
 	while(c & 0x80) {
-//		buf_read(packfd, &c, 1, read_sha_update, packctx);
 		read(packfd, &c, 1);
-		childinfo->psize += (c & 0x7F) << shift;
+		childinfo->psize += (c & 0x7f) << shift;
 		shift += 7;
 		used++;
 	}
@@ -341,24 +342,22 @@ object_header_ofs(int packfd, int offset, int layer,
 		objectinfo->ftype = childinfo->ptype;
 		objectinfo->deltas = malloc(sizeof(unsigned long) * layer);
 		objectinfo->ofsbase = offset + used;
+		objectinfo->ndeltas = layer;
 	}
 	else {
 		unsigned long delta;
 		unsigned long ofshdr = 1;
 
-		buf_read(packfd, &c, 1, read_sha_update, packctx);
-//		read(packfd, &c, 1);
+		read(packfd, &c, 1);
 		delta = c & 0x7f;
 		while(c & 0x80) {
 			delta++;
 			ofshdr++;
-			//buf_read(packfd, &c, 1, read_sha_update, packctx);
 			read(packfd, &c, 1);
 			delta = (delta << 7) + (c & 0x7f);
 		}
 		object_header_ofs(packfd, offset - delta, layer+1, objectinfo, childinfo, packctx);
 		objectinfo->deltas[layer] = offset + used + ofshdr;
-		objectinfo->ndeltas++;
 	}
 }
 
@@ -400,7 +399,6 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
 		struct objectinfo childinfo;
 
 		buf_read(packfd, &c, 1, read_sha_update, packctx);
-//		read(packfd, &c, 1);
 		objectinfo->crc = crc32(objectinfo->crc, &c, 1);
 		delta = c & 0x7f;
 		
@@ -408,19 +406,15 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
 			ofshdrsize++;
 			delta += 1;
 			buf_read(packfd, &c, 1, read_sha_update, packctx);
-//			read(packfd, &c, 1);
 			objectinfo->crc = crc32(objectinfo->crc, &c, 1);
 			delta = (delta << 7) + (c & 0x7f);
 		}
 
-		objectinfo->ndeltas = 0;
 		objectinfo->ofshdrsize = ofshdrsize;
-		objectinfo->ofsbase = offset + objectinfo->used + ofshdrsize;
-		object_header_ofs(packfd, offset, 1, objectinfo, &childinfo, packctx);
+		object_header_ofs(packfd, offset - delta, 1, objectinfo, &childinfo, packctx);
 		objectinfo->deltas[0] = offset + objectinfo->used + ofshdrsize;
-	}
 
-	lseek(packfd, objectinfo->ofsbase, SEEK_SET);
+	}
 
 	return;
 }

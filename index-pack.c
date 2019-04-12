@@ -60,17 +60,6 @@ index_pack_usage(int type)
 }
 
 int
-crc_sha_run(unsigned char *data, int use, void *darg)
-{
-	struct two_darg *two_darg = darg;
-
-	zlib_update_crc(data, use, two_darg->crc);
-	zlib_update_sha(data, use, two_darg->sha);
-
-	return 0;
-}
-
-int
 index_pack_main(int argc, char *argv[])
 {
 	int ret = 0;
@@ -119,6 +108,7 @@ index_pack_main(int argc, char *argv[])
 	char hdr[32];
 	int hdrlen;
 	char tmpref[2];
+	struct two_darg two_darg;
 
 	object_index_entry = malloc(sizeof(struct object_index_entry) * packfilehdr.nobjects);
 
@@ -142,7 +132,7 @@ index_pack_main(int argc, char *argv[])
 			break;
 		case OBJ_OFS_DELTA:
 			SHA1_Init(&index_generate_arg.shactx);
-			pack_delta_content(packfd, &objectinfo);
+			pack_delta_content(packfd, &objectinfo, &packctx);
 			hdrlen = sprintf(hdr, "%s %lu",
 			    object_name[objectinfo.ftype],
 			    objectinfo.isize) + 1;
@@ -173,12 +163,9 @@ index_pack_main(int argc, char *argv[])
 			    object_name[objectinfo.ftype],
 			    objectinfo.psize) + 1; // XXX This should be isize, not psize
 			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
-			struct two_darg two_darg;
 			two_darg.crc = &objectinfo.crc;
 			two_darg.sha = &packctx;
-			deflate_caller(packfd, crc_sha_run, &two_darg, pack_get_index_bytes_cb, &index_generate_arg);
-			// original deflate_caller(packfd, zlib_update_crc, &objectinfo.crc, pack_get_index_bytes_cb, &index_generate_arg);
-			//object_index_entry[x].offset = index_generate_arg.bytes;
+			deflate_caller(packfd, zlib_update_crc_sha, &two_darg, pack_get_index_bytes_cb, &index_generate_arg);
 
 			SHA1_Final(object_index_entry[x].digest,
 			    &index_generate_arg.shactx);
@@ -190,6 +177,7 @@ index_pack_main(int argc, char *argv[])
 		object_index_entry[x].offset = objectinfo.offset;
 	}
 
+	SHA1_Final(packfilehdr.sha, &packctx);
 	close(packfd);
 	// Now the idx file
 
@@ -224,7 +212,6 @@ index_pack_main(int argc, char *argv[])
 	for(x = 0; x < packfilehdr.nobjects; x++)
 		write(idxfd, object_index_entry[x].digest, 20);
 
-	// XXX This needs to be sorted by sha
 	/* Write the crc32 table */
 	uint32_t crc32tmp;
 	for(x = 0; x < packfilehdr.nobjects; x++) {
@@ -232,23 +219,21 @@ index_pack_main(int argc, char *argv[])
 		write(idxfd, &crc32tmp, 4);
 	}
 
-//	write(idxfd, "\xAA\xAA\xAA\xAA", 4);
-
-	// XXX This needs to be sorted by sha
 	/* Write the 32-bit offset table */
 	uint64_t offsettmp;
 	for(x = 0; x < packfilehdr.nobjects; x++) {
 		offsettmp = htonl(object_index_entry[x].offset);
 		write(idxfd, &offsettmp, 4);
-//		printf("Search: %02x\n", object_index_entry[x].offset);
 	}
 
 	/* Currently does not write large files */
 
-	/* Write the SHA1 checksum of the corresponding packfile? */
-//	for(x = 0; x < packfilehdr.nobjects; x++) {
-//		write(idxfd, &object_index_entry[x].crc, 4);
-//	}
+	/* Write the SHA1 checksum of the corresponding packfile */
+//	for(x = 0; x < 20; x++) {
+//		printf("%x", packfilehdr.sha[x]);
+//		write(idxfd, packfilehdr.sha[x], 1);
+///	}
+	write(idxfd, packfilehdr.sha, 20);
 
 	close(idxfd);
 

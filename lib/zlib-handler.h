@@ -28,6 +28,12 @@
 #ifndef __ZLIB_HANDLER__H
 #define __ZLIB_HANDLER__H
 
+/* Used to process both the crc and ctx data */
+struct two_darg {
+	void *crc;
+	void *sha;
+};
+
 /*
  * Used to recover a full object in a single buffer
  * not processed incrementally
@@ -53,5 +59,6 @@ unsigned char *write_cb(unsigned char *buf, int size, int __unused deflate_bytes
 unsigned char *buffer_cb(unsigned char *buf, int size, int deflate_size, void *arg);
 int zlib_update_sha(unsigned char *data, int use, void *darg);
 int zlib_update_crc(unsigned char *data, int use, void *darg);
+int zlib_update_crc_sha(unsigned char *data, int use, void *darg);
 
 #endif
