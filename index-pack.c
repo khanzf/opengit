@@ -52,6 +52,13 @@ static struct option long_options[] =
 	{NULL, 0, NULL, 0}
 };
 
+ssize_t
+sha_write(int fd, const void *buf, size_t nbytes, SHA1_CTX *idxctx)
+{
+	SHA1_Update(idxctx, buf, nbytes);
+	write(fd, buf, nbytes);
+}
+
 void
 index_pack_usage(int type)
 {
@@ -92,7 +99,9 @@ index_pack_main(int argc, char *argv[])
 	struct objectinfo objectinfo;
 	int x;
 	SHA1_CTX packctx;
+	SHA1_CTX idxctx;
 	SHA1_Init(&packctx);
+	SHA1_Init(&idxctx);
 
 	packfd = open(argv[1], O_RDONLY);
 	if (packfd == -1) {
@@ -194,8 +203,8 @@ index_pack_main(int argc, char *argv[])
 	}
 
 	// Write the header 
-	write(idxfd, "\377tOc", 4);		// Header
-	write(idxfd, "\x00\x00\x00\x02", 4);	// Version
+	sha_write(idxfd, "\377tOc", 4, &idxctx);		// Header
+	sha_write(idxfd, "\x00\x00\x00\x02", 4, &idxctx);	// Version
 
 	/* Writing the Fan Table */
 
@@ -205,25 +214,25 @@ index_pack_main(int argc, char *argv[])
 		while(object_index_entry[hashnum].digest[0] == x)
 			hashnum++;
 		reversed = htonl(hashnum);
-		write(idxfd, &reversed, 4);
+		sha_write(idxfd, &reversed, 4, &idxctx);
 	}
 
 	/* Writing hashes */
 	for(x = 0; x < packfilehdr.nobjects; x++)
-		write(idxfd, object_index_entry[x].digest, 20);
+		sha_write(idxfd, object_index_entry[x].digest, 20, &idxctx);
 
 	/* Write the crc32 table */
 	uint32_t crc32tmp;
 	for(x = 0; x < packfilehdr.nobjects; x++) {
 		crc32tmp = htonl(object_index_entry[x].crc);
-		write(idxfd, &crc32tmp, 4);
+		sha_write(idxfd, &crc32tmp, 4, &idxctx);
 	}
 
 	/* Write the 32-bit offset table */
 	uint64_t offsettmp;
 	for(x = 0; x < packfilehdr.nobjects; x++) {
 		offsettmp = htonl(object_index_entry[x].offset);
-		write(idxfd, &offsettmp, 4);
+		sha_write(idxfd, &offsettmp, 4, &idxctx);
 	}
 
 	/* Currently does not write large files */
@@ -233,7 +242,10 @@ index_pack_main(int argc, char *argv[])
 //		printf("%x", packfilehdr.sha[x]);
 //		write(idxfd, packfilehdr.sha[x], 1);
 ///	}
-	write(idxfd, packfilehdr.sha, 20);
+	sha_write(idxfd, packfilehdr.sha, 20, &idxctx);
+
+	SHA1_Final(packfilehdr.ctx, &idxctx);
+	sha_write(idxfd, packfilehdr.ctx, 20, &idxctx);
 
 	close(idxfd);
 

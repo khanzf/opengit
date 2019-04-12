@@ -85,6 +85,7 @@ struct packfilehdr {
 	int version;
 	int nobjects;
 	unsigned char sha[20];
+	unsigned char ctx[20];
 };
 
 struct objectinfo {
