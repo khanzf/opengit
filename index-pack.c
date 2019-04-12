@@ -238,14 +238,14 @@ index_pack_main(int argc, char *argv[])
 	/* Currently does not write large files */
 
 	/* Write the SHA1 checksum of the corresponding packfile */
-//	for(x = 0; x < 20; x++) {
-//		printf("%x", packfilehdr.sha[x]);
-//		write(idxfd, packfilehdr.sha[x], 1);
-///	}
 	sha_write(idxfd, packfilehdr.sha, 20, &idxctx);
-
 	SHA1_Final(packfilehdr.ctx, &idxctx);
 	sha_write(idxfd, packfilehdr.ctx, 20, &idxctx);
+
+	/* Output the SHA to the terminal */
+	for(x=0;x<20;x++)
+		printf("%02x", packfilehdr.sha[x]);
+	printf("\n");
 
 	close(idxfd);
 
