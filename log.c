@@ -195,7 +195,7 @@ log_get_pack_object(struct logarg *logarg)
 	char filename[PATH_MAX];
 	int offset;
 	int packfd;
-	struct packfilehdr packfilehdr;
+	struct packfileinfo packfileinfo;
 	struct objectinfo objectinfo;
 
 	offset = pack_get_packfile_offset(logarg->sha, filename);
@@ -209,7 +209,7 @@ log_get_pack_object(struct logarg *logarg)
 		fprintf(stderr, "fatal: git log: could not get object info\n");
 		exit(128);
 	}
-	pack_parse_header(packfd, &packfilehdr, NULL);
+	pack_parse_header(packfd, &packfileinfo, NULL);
 
 	lseek(packfd, offset, SEEK_SET);
 	pack_object_header(packfd, offset, &objectinfo, NULL);

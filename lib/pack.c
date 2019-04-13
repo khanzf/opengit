@@ -68,8 +68,8 @@ read_sha_update(void *buf, size_t count, void *arg)
 int
 sortindexentry(const void *a, const void *b)
 {
-	struct object_index_entry *x = (struct object_index_entry *)a;
-	struct object_index_entry *y = (struct object_index_entry *)b;
+	struct index_entry *x = (struct index_entry *)a;
+	struct index_entry *y = (struct index_entry *)b;
 	return memcmp(x->digest, y->digest, 20);
 }
 
@@ -166,8 +166,8 @@ applypatch(struct decompressed_object *base, struct decompressed_object *delta, 
  */
 
 int
-pack_get_object_meta(int packfd, int offset, struct packfilehdr *packfilehdr,
-    struct object_index_entry *object_index_entry,
+pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
+    struct index_entry *index_entry,
     SHA1_CTX *packctx, SHA1_CTX *idxctx)
 {
 	int x;
@@ -178,7 +178,7 @@ pack_get_object_meta(int packfd, int offset, struct packfilehdr *packfilehdr,
 	char tmpref[2];
 	struct two_darg two_darg;
 
-	for(x = 0; x < packfilehdr->nobjects; x++) {
+	for(x = 0; x < packfileinfo->nobjects; x++) {
 		objectinfo.crc = 0x00;
 		lseek(packfd, offset, SEEK_SET);
 		pack_object_header(packfd, offset, &objectinfo, packctx);
@@ -191,7 +191,7 @@ pack_get_object_meta(int packfd, int offset, struct packfilehdr *packfilehdr,
 			lseek(packfd, offset, SEEK_SET);
 			buf_read(packfd, tmpref, 2, read_sha_update, packctx);
 			objectinfo.crc = crc32(objectinfo.crc, tmpref, 2);
-			buf_read(packfd, object_index_entry[x].digest, 20,
+			buf_read(packfd, index_entry[x].digest, 20,
 			    read_sha_update, packctx);
 			offset += 22; /* 20 bytes + 2 for the header */
 			break;
@@ -204,7 +204,7 @@ pack_get_object_meta(int packfd, int offset, struct packfilehdr *packfilehdr,
 			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
 			SHA1_Update(&index_generate_arg.shactx,
 			    objectinfo.data, objectinfo.isize);
-			SHA1_Final(object_index_entry[x].digest,
+			SHA1_Final(index_entry[x].digest,
 			    &index_generate_arg.shactx);
 			/* The next two are allocated in pack_delta_content */
 			free(objectinfo.data);
@@ -232,14 +232,14 @@ pack_get_object_meta(int packfd, int offset, struct packfilehdr *packfilehdr,
 			deflate_caller(packfd, zlib_update_crc_sha, &two_darg,
 			    pack_get_index_bytes_cb, &index_generate_arg);
 
-			SHA1_Final(object_index_entry[x].digest,
+			SHA1_Final(index_entry[x].digest,
 			    &index_generate_arg.shactx);
 			offset += index_generate_arg.bytes;
 			break;
 		}
 
-		object_index_entry[x].crc = objectinfo.crc;
-		object_index_entry[x].offset = objectinfo.offset;
+		index_entry[x].crc = objectinfo.crc;
+		index_entry[x].offset = objectinfo.offset;
 	}
 
 	return offset;
@@ -248,15 +248,15 @@ pack_get_object_meta(int packfd, int offset, struct packfilehdr *packfilehdr,
 /*
  * Writes the header of the index file.
  */
-void
-pack_write_index_header(int idxfd, SHA1_CTX *idxctx)
+inline void
+write_index_header(int idxfd, SHA1_CTX *idxctx)
 {
 	sha_write(idxfd, "\377tOc", 4, idxctx);
 	sha_write(idxfd, "\x00\x00\x00\x02", 4, idxctx);
 }
 
-void
-pack_write_hash_count(int idxfd, struct object_index_entry *object_index_entry,
+inline void
+write_hash_count(int idxfd, struct index_entry *index_entry,
     SHA1_CTX *idxctx)
 {
 	int hashnum;
@@ -266,11 +266,77 @@ pack_write_hash_count(int idxfd, struct object_index_entry *object_index_entry,
 	hashnum = 0;
 
 	for(x=0;x<256;x++) {
-		while(object_index_entry[hashnum].digest[0] == x)
+		while(index_entry[hashnum].digest[0] == x)
 			hashnum++;
 		reversed = htonl(hashnum);
 		sha_write(idxfd, &reversed, 4, idxctx);
 	}
+}
+
+inline void
+write_hashes(int idxfd, struct packfileinfo *packfileinfo,
+    struct index_entry *index_entry, SHA1_CTX *idxctx)
+{
+	int x;
+
+	for(x=0;x<packfileinfo->nobjects; x++)
+		sha_write(idxfd, index_entry[x].digest, 20, idxctx);
+}
+
+inline void
+write_crc_table(int idxfd, struct packfileinfo *packfileinfo,
+    struct index_entry *index_entry, SHA1_CTX *idxctx)
+{
+	uint32_t crc32tmp;
+	int x;
+
+	for(x=0;x<packfileinfo->nobjects;x++) {
+		crc32tmp = htonl(index_entry[x].crc);
+		sha_write(idxfd, &crc32tmp, 4, idxctx);
+	}
+}
+
+inline void
+write_32bit_table(int idxfd, struct packfileinfo *packfileinfo,
+    struct index_entry *index_entry, SHA1_CTX *idxctx)
+{
+	uint64_t offsettmp;
+	int x;
+
+	for(x = 0; x < packfileinfo->nobjects; x++) {
+		offsettmp = htonl(index_entry[x].offset);
+		sha_write(idxfd, &offsettmp, 4, idxctx);
+	}
+}
+
+inline void
+write_checksums(int idxfd, struct packfileinfo *packfileinfo, SHA1_CTX *idxctx)
+{
+	sha_write(idxfd, packfileinfo->sha, 20, idxctx);
+	SHA1_Final(packfileinfo->ctx, idxctx);
+	sha_write(idxfd, packfileinfo->ctx, 20, idxctx);
+}
+
+/*
+ * Builds the idx file, combines the functions above.
+ */
+void
+pack_build_index(int idxfd, struct packfileinfo *packfileinfo,
+    struct index_entry *index_entry, SHA1_CTX *idxctx)
+{
+	/* Write pack header */
+	write_index_header(idxfd, idxctx);
+	/* Writing hash count */
+	write_hash_count(idxfd, index_entry, idxctx);
+	/* Writing hashes */
+	write_hashes(idxfd, packfileinfo, index_entry, idxctx);
+	/* Write the crc32 table */
+	write_crc_table(idxfd, packfileinfo, index_entry, idxctx);
+	/* Write the 32-bit offset table */
+	write_32bit_table(idxfd, packfileinfo, index_entry, idxctx);
+	/* Currently does not write large files */
+	/* Write the SHA1 checksum of the corresponding packfile */
+	write_checksums(idxfd, packfileinfo, idxctx);
 }
 
 /*
@@ -397,8 +463,8 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 	return offset;
 }
 
-void
-pack_parse_header(int packfd, struct packfilehdr *packfilehdr, SHA1_CTX *packctx)
+int
+pack_parse_header(int packfd, struct packfileinfo *packfileinfo, SHA1_CTX *packctx)
 {
 	int version;
 	int nobjects;
@@ -412,14 +478,17 @@ pack_parse_header(int packfd, struct packfilehdr *packfilehdr, SHA1_CTX *packctx
 	}
 
 	buf_read(packfd, &version, 4, read_sha_update, packctx);
-	packfilehdr->version = ntohl(version);
-	if (packfilehdr->version != 2) {
+	packfileinfo->version = ntohl(version);
+	if (packfileinfo->version != 2) {
 		fprintf(stderr, "error: unsupported version: %d\n", version);
 		exit(128);
 	}
 
 	buf_read(packfd, &nobjects, 4, read_sha_update, packctx);
-	packfilehdr->nobjects = ntohl(nobjects);
+	packfileinfo->nobjects = ntohl(nobjects);
+
+	/* This hardcoded value is because we read 4*3 bytes from the header */
+	return 12;
 }
 
 /*

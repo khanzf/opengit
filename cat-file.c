@@ -210,7 +210,7 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 	char filename[PATH_MAX];
 	unsigned long offset;
 	int packfd;
-	struct packfilehdr packfilehdr;
+	struct packfileinfo packfileinfo;
 	struct objectinfo objectinfo;
 
 	offset = pack_get_packfile_offset(sha_str, filename);
@@ -233,7 +233,7 @@ cat_file_get_content_pack(char *sha_str, uint8_t flags)
 		fprintf(stderr, "This The git repository may be corrupt.\n");
 		exit(128);
 	}
-	pack_parse_header(packfd, &packfilehdr, NULL);
+	pack_parse_header(packfd, &packfileinfo, NULL);
 
 	lseek(packfd, offset, SEEK_SET);
 	pack_object_header(packfd, offset, &objectinfo, NULL);

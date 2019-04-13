@@ -97,8 +97,8 @@ index_pack_main(int argc, char *argv[])
 
 	int packfd;
 	int idxfd;
-	struct packfilehdr packfilehdr;
-	struct object_index_entry *object_index_entry;
+	struct packfileinfo packfileinfo;
+	struct index_entry *index_entry;
 	int offset;
 	int x;
 	SHA1_CTX packctx;
@@ -106,73 +106,37 @@ index_pack_main(int argc, char *argv[])
 	SHA1_Init(&packctx);
 	SHA1_Init(&idxctx);
 
+	/* Parse the pack file */
 	packfd = open(argv[1], O_RDONLY);
 	if (packfd == -1) {
 		fprintf(stderr, "fatal: cannot open packfile '%s'\n", argv[1]);
 		exit(128);
 	}
-
-	pack_parse_header(packfd, &packfilehdr, &packctx);
-	offset = 4 * 3; 
-
-	object_index_entry = malloc(sizeof(struct object_index_entry) * packfilehdr.nobjects);
-	offset = pack_get_object_meta(packfd, offset, &packfilehdr, object_index_entry, &packctx, &idxctx);
-
-	SHA1_Final(packfilehdr.sha, &packctx);
+	offset = pack_parse_header(packfd, &packfileinfo, &packctx);
+	index_entry = malloc(sizeof(struct index_entry) * packfileinfo.nobjects);
+	offset = pack_get_object_meta(packfd, offset, &packfileinfo, index_entry, &packctx, &idxctx);
 	close(packfd);
+	SHA1_Final(packfileinfo.sha, &packctx);
 
-	// Now the idx file
+	/* Sort the index_entry */
+	qsort(index_entry, packfileinfo.nobjects,
+	    sizeof(struct index_entry), sortindexentry);
 
-	qsort(object_index_entry, packfilehdr.nobjects,
-	    sizeof(struct object_index_entry), sortindexentry);
-
-	idxfd = open("packout.idx", O_WRONLY | O_CREAT, 0660);
+	/* Build out the Index File */
+	idxfd = open("packout.idx", O_RDWR | O_CREAT | O_TRUNC, 0666);
 	if (idxfd == -1) {
 		fprintf(stderr, "Unable to open packout.idx for writing\n");
 		exit(idxfd);
 	}
-
-	// Write the header 
-	pack_write_index_header(idxfd, &idxctx);
-
-	/* Writing the Fan Table */
-
-	/* Writing hash count */
-	pack_write_hash_count(idxfd, object_index_entry, &idxctx);
-
-	/* Writing hashes */
-	for(x = 0; x < packfilehdr.nobjects; x++)
-		sha_write(idxfd, object_index_entry[x].digest, 20, &idxctx);
-
-	/* Write the crc32 table */
-	uint32_t crc32tmp;
-	for(x = 0; x < packfilehdr.nobjects; x++) {
-		crc32tmp = htonl(object_index_entry[x].crc);
-		sha_write(idxfd, &crc32tmp, 4, &idxctx);
-	}
-
-	/* Write the 32-bit offset table */
-	uint64_t offsettmp;
-	for(x = 0; x < packfilehdr.nobjects; x++) {
-		offsettmp = htonl(object_index_entry[x].offset);
-		sha_write(idxfd, &offsettmp, 4, &idxctx);
-	}
-
-	/* Currently does not write large files */
-
-	/* Write the SHA1 checksum of the corresponding packfile */
-	sha_write(idxfd, packfilehdr.sha, 20, &idxctx);
-	SHA1_Final(packfilehdr.ctx, &idxctx);
-	sha_write(idxfd, packfilehdr.ctx, 20, &idxctx);
-
-	/* Output the SHA to the terminal */
-	for(x=0;x<20;x++)
-		printf("%02x", packfilehdr.sha[x]);
-	printf("\n");
-
+	pack_build_index(idxfd, &packfileinfo, index_entry, &idxctx);
 	close(idxfd);
 
-	free(object_index_entry);
+	free(index_entry);
+	/* Output the SHA to the terminal */
+	for(x=0;x<20;x++)
+		printf("%02x", packfileinfo.sha[x]);
+	printf("\n");
+
 	return (ret);
 }
 
