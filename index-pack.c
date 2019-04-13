@@ -56,7 +56,7 @@ ssize_t
 sha_write(int fd, const void *buf, size_t nbytes, SHA1_CTX *idxctx)
 {
 	SHA1_Update(idxctx, buf, nbytes);
-	write(fd, buf, nbytes);
+	return write(fd, buf, nbytes);
 }
 
 void
