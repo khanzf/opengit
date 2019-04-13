@@ -109,11 +109,6 @@ struct objectinfo {
 
 };
 
-// Shared by both idx and pack files
-struct packhdr {
-	uint8_t		sig[4];
-};
-
 /* Used to store object information when creating the index */
 struct index_entry {
 	int offset;
