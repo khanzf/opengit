@@ -128,12 +128,16 @@ struct index_generate_arg {
 	SHA1_CTX shactx;
 };
 
+ssize_t sha_write(int fd, const void *buf, size_t nbytes, SHA1_CTX *idxctx);
 int pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap);
 int pack_get_packfile_offset(char *sha_str, char *filename);
 void pack_parse_header(int packfd, struct packfilehdr *packfilehdr, SHA1_CTX *packctx);
 void pack_object_header(int packfd, int offset, struct objectinfo *objectinfo, SHA1_CTX *packctx);
+int pack_get_object_meta(int packfd, int offset, struct packfilehdr *packfilehdr, struct object_index_entry *object_index_entry, SHA1_CTX *packctx, SHA1_CTX *idxctx);
 unsigned char *pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *arg);
 void pack_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx);
+void pack_write_index_header(int idxfd, SHA1_CTX *idxctx);
+void pack_write_hash_count(int idxfd, struct object_index_entry *object_index_entry, SHA1_CTX *idxctx);
 int sortindexentry(const void *a, const void *b);
 int read_sha_update(void *buf, size_t count, void *arg);
 

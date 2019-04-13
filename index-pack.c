@@ -52,12 +52,14 @@ static struct option long_options[] =
 	{NULL, 0, NULL, 0}
 };
 
+/*
 ssize_t
 sha_write(int fd, const void *buf, size_t nbytes, SHA1_CTX *idxctx)
 {
 	SHA1_Update(idxctx, buf, nbytes);
 	return write(fd, buf, nbytes);
 }
+*/
 
 void
 index_pack_usage(int type)
@@ -94,9 +96,10 @@ index_pack_main(int argc, char *argv[])
 	}
 
 	int packfd;
+	int idxfd;
 	struct packfilehdr packfilehdr;
+	struct object_index_entry *object_index_entry;
 	int offset;
-	struct objectinfo objectinfo;
 	int x;
 	SHA1_CTX packctx;
 	SHA1_CTX idxctx;
@@ -112,90 +115,17 @@ index_pack_main(int argc, char *argv[])
 	pack_parse_header(packfd, &packfilehdr, &packctx);
 	offset = 4 * 3; 
 
-	struct object_index_entry *object_index_entry;
-	struct index_generate_arg index_generate_arg;
-	char hdr[32];
-	int hdrlen;
-	char tmpref[2];
-	struct two_darg two_darg;
-
 	object_index_entry = malloc(sizeof(struct object_index_entry) * packfilehdr.nobjects);
-
-	/* Same as GPL git's parse_pack_objects, first pass */
-	for(x = 0; x < packfilehdr.nobjects; x++) {
-		objectinfo.crc = 0x00;
-		lseek(packfd, offset, SEEK_SET);
-		pack_object_header(packfd, offset, &objectinfo, &packctx);
-
-		switch(objectinfo.ptype) {
-		case OBJ_REF_DELTA:
-			fprintf(stderr, "OBJ_REF_DELTA: currently not implemented. Exiting.\n"); exit(0);
-			offset += objectinfo.used;
-			lseek(packfd, offset, SEEK_SET);
-			buf_read(packfd, tmpref, 2, read_sha_update,
-			    &packctx);
-			objectinfo.crc = crc32(objectinfo.crc, tmpref, 2);
-			buf_read(packfd, object_index_entry[x].digest, 20,
-			    read_sha_update, &packctx);
-			offset += 22; /* 20 bytes + 2 for the header */
-			break;
-		case OBJ_OFS_DELTA:
-			SHA1_Init(&index_generate_arg.shactx);
-			pack_delta_content(packfd, &objectinfo, &packctx);
-			hdrlen = sprintf(hdr, "%s %lu",
-			    object_name[objectinfo.ftype],
-			    objectinfo.isize) + 1;
-			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
-			SHA1_Update(&index_generate_arg.shactx,
-			    objectinfo.data, objectinfo.isize);
-			SHA1_Final(object_index_entry[x].digest,
-			    &index_generate_arg.shactx);
-			// The next two are allocated in pack_delta_content
-			free(objectinfo.data);
-			free(objectinfo.deltas);
-
-			offset = objectinfo.offset + objectinfo.used +
-			    objectinfo.ofshdrsize + objectinfo.deflated_size;
-
-			break;
-		case OBJ_COMMIT:
-		case OBJ_TREE:
-		case OBJ_BLOB:
-		case OBJ_TAG:
-		default:
-			offset += objectinfo.used;
-			lseek(packfd, offset, SEEK_SET);
-			index_generate_arg.bytes = 0;
-			SHA1_Init(&index_generate_arg.shactx);
-
-			hdrlen = sprintf(hdr, "%s %lu",
-			    object_name[objectinfo.ftype],
-			    objectinfo.psize) + 1; // XXX This should be isize, not psize
-			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
-			two_darg.crc = &objectinfo.crc;
-			two_darg.sha = &packctx;
-			deflate_caller(packfd, zlib_update_crc_sha, &two_darg, pack_get_index_bytes_cb, &index_generate_arg);
-
-			SHA1_Final(object_index_entry[x].digest,
-			    &index_generate_arg.shactx);
-			offset += index_generate_arg.bytes;
-			break;
-		}
-
-		object_index_entry[x].crc = objectinfo.crc;
-		object_index_entry[x].offset = objectinfo.offset;
-	}
+	offset = pack_get_object_meta(packfd, offset, &packfilehdr, object_index_entry, &packctx, &idxctx);
 
 	SHA1_Final(packfilehdr.sha, &packctx);
 	close(packfd);
+
 	// Now the idx file
 
 	qsort(object_index_entry, packfilehdr.nobjects,
 	    sizeof(struct object_index_entry), sortindexentry);
 
-	int idxfd;
-	int hashnum;
-	int reversed;
 	idxfd = open("packout.idx", O_WRONLY | O_CREAT, 0660);
 	if (idxfd == -1) {
 		fprintf(stderr, "Unable to open packout.idx for writing\n");
@@ -203,19 +133,12 @@ index_pack_main(int argc, char *argv[])
 	}
 
 	// Write the header 
-	sha_write(idxfd, "\377tOc", 4, &idxctx);		// Header
-	sha_write(idxfd, "\x00\x00\x00\x02", 4, &idxctx);	// Version
+	pack_write_index_header(idxfd, &idxctx);
 
 	/* Writing the Fan Table */
 
 	/* Writing hash count */
-	hashnum = 0;
-	for(x = 0; x < 256 ; x++) {
-		while(object_index_entry[hashnum].digest[0] == x)
-			hashnum++;
-		reversed = htonl(hashnum);
-		sha_write(idxfd, &reversed, 4, &idxctx);
-	}
+	pack_write_hash_count(idxfd, object_index_entry, &idxctx);
 
 	/* Writing hashes */
 	for(x = 0; x < packfilehdr.nobjects; x++)

@@ -43,6 +43,17 @@
 #include "common.h"
 #include "ini.h"
 
+/*
+ * This function is a wrapper for write(1) and also updates
+ * a SHA context the data
+ */
+ssize_t
+sha_write(int fd, const void *buf, size_t nbytes, SHA1_CTX *idxctx)
+{
+	SHA1_Update(idxctx, buf, nbytes);
+	return write(fd, buf, nbytes);
+}
+
 int
 read_sha_update(void *buf, size_t count, void *arg)
 {
@@ -141,6 +152,124 @@ applypatch(struct decompressed_object *base, struct decompressed_object *delta, 
 			fprintf(stderr, "Unexpected opcode 0x00, exiting.\n");
 			exit(0);
 		}
+	}
+}
+
+/*
+ * Identifies the header information of each object in the pack file.
+ * If will identify the following:
+ * - The object type in objectinfo.ptype
+ * - If its an OBJ_OFS_DELTA:
+ *   - The real objectype in objectinfo.ftype
+ *   - The delta offsets to reconstruct the object
+ * - The start of the objects offset (not the header)
+ */
+
+int
+pack_get_object_meta(int packfd, int offset, struct packfilehdr *packfilehdr,
+    struct object_index_entry *object_index_entry,
+    SHA1_CTX *packctx, SHA1_CTX *idxctx)
+{
+	int x;
+	struct objectinfo objectinfo;
+	struct index_generate_arg index_generate_arg;
+	char hdr[32];
+	int hdrlen;
+	char tmpref[2];
+	struct two_darg two_darg;
+
+	for(x = 0; x < packfilehdr->nobjects; x++) {
+		objectinfo.crc = 0x00;
+		lseek(packfd, offset, SEEK_SET);
+		pack_object_header(packfd, offset, &objectinfo, packctx);
+
+		switch(objectinfo.ptype) {
+		case OBJ_REF_DELTA:
+			fprintf(stderr, "OBJ_REF_DELTA: currently not implemented. Exiting.\n");
+			exit(0);
+			offset += objectinfo.used;
+			lseek(packfd, offset, SEEK_SET);
+			buf_read(packfd, tmpref, 2, read_sha_update, packctx);
+			objectinfo.crc = crc32(objectinfo.crc, tmpref, 2);
+			buf_read(packfd, object_index_entry[x].digest, 20,
+			    read_sha_update, packctx);
+			offset += 22; /* 20 bytes + 2 for the header */
+			break;
+		case OBJ_OFS_DELTA:
+			SHA1_Init(&index_generate_arg.shactx);
+			pack_delta_content(packfd, &objectinfo, packctx);
+			hdrlen = sprintf(hdr, "%s %lu",
+			    object_name[objectinfo.ftype],
+			    objectinfo.isize) + 1;
+			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
+			SHA1_Update(&index_generate_arg.shactx,
+			    objectinfo.data, objectinfo.isize);
+			SHA1_Final(object_index_entry[x].digest,
+			    &index_generate_arg.shactx);
+			/* The next two are allocated in pack_delta_content */
+			free(objectinfo.data);
+			free(objectinfo.deltas);
+
+			offset = objectinfo.offset + objectinfo.used +
+			    objectinfo.ofshdrsize + objectinfo.deflated_size;
+			break;
+		case OBJ_COMMIT:
+		case OBJ_TREE:
+		case OBJ_BLOB:
+		case OBJ_TAG:
+		default:
+			offset += objectinfo.used;
+			lseek(packfd, offset, SEEK_SET);
+			index_generate_arg.bytes = 0;
+			SHA1_Init(&index_generate_arg.shactx);
+
+			hdrlen = sprintf(hdr, "%s %lu",
+			    object_name[objectinfo.ftype],
+			    objectinfo.psize) + 1;
+			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
+			two_darg.crc = &objectinfo.crc;
+			two_darg.sha = packctx;
+			deflate_caller(packfd, zlib_update_crc_sha, &two_darg,
+			    pack_get_index_bytes_cb, &index_generate_arg);
+
+			SHA1_Final(object_index_entry[x].digest,
+			    &index_generate_arg.shactx);
+			offset += index_generate_arg.bytes;
+			break;
+		}
+
+		object_index_entry[x].crc = objectinfo.crc;
+		object_index_entry[x].offset = objectinfo.offset;
+	}
+
+	return offset;
+}
+
+/*
+ * Writes the header of the index file.
+ */
+void
+pack_write_index_header(int idxfd, SHA1_CTX *idxctx)
+{
+	sha_write(idxfd, "\377tOc", 4, idxctx);
+	sha_write(idxfd, "\x00\x00\x00\x02", 4, idxctx);
+}
+
+void
+pack_write_hash_count(int idxfd, struct object_index_entry *object_index_entry,
+    SHA1_CTX *idxctx)
+{
+	int hashnum;
+	int reversed;
+	int x;
+
+	hashnum = 0;
+
+	for(x=0;x<256;x++) {
+		while(object_index_entry[hashnum].digest[0] == x)
+			hashnum++;
+		reversed = htonl(hashnum);
+		sha_write(idxfd, &reversed, 4, idxctx);
 	}
 }
 
@@ -269,8 +398,7 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 }
 
 void
-pack_parse_header(int packfd, struct packfilehdr *packfilehdr,
-    SHA1_CTX *packctx)
+pack_parse_header(int packfd, struct packfilehdr *packfilehdr, SHA1_CTX *packctx)
 {
 	int version;
 	int nobjects;
