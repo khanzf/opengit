@@ -55,34 +55,47 @@ init_usage(int type)
 }
 
 int
-bare_init(char *project_directory)
+init_dirinit(char *project_directory)
 {
 	struct stat sb;
 	struct section new_config;
-	char cwd[PATH_MAX];
+	char path[PATH_MAX];
+	char *subpath;
 	int fd;
 	int ret;
 	int x;
+	int dirlen;
 
 	char *dirs[] = {
-		    "./.git/objects",
-		    "./.git/objects/pack",
-		    "./.git/objects/info",
-		    "./.git/refs",
-		    "./.git/refs/tags",
-		    "./.git/refs/heads",
-		    "./.git/branches"};
+		    ".git/objects",
+		    ".git/objects/pack",
+		    ".git/objects/info",
+		    ".git/refs",
+		    ".git/refs/tags",
+		    ".git/refs/heads",
+		    ".git/branches"};
 
-	/* XXX Do this later */
-	if (project_directory != NULL) {
-		fprintf(stderr, "Currently not supporting separate directories\n");
-		return -1;
+	/* Construct the "base" directory path */
+	if (project_directory) {
+		mkdir(project_directory, 0755);
+		dirlen = strlen(project_directory);
+		strncpy(path, project_directory, PATH_MAX);
+		subpath = path + dirlen;
+		if (project_directory[dirlen-1] != '/' && dirlen < PATH_MAX) {
+			dirlen++;
+			strncat(path, "/", PATH_MAX);
+			subpath++;
+		}
 	}
+	else
+		dirlen = 0;
+	subpath = path + dirlen;
 
 	for(x = 0; x < 7; x++) {
-		fd = open(dirs[x], O_WRONLY | O_CREAT);
+		strncpy(subpath, dirs[x], PATH_MAX-dirlen);
+		fd = open(path, O_WRONLY | O_CREAT);
 		if (fd != -1) {
-			fprintf(stderr, "File or directory %s already exists\n", dirs[x]);
+			fprintf(stderr, "File or directory %s already exists\n", path);
 			return (-1);
 		}
 	}
@@ -93,9 +106,12 @@ bare_init(char *project_directory)
 	new_config.bare = TRUE;
 	new_config.logallrefupdates = TRUE;
 
-	mkdir("./.git", 0755);
 
-	fd = open("./.git/config", O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	strncpy(subpath, ".git", PATH_MAX-dirlen);
+	mkdir(path, 0755);
+
+	strncpy(subpath, ".git/config", PATH_MAX-dirlen);
+	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	dprintf(fd, "[core]\n");
 	dprintf(fd, "\trepositoryformatversion = 0\n");
 	dprintf(fd, "\tfilemode = true\n");
@@ -104,29 +120,28 @@ bare_init(char *project_directory)
 	close(fd);
 
 	for(x = 0; x < 7; x++) {
-		ret = mkdir(dirs[x], 0755);
+		strncpy(subpath, dirs[x], PATH_MAX-dirlen);
+		ret = mkdir(path, 0755);
 		if (ret == -1) {
-			fprintf(stderr, "Cannot create %s\n", dirs[x]);
-			perror("Cannot create directory");
+			fprintf(stderr, "Cannot create %s\n", path);
 			return(ret);
 		}
 	}
 
-	fd = open("./.git/description", O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
+	strncpy(subpath, ".git/description", PATH_MAX-dirlen);
+	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
 	if (fd == -1 || fstat(fd, &sb)) {
 		fprintf(stderr, "Cannot create description file\n");
 		return -1;
 	}
 	close(fd);
 
-	fd = open("./.git/HEAD", O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	strncpy(subpath, ".git/HEAD", PATH_MAX-dirlen);
+	fd = open(path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (fd != -1 && fstat(fd, &sb) == 0) {
 		write(fd, "ref: refs/heads/master\x0a", 23); 
 	}
 	close(fd);
-
-	getcwd((char *)&cwd, PATH_MAX);
-	printf("Initialized empty Git repository in %s/.git/\n", cwd);
 
 	return 0;
 }
@@ -138,6 +153,7 @@ init_main(int argc, char *argv[])
 	int ch;
 	char *project_directory = NULL;
 	uint8_t flags = 0;
+	char path[PATH_MAX];
 
 	argc--; argv++;
 
@@ -152,7 +168,18 @@ init_main(int argc, char *argv[])
 		}
 	}
 
-	bare_init(project_directory);
+	ret = init_dirinit(project_directory);
+	if (!ret) {
+		if (project_directory) {
+			strncpy(path, project_directory, strlen(project_directory));
+			if (project_directory[strlen(project_directory)-1] == '/')
+				path[strlen(project_directory)-1] = '\0';
+		}
+		else {
+			getcwd((char *)&path, PATH_MAX);
+		}
+		printf("Initialized empty Git repository in %s/.git/\n", path);
+	}
 
 	return (ret);
 }
