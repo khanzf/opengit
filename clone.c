@@ -39,8 +39,10 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <fetch.h>
+#include <sha.h>
 #include "lib/zlib-handler.h"
 #include "lib/common.h"
+#include "lib/pack.h"
 #include "lib/ini.h"
 #include "clone.h"
 
@@ -289,26 +291,30 @@ clone_pack_protocol_process(void *buffer, size_t size, size_t nmemb, void *userp
 		}
 
 		/*
-		 * If the pool minus the offset is greater or equal to the remaining necessary bytes
-		 * This means we completed the data in that object and can reset to a new state
+		 * If the pool minus the offset is greater or equal to the
+		 * remaining necessary bytes. This means we completed the data
+		 * in that object and can reset to a new state.
 		 */
 		if ((pool - offset) >= (parseread->osize - parseread->psize) ) {
-			process_objects(reply+offset, parseread, offset, (parseread->osize - parseread->psize) );
+			process_objects(reply+offset, parseread, offset,
+			    (parseread->osize - parseread->psize));
 			offset += (parseread->osize - parseread->psize);
 			parseread->state = STATE_NEWLINE;
 		}
 		/* Otherwise, we need more bytes */
-		else if ((pool - offset) < (parseread->osize - parseread->psize)) {
-			process_objects(reply+offset, parseread, offset, pool-offset);
+		else if ((pool-offset) < (parseread->osize - parseread->psize)) {
+			process_objects(reply+offset, parseread, offset,
+			    pool-offset);
 			parseread->psize += (pool - offset);
 			offset = pool;
 		}
 
 	}
 
-	/* The while-loop could break and the offset has not caught up to the pool
-	 * In this case, we need to cache those 4 bytes, update the parseread->cremnant
-	 * value and return offset + parseread->cremnant (which should be nmemb * size)
+	/* The while-loop could break and the offset has not caught up to
+	 * the pool. In this case, we need to cache those 4 bytes, update
+	 * the parseread->cremnant value and return offset + parseread->cremnant
+	 * (which should be nmemb * size).
 	 */
 	if (pool-offset > 0)
 		memcpy(parseread->bremnant, reply+offset, pool-offset);
@@ -371,13 +377,60 @@ clone_http(char *url)
 {
 	char headsha[41];
 	int packfd;
+	int offset;
+	int idxfd;
+	struct packfileinfo packfileinfo;
+	struct index_entry *index_entry;
+	char filename[70];
+	SHA1_CTX packctx;
+	SHA1_CTX idxctx;
 
-	packfd = open("packout.pack", O_RDWR | O_CREAT, 0660);
+	packfd = open(".git/objects/pack/_tmp.pack", O_RDWR | O_CREAT, 0660);
+	if (packfd == -1) {
+		fprintf(stderr, "Unable to open file .git/objects/pack/_tmp.pack.");
+		exit(-1);
+	}
 
 	clone_http_get_head(url, headsha);
 	clone_http_get_sha(url, headsha, packfd);
 
+	/* Jump to the beginning of the file */
+	lseek(packfd, 0, SEEK_SET);
+
+	SHA1_Init(&packctx);
+	SHA1_Init(&idxctx);
+
+	offset = pack_parse_header(packfd, &packfileinfo, &packctx);
+	index_entry = malloc(sizeof(struct index_entry) * packfileinfo.nobjects);
+	offset = pack_get_object_meta(packfd, offset, &packfileinfo, index_entry,
+	    &packctx, &idxctx);
 	close(packfd);
+
+	SHA1_Final(packfileinfo.sha, &packctx);
+
+	/* Sort the index entry */
+	qsort(index_entry, packfileinfo.nobjects, sizeof(struct index_entry),
+	    sortindexentry);
+
+	idxfd = open(".git/objects/pack/_tmp.idx", O_RDWR | O_CREAT, 0660);
+	if (idxfd == -1) {
+		fprintf(stderr, "Unable to open packout.idx for writing\n");
+		exit(idxfd);
+	}
+
+	pack_build_index(idxfd, &packfileinfo, index_entry, &idxctx);
+	free(index_entry);
+	close(idxfd);
+
+	strncpy(filename, ".git/objects/pack/pack-", 23);
+	for(int x=0;x<20;x++)
+		snprintf(filename+23+(x*2), 3, "%02x", packfileinfo.sha[x]);
+
+	/* Rename pack and index files */
+	strncpy(filename+63, ".pack", 6);
+	rename(".git/objects/pack/_tmp.pack", filename);
+	strncpy(filename+63, ".idx", 5);
+	rename(".git/objects/pack/_tmp.idx", filename);
 }
 
 int
@@ -402,6 +455,7 @@ clone_main(int argc, char *argv[])
 	argc = argc - q;
 	argv = argv + q;
 
+	git_repository_path();
 	clone_http(argv[1]);
 
 	return (ret);
