@@ -190,7 +190,8 @@ clone_build_post_content(const char *sha, char **content)
 
 	content_length = 0;
 
-	content_length += clone_http_build_want(content, content_length, capabilities, sha);
+	content_length += clone_http_build_want(content, content_length,
+	    capabilities, sha);
 	content_length += clone_http_build_done(content, content_length);
 
 	return content_length;
@@ -436,8 +437,6 @@ clone_http(char *url, char *repodir)
 	strncpy(suffix, "/.git/objects/pack/pack-", 24);
 	for(int x=0;x<20;x++)
 		snprintf(suffix+24+(x*2), 3, "%02x", packfileinfo.sha[x]);
-
-	printf("suffix: %s\n", suffix);
 
 	/* Rename pack and index files */
 	strncat(suffix, ".pack", 6);
