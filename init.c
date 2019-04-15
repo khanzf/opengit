@@ -55,7 +55,7 @@ init_usage(int type)
 }
 
 int
-init_dirinit(char *project_directory)
+init_dirinit(char *repodir)
 {
 	struct stat sb;
 	struct section new_config;
@@ -76,12 +76,12 @@ init_dirinit(char *project_directory)
 		    ".git/branches"};
 
 	/* Construct the "base" directory path */
-	if (project_directory) {
-		mkdir(project_directory, 0755);
-		dirlen = strlen(project_directory);
-		strncpy(path, project_directory, PATH_MAX);
+	if (repodir) {
+		mkdir(repodir, 0755);
+		dirlen = strlen(repodir);
+		strncpy(path, repodir, PATH_MAX);
 		subpath = path + dirlen;
-		if (project_directory[dirlen-1] != '/' && dirlen < PATH_MAX) {
+		if (repodir[dirlen-1] != '/' && dirlen < PATH_MAX) {
 			dirlen++;
 			strncat(path, "/", PATH_MAX);
 			subpath++;
@@ -151,14 +151,14 @@ init_main(int argc, char *argv[])
 {
 	int ret = 0;
 	int ch;
-	char *project_directory = NULL;
+	char *repodir = NULL;
 	uint8_t flags = 0;
 	char path[PATH_MAX];
 
 	argc--; argv++;
 
 	if (argc >= 2)
-		project_directory = argv[1];
+		repodir = argv[1];
 
 	while((ch = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
 		switch(ch) {
@@ -168,12 +168,12 @@ init_main(int argc, char *argv[])
 		}
 	}
 
-	ret = init_dirinit(project_directory);
+	ret = init_dirinit(repodir);
 	if (!ret) {
-		if (project_directory) {
-			strncpy(path, project_directory, strlen(project_directory));
-			if (project_directory[strlen(project_directory)-1] == '/')
-				path[strlen(project_directory)-1] = '\0';
+		if (repodir) {
+			strncpy(path, repodir, strlen(repodir));
+			if (repodir[strlen(repodir)-1] == '/')
+				path[strlen(repodir)-1] = '\0';
 		}
 		else {
 			getcwd((char *)&path, PATH_MAX);

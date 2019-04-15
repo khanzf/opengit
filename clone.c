@@ -45,6 +45,7 @@
 #include "lib/pack.h"
 #include "lib/ini.h"
 #include "clone.h"
+#include "init.h"
 
 static struct option long_options[] =
 {
@@ -373,7 +374,7 @@ clone_http_get_sha(char *url, char *sha, int packfd)
 }
 
 void
-clone_http(char *url)
+clone_http(char *url, char *repodir)
 {
 	char headsha[41];
 	int packfd;
@@ -381,13 +382,22 @@ clone_http(char *url)
 	int idxfd;
 	struct packfileinfo packfileinfo;
 	struct index_entry *index_entry;
-	char filename[70];
+	char path[PATH_MAX];
+	char srcpath[PATH_MAX];
+	int pathlen;
+	char *suffix;
 	SHA1_CTX packctx;
 	SHA1_CTX idxctx;
 
-	packfd = open(".git/objects/pack/_tmp.pack", O_RDWR | O_CREAT, 0660);
+	pathlen = strlen(repodir);
+	strncpy(path, repodir, pathlen);
+	strncpy(srcpath, repodir, pathlen);
+	suffix = path + strlen(repodir);
+
+	strncat(suffix, "/.git/objects/pack/_tmp.pack", PATH_MAX-pathlen);
+	packfd = open(path, O_RDWR | O_CREAT, 0660);
 	if (packfd == -1) {
-		fprintf(stderr, "Unable to open file .git/objects/pack/_tmp.pack.");
+		fprintf(stderr, "Unable to open file %s.\n", path);
 		exit(-1);
 	}
 
@@ -412,9 +422,10 @@ clone_http(char *url)
 	qsort(index_entry, packfileinfo.nobjects, sizeof(struct index_entry),
 	    sortindexentry);
 
-	idxfd = open(".git/objects/pack/_tmp.idx", O_RDWR | O_CREAT, 0660);
+	strncpy(suffix, "/.git/objects/pack/_tmp.idx", PATH_MAX-pathlen);
+	idxfd = open(path, O_RDWR | O_CREAT, 0660);
 	if (idxfd == -1) {
-		fprintf(stderr, "Unable to open packout.idx for writing\n");
+		fprintf(stderr, "Unable to open packout.idx for writing.\n");
 		exit(idxfd);
 	}
 
@@ -422,20 +433,55 @@ clone_http(char *url)
 	free(index_entry);
 	close(idxfd);
 
-	strncpy(filename, ".git/objects/pack/pack-", 23);
+	strncpy(suffix, "/.git/objects/pack/pack-", 24);
 	for(int x=0;x<20;x++)
-		snprintf(filename+23+(x*2), 3, "%02x", packfileinfo.sha[x]);
+		snprintf(suffix+24+(x*2), 3, "%02x", packfileinfo.sha[x]);
+
+	printf("suffix: %s\n", suffix);
 
 	/* Rename pack and index files */
-	strncpy(filename+63, ".pack", 6);
-	rename(".git/objects/pack/_tmp.pack", filename);
-	strncpy(filename+63, ".idx", 5);
-	rename(".git/objects/pack/_tmp.idx", filename);
+	strncat(suffix, ".pack", 6);
+	strncat(srcpath, "/.git/objects/pack/_tmp.pack", strlen(path));
+	rename(srcpath, path);
+
+	strncpy(srcpath+strlen(srcpath)-4, "idx", 4);
+	strncpy(path+strlen(path)-4, "idx", 5);
+	rename(srcpath, path);
+}
+
+/*
+ * Gets the git directory name from the path
+ * Will expand if the path is a bare repo, does not have a name, et al
+ */
+char *
+get_repo_dir(char *path)
+{
+	char *reponame;
+	int x, end;
+
+	x = strlen(path);
+	if (path[x-1] == '/')
+		x--;
+	end = x;
+	/* Check if the URL ends in .git or .git/ */
+	if (!strncmp(path+x-4, ".git", 4))
+		end = x - 4;
+
+	/* Find the first '/' */
+	for(;path[x-1]!='/' && x !=0;x--);
+	if (x == 0) {
+		fprintf(stderr, "There must be a pathname, failure.\n");
+		exit(-1);
+	}
+
+	reponame = strndup(path+x, end-x);
+	return reponame;
 }
 
 int
 clone_main(int argc, char *argv[])
 {
+	char *repodir;
 	int ret = 0;
 	int ch;
 	int q = 0;
@@ -455,8 +501,12 @@ clone_main(int argc, char *argv[])
 	argc = argc - q;
 	argv = argv + q;
 
-	git_repository_path();
-	clone_http(argv[1]);
+	repodir = get_repo_dir(argv[1]);
+
+	init_dirinit(repodir);
+
+	clone_http(argv[1], repodir);
+	free(repodir);
 
 	return (ret);
 }
