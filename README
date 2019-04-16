@@ -4,7 +4,8 @@ Open Source replacement for GPL git
 Written for and dedicated to the BSD systems
 Using the BSD-2-Clause license
 
-Farhan Khan <khanzf@gmail.com>
+Farhan Khan <farhan@farhan.codes>
+PGP KeyID: 1312 89CE 663E 1EB2 179C 1C83 C41D 2281 F8DA C0DE
 
 Objectives
 * Laterally compatible with GPL git. You should be able to symlink git to
