@@ -84,3 +84,14 @@ git_repository_path()
 	free(d);
 	return (ret);
 }
+
+void
+update_branch_pointer(char repodir, char *ref, char *sha)
+{
+	FILE *reffile;
+
+	reffile = fopen(ref, "w");
+	if (reffile == NULL) {
+		exit(-1);
+	}
+}

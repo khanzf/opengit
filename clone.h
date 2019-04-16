@@ -55,14 +55,21 @@
 #define CLONE_PUSH_CERT				BIT(21)
 #define CLONE_FILTER				BIT(22)
 
+struct ref {
+	char sha[41];
+	char *path;
+};
+
 struct smart_head {
-        char sha[41];
-        uint32_t cap;
+	char sha[41];
+	uint32_t cap;
+	int refcount;
+	struct ref *refs;
 };
 
 struct branch {
-        char sha[41];
-        char *name;
+	char sha[41];
+	char *name;
 };
 
 #define STATE_NEWLINE			0

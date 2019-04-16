@@ -55,14 +55,13 @@ static struct option long_options[] =
 void
 clone_usage(int type)
 {
-	fprintf(stderr, "Git clone usage statement\n");
 	exit(128);
 }
 
+/* This requests a HEAD sha and parse out the results */
 void
-clone_http_get_head(char *url, char *sha)
+clone_http_get_head(char *url, struct smart_head *smart_head)
 {
-	struct smart_head smart_head;
 	FILE *web;
 	char fetchurl[1000];
 	char out[1024];
@@ -70,6 +69,7 @@ clone_http_get_head(char *url, char *sha)
 	char *token, *string, *tofree;
 	int r;
 	long offset;
+	int count;
 
 	sprintf(fetchurl, "%s/info/refs?service=git-upload-pack", url);
 	if ((web = fetchGetURL(fetchurl, NULL)) == NULL) {
@@ -77,7 +77,7 @@ clone_http_get_head(char *url, char *sha)
 		exit(128);
 	}
 	offset = 0;
-	smart_head.cap = 0;
+	smart_head->cap = 0;
 	response = NULL;
 	do {
 		r = fread(out, 1, 1024, web);
@@ -90,6 +90,7 @@ clone_http_get_head(char *url, char *sha)
 	sscanf(position, "%04lx", &offset);
 	position += offset;
 
+	/* The first four bytes are 0000, check and skip ahead */
 	if (strncmp(position, "0000", 4)) {
 		fprintf(stderr, "Protocol mismatch.\n");
 		exit(128);
@@ -98,64 +99,78 @@ clone_http_get_head(char *url, char *sha)
 
 	sscanf(position, "%04lx", &offset);
 	position += 4;
-	strncpy(smart_head.sha, position, 41);
+	strncpy(smart_head->sha, position, 40);
 
 	tofree = string = strndup(position+41+strlen(position+41)+1,
-			    offset-(47+strlen(position+41)));
+	    offset-(47+strlen(position+41)));
 
 	while((token = strsep(&string, " \n")) != NULL) {
 		if (!strncmp(token, "multi_ack", 9))
-			smart_head.cap |= CLONE_MULTI_ACK;
+			smart_head->cap |= CLONE_MULTI_ACK;
 		else if (!strncmp(token, "multi_ack_detailed", 18))
-			smart_head.cap |= CLONE_MULTI_ACK_DETAILED;
+			smart_head->cap |= CLONE_MULTI_ACK_DETAILED;
 		else if (!strncmp(token, "no-done", 7))
-			smart_head.cap |= CLONE_MULTI_NO_DONE;
+			smart_head->cap |= CLONE_MULTI_NO_DONE;
 		else if (!strncmp(token, "thin-pack", 9))
-			smart_head.cap |= CLONE_THIN_PACK;
+			smart_head->cap |= CLONE_THIN_PACK;
 		else if (!strncmp(token, "side-band", 9))
-			smart_head.cap |= CLONE_SIDE_BAND;
+			smart_head->cap |= CLONE_SIDE_BAND;
 		else if (!strncmp(token, "side-band-64k", 13))
-			smart_head.cap |= CLONE_SIDE_BAND_64K;
+			smart_head->cap |= CLONE_SIDE_BAND_64K;
 		else if (!strncmp(token, "ofs-delta", 9))
-			smart_head.cap |= CLONE_OFS_DELTA;
+			smart_head->cap |= CLONE_OFS_DELTA;
 		else if (!strncmp(token, "agent", 5))
-			smart_head.cap |= CLONE_AGENT;
+			smart_head->cap |= CLONE_AGENT;
 		else if (!strncmp(token, "shallow", 7))
-			smart_head.cap |= CLONE_SHALLOW;
+			smart_head->cap |= CLONE_SHALLOW;
 		else if (!strncmp(token, "deepen-since", 12))
-			smart_head.cap |= CLONE_DEEPEN_SINCE;
+			smart_head->cap |= CLONE_DEEPEN_SINCE;
 		else if (!strncmp(token, "deepen-not", 10))
-			smart_head.cap |= CLONE_DEEPEN_NOT;
+			smart_head->cap |= CLONE_DEEPEN_NOT;
 		else if (!strncmp(token, "deepen-relative", 15))
-			smart_head.cap |= CLONE_DEEPEN_RELATIVE;
+			smart_head->cap |= CLONE_DEEPEN_RELATIVE;
 		else if (!strncmp(token, "no-progress", 11))
-			smart_head.cap |= CLONE_NO_PROGRESS;
+			smart_head->cap |= CLONE_NO_PROGRESS;
 		else if (!strncmp(token, "include-tag", 11))
-			smart_head.cap |= CLONE_INCLUDE_TAG;
+			smart_head->cap |= CLONE_INCLUDE_TAG;
 		else if (!strncmp(token, "report-status", 13))
-			smart_head.cap |= CLONE_REPORT_STATUS;
+			smart_head->cap |= CLONE_REPORT_STATUS;
 		else if (!strncmp(token, "delete-refs", 11))
-			smart_head.cap |= CLONE_DELETE_REFS;
+			smart_head->cap |= CLONE_DELETE_REFS;
 		else if (!strncmp(token, "quiet", 5))
-			smart_head.cap |= CLONE_QUIET;
+			smart_head->cap |= CLONE_QUIET;
 		else if (!strncmp(token, "atomic", 6))
-			smart_head.cap |= CLONE_ATOMIC;
+			smart_head->cap |= CLONE_ATOMIC;
 		else if (!strncmp(token, "push-options", 12))
-			smart_head.cap |= CLONE_PUSH_OPTIONS;
+			smart_head->cap |= CLONE_PUSH_OPTIONS;
 		else if (!strncmp(token, "allow-tip-sha1-in-want", 22))
-			smart_head.cap |= CLONE_ALLOW_TIP_SHA1_IN_WANT;
+			smart_head->cap |= CLONE_ALLOW_TIP_SHA1_IN_WANT;
 		else if (!strncmp(token, "allow-reachable-sha1-in-want", 28))
-			smart_head.cap |= CLONE_ALLOW_REACHABLE_SHA1_IN_WANT;
+			smart_head->cap |= CLONE_ALLOW_REACHABLE_SHA1_IN_WANT;
 		else if (!strncmp(token, "push-cert", 9))
-			smart_head.cap |= CLONE_PUSH_CERT;
+			smart_head->cap |= CLONE_PUSH_CERT;
 		else if (!strncmp(token, "filter", 6))
-			smart_head.cap |= CLONE_FILTER;
+			smart_head->cap |= CLONE_FILTER;
 	}
 	free(tofree);
 
-	position += offset;
-	memcpy(sha, position, 40);
-	sha[40] = '\0';
+	position += offset - 4;
+
+	/* Iterate through the refs */
+	count = 0;
+	while(strncmp(position, "0000", 4)) {
+		smart_head->refs = realloc(smart_head->refs, sizeof(struct smart_head) * (count+1));
+		sscanf(position, "%04lx", &offset);
+		strncpy(smart_head->refs[count].sha, position+4, 40);
+		smart_head->refs[count].sha[40] = '\0';
+
+		smart_head->refs[count].path = strndup(position+4+41,
+		    offset-(4+42));
+
+		position += offset;
+		count++;
+	}
+	smart_head->refcount = count;
 }
 
 int
@@ -172,8 +187,8 @@ clone_http_build_want(char **content, int content_length, char *capabilities, co
 	char line[3000]; // XXX Bad approach
 	int len;
 
-	// size + want + space + SHA(40) + space + capabilities + newline
-	len = 4 + 4 + 1 + 40 + 1 +strlen(capabilities) + 1;
+	/* size + want + space + SHA(40) + space + capabilities + newline */
+	len = 4 + 4 + 1 + 40 + 1 + strlen(capabilities) + 1;
 
 	sprintf(line, "%04xwant %s %s\n", len, sha, capabilities);
 	*content = realloc(*content, content_length + len + 1);
@@ -186,7 +201,7 @@ int
 clone_build_post_content(const char *sha, char **content)
 {
 	int content_length;
-	char *capabilities = "multi_ack_detailed no-done side-band-64k thin-pack ofs-delta deepen-since deepen-not agent=git/2.19.2.windows.1";
+	char *capabilities = "multi_ack_detailed no-done side-band-64k thin-pack ofs-delta deepen-since deepen-not agent=opengit/0.0.1-pre";
 
 	content_length = 0;
 
@@ -220,12 +235,11 @@ process_remote(unsigned char *reply, struct parseread *parseread)
 	char buf[200];
 	strncpy(buf, (char *)reply+5, parseread->osize-5);
 	buf[parseread->osize-5] = '\0';
-
-	printf("Remote: %s", buf);
 }
 
 void
-process_objects(unsigned char *reply, struct parseread *parseread, int offset, int size)
+process_objects(unsigned char *reply, struct parseread *parseread, int offset,
+    int size)
 {
 	switch(parseread->state) {
 	case STATE_NAK:
@@ -329,7 +343,7 @@ clone_pack_protocol_process(void *buffer, size_t size, size_t nmemb, void *userp
 }
 
 void
-clone_http_get_sha(char *url, char *sha, int packfd)
+clone_http_get_sha(int packfd, char *url, struct smart_head *smart_head)
 {
 	char git_upload_pack[1000];
 	char *content = NULL;
@@ -349,7 +363,7 @@ clone_http_get_sha(char *url, char *sha, int packfd)
 	parseread.cremnant = 0;
 	parseread.fd = packfd;
 
-	content_length = clone_build_post_content(sha, &content);
+	content_length = clone_build_post_content(smart_head->sha, &content);
 
 	setenv("HTTP_ACCEPT", "application/x-git-upload-pack-result", 1);
 	packptr = fetchReqHTTP(fetchurl, "POST", NULL, "application/x-git-upload-pack-request", content);
@@ -375,9 +389,8 @@ clone_http_get_sha(char *url, char *sha, int packfd)
 }
 
 void
-clone_http(char *url, char *repodir)
+clone_http(char *url, char *repodir, struct smart_head *smart_head)
 {
-	char headsha[41];
 	int packfd;
 	int offset;
 	int idxfd;
@@ -402,8 +415,8 @@ clone_http(char *url, char *repodir)
 		exit(-1);
 	}
 
-	clone_http_get_head(url, headsha);
-	clone_http_get_sha(url, headsha, packfd);
+	clone_http_get_head(url, smart_head);
+	clone_http_get_sha(packfd, url, smart_head);
 
 	/* Jump to the beginning of the file */
 	lseek(packfd, 0, SEEK_SET);
@@ -477,9 +490,31 @@ get_repo_dir(char *path)
 	return reponame;
 }
 
+void
+populate_packed_refs(char *repodir, struct smart_head *smart_head)
+{
+	char path[PATH_MAX];
+	FILE *refs;
+
+	snprintf(path, PATH_MAX, "%s/%s", repodir, ".git/packed-refs");
+	refs = fopen(path, "w");
+	if (refs == NULL) {
+		fprintf(stderr, "Unable to open file for writing. %s.\n",
+		    path);
+	}
+
+	for(int x=0;x<smart_head->refcount;x++)
+		fprintf(refs, "%s %s\n",
+		    smart_head->refs[x].sha,
+		    smart_head->refs[x].path);
+
+	fclose(refs);
+}
+
 int
 clone_main(int argc, char *argv[])
 {
+	struct smart_head smart_head;
 	char *repodir;
 	int ret = 0;
 	int ch;
@@ -504,9 +539,15 @@ clone_main(int argc, char *argv[])
 
 	init_dirinit(repodir);
 
-	clone_http(argv[1], repodir);
+
+	smart_head.refs = NULL;
+	clone_http(argv[1], repodir, &smart_head);
+
+	/* Populate .git/pack-refs */
+	populate_packed_refs(repodir, &smart_head);
+
+	/* Checkout Latest commit */
 	free(repodir);
 
 	return (ret);
 }
-

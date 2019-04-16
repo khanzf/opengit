@@ -54,6 +54,11 @@ init_usage(int type)
 	return 0;
 }
 
+/*
+ * Initializes the directory
+ * XXX Going forward each file/directory should be its own
+ * inline function.
+ * */
 int
 init_dirinit(char *repodir)
 {
@@ -105,7 +110,6 @@ init_dirinit(char *repodir)
 	new_config.filemode = TRUE;
 	new_config.bare = TRUE;
 	new_config.logallrefupdates = TRUE;
-
 
 	strncpy(subpath, ".git", PATH_MAX-dirlen);
 	mkdir(path, 0755);
