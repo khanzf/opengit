@@ -49,14 +49,14 @@ remote_usage(int type)
 {
 	if (type == REMOTE_USAGE_DEFAULT) {
 		printf("Remote usage statement\n");
-		return 0;
+		return (0);
 	}
 	else if (type == REMOTE_USAGE_REMOVE) {
 		printf("usage: ogit remote remove <name>\n");
-		return 129;
+		return (129);
 	}
 
-	return 0;
+	return (0);
 }
 
 int
@@ -67,14 +67,13 @@ remote_remove(int argc, char *argv[], uint8_t flags)
 	struct section *cur_section = sections;
 	int fd;
 	int match = 0;
-	//char *newconfigpath;
 
 	if (argc != 2)
-		return remote_usage(REMOTE_USAGE_REMOVE);
+		return (remote_usage(REMOTE_USAGE_REMOVE));
 
 	repolocation = argv[1];
 
-	while(cur_section) {
+	while (cur_section) {
 		if (cur_section->type == REMOTE && \
 		    !strncmp(cur_section->repo_name, repolocation, strlen(repolocation))) {
 			match = 1;
@@ -94,11 +93,11 @@ remote_remove(int argc, char *argv[], uint8_t flags)
 	fd = mkstemp(tmpconfig);
 	if (fd == -1) {
 		fprintf(stderr, "Unable to open temporary file: %s\n", tmpconfig);
-		return -1;
+		return (-1);
 	}
 
 	/* Rewrite config file */
-	while(cur_section) {
+	while (cur_section) {
 		if (cur_section->type == CORE) {
 			dprintf(fd, "[core]\n");
 			if (cur_section->repositoryformatversion != 0xFF) {
@@ -126,7 +125,7 @@ remote_remove(int argc, char *argv[], uint8_t flags)
 
 	close(fd);
 
-	return 0;
+	return (0);
 }
 
 int
@@ -138,7 +137,7 @@ remote_list(int argc, char *argv[], uint8_t flags)
 	if (argc > 1 && flags != OPT_VERBOSE)
 	        remote_usage(REMOTE_USAGE_DEFAULT);
 
-	while(cur_section) {
+	while (cur_section) {
 		if (cur_section->type == REMOTE) {
 			if (!(flags & OPT_VERBOSE))
 				printf("%s\n", cur_section->repo_name);
@@ -181,8 +180,8 @@ remote_main(int argc, char *argv[])
 		}
 	}
 
-	while((ch = getopt_long(argc, argv, "v", long_options, NULL)) != -1)
-		switch(ch) {
+	while ((ch = getopt_long(argc, argv, "v", long_options, NULL)) != -1)
+		switch (ch) {
 		case 'v':
 			flags |= OPT_VERBOSE;
 			continue;
@@ -192,14 +191,14 @@ remote_main(int argc, char *argv[])
 		}
 
 
-	if(git_repository_path() == -1) {
+	if (git_repository_path() == -1) {
 		fprintf(stderr, "fatal: not a git repository (or any of the parent directories): .git");
 		exit(0);
 	}
 
 	config_parser();
 
-	switch(cmd) {
+	switch (cmd) {
 		case CMD_REMOVE:
 			remote_remove(argc, argv, flags);
 			break;
