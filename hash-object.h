@@ -34,6 +34,6 @@
 /* Commands */
 #define CMD_HASH_OBJECT_WRITE	0x1
 
-int hash_object_main(int argc, char *argv[]);
+int	hash_object_main(int argc, char *argv[]);
 
 #endif

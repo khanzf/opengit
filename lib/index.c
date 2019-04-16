@@ -49,7 +49,7 @@ parse_treeentries(unsigned char *indexmap, int *offset)
 
 	cache_tree = malloc(sizeof(struct cache_tree));
 
-	while(indexmap[*offset])
+	while (indexmap[*offset])
 		*offset = *offset + 1;
 	*offset = *offset + 1;
 
@@ -78,7 +78,7 @@ parse_treeentries(unsigned char *indexmap, int *offset)
 	for(q=0;q<cache_tree->subtree_count;q++)
 		cache_tree->subtree[q] = parse_treeentries(indexmap, offset);
 
-	return cache_tree;
+	return (cache_tree);
 }
 
 void
@@ -145,5 +145,5 @@ parse_index(unsigned char *indexmap, off_t indexsize)
 		}
 	}
 
-	return cache_tree;
+	return (cache_tree);
 }

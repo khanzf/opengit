@@ -37,5 +37,5 @@ buf_read(int fd, void *buf, size_t count, read_handler read_handler, void *arg)
 	if (read_handler)
 		read_handler(buf, count, arg);
 
-	return count;
+	return (count);
 }

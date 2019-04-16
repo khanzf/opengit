@@ -31,8 +31,8 @@
 #include <limits.h>
 
 struct cmd {
-	const char *c_arg;
-	int (*c_func)(int argc, char *argv[]);
+	const char	*c_arg;
+	int		(*c_func)(int argc, char *argv[]);
 };
 
 extern char dotgitpath[PATH_MAX + NAME_MAX];

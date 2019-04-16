@@ -65,81 +65,82 @@ static const char *object_name[] = {
 
 // idx file headers
 struct offset {
-	unsigned int addr;
+	unsigned int	addr;
 };
 
 struct checksum {
-	unsigned int val;
+	unsigned int	val;
 };
 
 struct entry {
-	unsigned char sha[20];
+	unsigned char	sha[20];
 };
 
 struct fan {
-	int count[256];
+	int		count[256];
 };
 
 // pack file headers
 struct packfileinfo {
-	int version;
-	int nobjects;
-	unsigned char sha[20];
-	unsigned char ctx[20];
+	int		version;
+	int		nobjects;
+	unsigned char	sha[20];
+	unsigned char	ctx[20];
 };
 
 struct objectinfo {
-	unsigned long offset; // The object header from the file's start
-	uint32_t crc;
+	unsigned long	offset;		// The object header from the file's start
+	uint32_t	crc;
 
-	unsigned long psize; 	// Size of the object content
-	unsigned long isize; 	// Inflated size
-	unsigned long used; 	// Bytes the header consumes
-	unsigned int ftype; 	// Final type
-	unsigned int ptype; 	// Pack type
+	unsigned long	psize;		// Size of the object content
+	unsigned long	isize;		// Inflated size
+	unsigned long	used;		// Bytes the header consumes
+	unsigned int	ftype;		// Final type
+	unsigned int	ptype;		// Pack type
 
 	/* Values used by ofs_delta objects */
-	unsigned long deflated_size;
-	unsigned long ofsbase;	// Offset of object + object hdr
-	unsigned long ofshdrsize; // The sizeof the ofs hdr 
-	unsigned long *deltas;	// Offset of deltas + delta hdrs
-	int ndeltas;		// Number of deltas
+	unsigned long	deflated_size;
+	unsigned long	ofsbase;	// Offset of object + object hdr
+	unsigned long	ofshdrsize;	// The sizeof the ofs hdr 
+	unsigned long	*deltas;	// Offset of deltas + delta hdrs
+	int		ndeltas;	// Number of deltas
 
-	unsigned char *data;	// Pointer to inflated data
+	unsigned char	*data;		// Pointer to inflated data
 
 };
 
 /* Used to store object information when creating the index */
 struct index_entry {
-	int offset;
-	int type;
-	uint32_t crc;
-	unsigned char digest[20];
+	int		offset;
+	int		type;
+	uint32_t	crc;
+	unsigned char	digest[20];
 };
 
 /* Used in the callback to get index information */
 struct index_generate_arg {
-	int bytes;
-	SHA1_CTX shactx;
+	int		bytes;
+	SHA1_CTX	shactx;
 };
 
-ssize_t sha_write(int fd, const void *buf, size_t nbytes, SHA1_CTX *idxctx);
-int pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap);
-int pack_get_packfile_offset(char *sha_str, char *filename);
-int pack_parse_header(int packfd, struct packfileinfo *packfileinfo, SHA1_CTX *packctx);
-void pack_object_header(int packfd, int offset, struct objectinfo *objectinfo, SHA1_CTX *packctx);
-int pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo, struct index_entry *index_entry, SHA1_CTX *packctx, SHA1_CTX *idxctx);
-unsigned char *pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *arg);
-void pack_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx);
-void write_index_header(int idxfd, SHA1_CTX *idxctx);
-void write_hash_count(int idxfd, struct index_entry *index_entry, SHA1_CTX *idxctx);
-void write_hashes(int idxfd, struct packfileinfo *packfileinfo, struct index_entry *index_entry, SHA1_CTX *idxctx);
-void write_crc_table(int idxfd, struct packfileinfo *packfileinfo, struct index_entry *index_entry, SHA1_CTX *idxctx);
-void write_32bit_table(int idxfd, struct packfileinfo *packfileinfo, struct index_entry *index_entry, SHA1_CTX *idxctx);
-void write_checksums(int idxfd, struct packfileinfo *packfileinfo, SHA1_CTX *idxctx);
-void pack_build_index(int idxfd, struct packfileinfo *packfileinfo, struct index_entry *index_entry, SHA1_CTX *idxctx);
-int sortindexentry(const void *a, const void *b);
-int read_sha_update(void *buf, size_t count, void *arg);
+ssize_t		 sha_write(int fd, const void *buf, size_t nbytes, SHA1_CTX *idxctx);
+int		 pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap);
+int		 pack_get_packfile_offset(char *sha_str, char *filename);
+int		 pack_parse_header(int packfd, struct packfileinfo *packfileinfo, SHA1_CTX *packctx);
+void		 pack_object_header(int packfd, int offset, struct objectinfo *objectinfo, SHA1_CTX *packctx);
+int		 pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo, struct index_entry *index_entry,
+		     SHA1_CTX *packctx, SHA1_CTX *idxctx);
+unsigned char	*pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *arg);
+void		 pack_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx);
+void		 write_index_header(int idxfd, SHA1_CTX *idxctx);
+void		 write_hash_count(int idxfd, struct index_entry *index_entry, SHA1_CTX *idxctx);
+void		 write_hashes(int idxfd, struct packfileinfo *packfileinfo, struct index_entry *index_entry, SHA1_CTX *idxctx);
+void		 write_crc_table(int idxfd, struct packfileinfo *packfileinfo, struct index_entry *index_entry, SHA1_CTX *idxctx);
+void		 write_32bit_table(int idxfd, struct packfileinfo *packfileinfo, struct index_entry *index_entry, SHA1_CTX *idxctx);
+void		 write_checksums(int idxfd, struct packfileinfo *packfileinfo, SHA1_CTX *idxctx);
+void		 pack_build_index(int idxfd, struct packfileinfo *packfileinfo, struct index_entry *index_entry, SHA1_CTX *idxctx);
+int		 sortindexentry(const void *a, const void *b);
+int		 read_sha_update(void *buf, size_t count, void *arg);
 
 
 #endif

@@ -34,14 +34,14 @@
 #define LOG_STATUS_AUTHOR	0x20
 
 struct logarg {
-	int type;
-	int status;
-	char sha[40];
-	char next_commit[40];
-	char *headers;
-	int size;
+	int	type;
+	int	status;
+	char	sha[40];
+	char	next_commit[40];
+	char	*headers;
+	int	size;
 };
 
-int log_main(int argc, char *argv[]);
+int	log_main(int argc, char *argv[]);
 
 #endif

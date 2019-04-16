@@ -30,8 +30,8 @@
 
 /* Used to process both the crc and ctx data */
 struct two_darg {
-	void *crc;
-	void *sha;
+	void		*crc;
+	void		*sha;
 };
 
 /*
@@ -39,26 +39,27 @@ struct two_darg {
  * not processed incrementally
  */
 struct decompressed_object {
-	unsigned char *data;
-	unsigned long size;
-	unsigned long deflated_size;
+	unsigned char	*data;
+	unsigned long	size;
+	unsigned long	deflated_size;
 };
 
 struct writer_args {
-	int fd;
-	long sent;
+	int		fd;
+	long		sent;
 };
 
 #define CHUNK 16384
 
-typedef int deflated_handler(unsigned char *, int, void *);
-typedef unsigned char *inflated_handler(unsigned char *, int, int, void *);
+typedef int		 deflated_handler(unsigned char *, int, void *);
+typedef unsigned char	*inflated_handler(unsigned char *, int, int, void *);
 
-int deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg, inflated_handler inflated_handler, void *arg);
-unsigned char *write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg);
-unsigned char *buffer_cb(unsigned char *buf, int size, int deflate_size, void *arg);
-int zlib_update_sha(unsigned char *data, int use, void *darg);
-int zlib_update_crc(unsigned char *data, int use, void *darg);
-int zlib_update_crc_sha(unsigned char *data, int use, void *darg);
+int			 deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg,
+			     inflated_handler inflated_handler, void *arg);
+unsigned char		*write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg);
+unsigned char		*buffer_cb(unsigned char *buf, int size, int deflate_size, void *arg);
+int			 zlib_update_sha(unsigned char *data, int use, void *darg);
+int			zlib_update_crc(unsigned char *data, int use, void *darg);
+int			zlib_update_crc_sha(unsigned char *data, int use, void *darg);
 
 #endif

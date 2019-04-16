@@ -51,18 +51,18 @@ ssize_t
 sha_write(int fd, const void *buf, size_t nbytes, SHA1_CTX *idxctx)
 {
 	SHA1_Update(idxctx, buf, nbytes);
-	return write(fd, buf, nbytes);
+	return (write(fd, buf, nbytes));
 }
 
 int
 read_sha_update(void *buf, size_t count, void *arg)
 {
 	if (!arg)
-		return 1;
+		return (1);
 	SHA1_CTX *context = arg;
 	SHA1_Update(context, buf, count);
 
-	return 0;
+	return (0);
 }
 
 int
@@ -70,7 +70,7 @@ sortindexentry(const void *a, const void *b)
 {
 	struct index_entry *x = (struct index_entry *)a;
 	struct index_entry *y = (struct index_entry *)b;
-	return memcmp(x->digest, y->digest, 20);
+	return (memcmp(x->digest, y->digest, 20));
 }
 
 unsigned long
@@ -85,7 +85,7 @@ readvint(unsigned char **datap, unsigned char *top)
                 i += 7;
         } while (opcode & BIT(7) && data < top);
         *datap = data;
-        return size;
+        return (size);
 }
 
 void
@@ -111,7 +111,7 @@ applypatch(struct decompressed_object *base, struct decompressed_object *delta, 
 	objectinfo->isize = size;
 	out = objectinfo->data;
 
-	while(data < top) {
+	while (data < top) {
 		opcode = *data++;
 		if (opcode & BIT(7)) {
 			cp_off = 0;
@@ -178,12 +178,12 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 	char tmpref[2];
 	struct two_darg two_darg;
 
-	for(x = 0; x < packfileinfo->nobjects; x++) {
+	for (x = 0; x < packfileinfo->nobjects; x++) {
 		objectinfo.crc = 0x00;
 		lseek(packfd, offset, SEEK_SET);
 		pack_object_header(packfd, offset, &objectinfo, packctx);
 
-		switch(objectinfo.ptype) {
+		switch (objectinfo.ptype) {
 		case OBJ_REF_DELTA:
 			fprintf(stderr, "OBJ_REF_DELTA: currently not implemented. Exiting.\n");
 			exit(0);
@@ -242,7 +242,7 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 		index_entry[x].offset = objectinfo.offset;
 	}
 
-	return offset;
+	return (offset);
 }
 
 /*
@@ -265,8 +265,8 @@ write_hash_count(int idxfd, struct index_entry *index_entry,
 
 	hashnum = 0;
 
-	for(x=0;x<256;x++) {
-		while(index_entry[hashnum].digest[0] == x)
+	for (x=0;x<256;x++) {
+		while (index_entry[hashnum].digest[0] == x)
 			hashnum++;
 		reversed = htonl(hashnum);
 		sha_write(idxfd, &reversed, 4, idxctx);
@@ -279,7 +279,7 @@ write_hashes(int idxfd, struct packfileinfo *packfileinfo,
 {
 	int x;
 
-	for(x=0;x<packfileinfo->nobjects; x++)
+	for (x=0;x<packfileinfo->nobjects; x++)
 		sha_write(idxfd, index_entry[x].digest, 20, idxctx);
 }
 
@@ -290,7 +290,7 @@ write_crc_table(int idxfd, struct packfileinfo *packfileinfo,
 	uint32_t crc32tmp;
 	int x;
 
-	for(x=0;x<packfileinfo->nobjects;x++) {
+	for (x=0;x<packfileinfo->nobjects;x++) {
 		crc32tmp = htonl(index_entry[x].crc);
 		sha_write(idxfd, &crc32tmp, 4, idxctx);
 	}
@@ -303,7 +303,7 @@ write_32bit_table(int idxfd, struct packfileinfo *packfileinfo,
 	uint64_t offsettmp;
 	int x;
 
-	for(x = 0; x < packfileinfo->nobjects; x++) {
+	for (x = 0; x < packfileinfo->nobjects; x++) {
 		offsettmp = htonl(index_entry[x].offset);
 		sha_write(idxfd, &offsettmp, 4, idxctx);
 	}
@@ -368,7 +368,7 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx)
 	deflate_caller(packfd, NULL, NULL, buffer_cb, &base_object);
 	objectinfo->deflated_size = base_object.deflated_size;
 
-	for(q=objectinfo->ndeltas-1;q>=0;q--) {
+	for (q=objectinfo->ndeltas-1;q>=0;q--) {
 		lseek(packfd, objectinfo->deltas[q], SEEK_SET);
 
 		delta_object.data = NULL;
@@ -408,7 +408,7 @@ pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *
 	struct index_generate_arg *index_generate_arg = arg;
 	SHA1_Update(&index_generate_arg->shactx, buf, size);
 	index_generate_arg->bytes += deflated_bytes;
-	return buf;
+	return (buf);
 }
 
 int
@@ -433,7 +433,7 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 
 	/* Find hash in idx file or die */
 	if (d) {
-		while((dir = readdir(d)) != NULL) {
+		while ((dir = readdir(d)) != NULL) {
 			file_ext = strrchr(dir->d_name, '.');
 			if (!file_ext || strncmp(file_ext, ".idx", 4))
 				continue;
@@ -460,7 +460,7 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 
 	closedir(d);
 
-	return offset;
+	return (offset);
 }
 
 int
@@ -488,7 +488,7 @@ pack_parse_header(int packfd, struct packfileinfo *packfileinfo, SHA1_CTX *packc
 	packfileinfo->nobjects = ntohl(nobjects);
 
 	/* This hardcoded value is because we read 4*3 bytes from the header */
-	return 12;
+	return (12);
 }
 
 /*
@@ -528,7 +528,7 @@ object_header_ofs(int packfd, int offset, int layer,
 
 	shift = 4;
 
-	while(c & 0x80) {
+	while (c & 0x80) {
 		read(packfd, &c, 1);
 		childinfo->psize += (c & 0x7f) << shift;
 		shift += 7;
@@ -547,7 +547,7 @@ object_header_ofs(int packfd, int offset, int layer,
 
 		read(packfd, &c, 1);
 		delta = c & 0x7f;
-		while(c & 0x80) {
+		while (c & 0x80) {
 			delta++;
 			ofshdr++;
 			read(packfd, &c, 1);
@@ -577,7 +577,7 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
 	objectinfo->psize = c & 15;
 	shift = 4;
 
-	while(c & 0x80) { 
+	while (c & 0x80) { 
 		buf_read(packfd, &c, 1, read_sha_update, packctx);
 		objectinfo->crc = crc32(objectinfo->crc, &c, 1);
 		objectinfo->psize += (c & 0x7f) << shift;
@@ -599,7 +599,7 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
 		objectinfo->crc = crc32(objectinfo->crc, &c, 1);
 		delta = c & 0x7f;
 		
-		while(c & 0x80) {
+		while (c & 0x80) {
 			ofshdrsize++;
 			delta += 1;
 			buf_read(packfd, &c, 1, read_sha_update, packctx);
@@ -649,12 +649,12 @@ pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap)
 	// Point to SHA entries
 	entries = (struct entry *)(idxmap + idx_offset);
 
-	for(n=0;n<nelements;n++)
+	for (n=0;n<nelements;n++)
 		if (!memcmp(entries[n].sha, sha, 20))
 			break;
 
 	if (n==nelements)
-		return -1;
+		return (-1);
 
 	// Move to Checksums
 	idx_offset += (sizeof(struct entry) * nelements);
@@ -665,5 +665,5 @@ pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap)
 	// Capture Offsets
 	offsets = (struct offset *)(idxmap + idx_offset);
 
-	return ntohl(offsets[n].addr);
+	return (ntohl(offsets[n].addr));
 }

@@ -32,7 +32,6 @@ enum section_types {
 	CORE = 1,
 	REMOTE = 2,
 	BRANCH = 3,
-
 	OTHER = 99
 };
 
@@ -62,10 +61,10 @@ struct section {
 	char *			other_variable;
 	char *			other_value;
 
-	struct section *next;
+	struct section		*next;
 };
 
-extern struct section *sections;
+extern struct section		*sections;
 
 int	config_parser();
 void	ini_init_regex();

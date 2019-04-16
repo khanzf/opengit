@@ -56,20 +56,20 @@
 #define CLONE_FILTER				BIT(22)
 
 struct ref {
-	char sha[41];
-	char *path;
+	char		sha[41];
+	char		*path;
 };
 
 struct smart_head {
-	char sha[41];
-	uint32_t cap;
-	int refcount;
-	struct ref *refs;
+	char		sha[41];
+	uint32_t	cap;
+	int		refcount;
+	struct ref	*refs;
 };
 
 struct branch {
-	char sha[41];
-	char *name;
+	char 		sha[41];
+	char 		*name;
 };
 
 #define STATE_NEWLINE			0
@@ -79,14 +79,14 @@ struct branch {
 #define STATE_UNKNOWN			999
 
 struct parseread {
-	int state;		// current state
-	int osize;		// object size
-	int psize;		// processed size
-	int cremnant;		// Remnant count
-	char bremnant[4];	// Remnant byes
-	int fd;
+	int		state;		// current state
+	int		osize;		// object size
+	int		psize;		// processed size
+	int		cremnant;	// Remnant count
+	char		bremnant[4];	// Remnant byes
+	int		fd;
 };
 
-int clone_main(int argc, char *argv[]);
+int	clone_main(int argc, char *argv[]);
 
 #endif

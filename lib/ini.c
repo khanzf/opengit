@@ -65,7 +65,7 @@ config_parser()
 		return (-1);
 	}
 
-	while(fgets(line, 1000, fp) != NULL) {
+	while (fgets(line, 1000, fp) != NULL) {
 		line[strlen(line)-1] = '\0'; // chomp()
 
 		if (regexec(&re_core_header, line, 2, pmatch, 0) != REG_NOMATCH ||

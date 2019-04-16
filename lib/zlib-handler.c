@@ -44,7 +44,7 @@ buffer_cb(unsigned char *buf, int size, int deflated_size, void *arg)
 	decompressed_object->size += size;
 	decompressed_object->deflated_size += deflated_size;
 
-	return buf;
+	return (buf);
 }
 
 int
@@ -52,7 +52,7 @@ zlib_update_sha(unsigned char *data, int use, void *darg)
 {
 	SHA1_CTX *ctxv = darg;
 	SHA1_Update(ctxv, data, use);
-	return 0;
+	return (0);
 }
 
 int
@@ -60,7 +60,7 @@ zlib_update_crc(unsigned char *data, int use, void *darg)
 {
 	uint32_t *crcv = darg;
 	*crcv = crc32(*crcv, data, use);
-	return 0;
+	return (0);
 }
 
 int
@@ -71,7 +71,7 @@ zlib_update_crc_sha(unsigned char *data, int use, void *darg)
 	zlib_update_crc(data, use, two_darg->crc);
 	zlib_update_sha(data, use, two_darg->sha);
 
-	return 0;
+	return (0);
 }
 
 
@@ -82,7 +82,7 @@ write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)
 
 	writer_args->sent += write(writer_args->fd, buf, size);
 
-	return buf;
+	return (buf);
 }
 
 /*
@@ -116,14 +116,14 @@ deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg,
 	strm.next_in = Z_NULL;
 	ret = inflateInit(&strm);
 	if (ret != Z_OK)
-		return ret;
+		return (ret);
 
 	do {
 		strm.avail_in = input_len = read(sourcefd, in, CHUNK);
 		if (strm.avail_in == -1) {
 			(void)inflateEnd(&strm);
 			perror("read from source file");
-			return Z_ERRNO;
+			return (Z_ERRNO);
 		}
 		if (strm.avail_in == 0)
 			break;
@@ -134,13 +134,13 @@ deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg,
 			strm.next_out = out;
 			ret = inflate(&strm, Z_NO_FLUSH);
 
-			switch(ret) {
+			switch (ret) {
 			case Z_NEED_DICT:
 				ret = Z_DATA_ERROR;
 			case Z_DATA_ERROR:
 			case Z_MEM_ERROR:
 				(void)inflateEnd(&strm);
-				return ret;
+				return (ret);
 			}
 			have = CHUNK - strm.avail_out;
 
@@ -153,16 +153,16 @@ deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg,
 			if (inflated_handler(out, have, use, arg) == NULL)
 				goto end_inflation;
 
-		} while(strm.avail_out == 0);
-	} while(ret != Z_STREAM_END);
+		} while (strm.avail_out == 0);
+	} while (ret != Z_STREAM_END);
 
 end_inflation:
 	(void)inflateEnd(&strm);
-	return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
+	return (ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR);
 }
 
 int
 zlib_deliver_loose_object_content(unsigned char *buf, int size, void *data)
 {
-	return 0;
+	return (0);
 }

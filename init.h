@@ -28,7 +28,7 @@
 #ifndef _REMOTE_H_
 #define _REMOTE_H_
 
-int init_dirinit(char *project_directory);
-int init_main(int argc, char *argv[]);
+int	init_dirinit(char *project_directory);
+int	init_main(int argc, char *argv[]);
 
 #endif

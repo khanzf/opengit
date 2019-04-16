@@ -36,18 +36,18 @@
 #define CAT_FILE_EXIT		0x08
 
 struct loosearg {
-	int fd;
-	uint8_t cmd;
-	int step;
-	long sent;
+	int		fd;
+	uint8_t		cmd;
+	int		step;
+	long		sent;
 
-	int type;
-	long size;
+	int		type;
+	long		size;
 };
 
-void cat_file_get_content(char *sha_str, uint8_t flags);
-int cat_file_get_content_loose(char *sha_str, uint8_t flags);
-void cat_file_get_content_pack(char *sha_str, uint8_t flags);
-int cat_file_main(int argc, char *argv[]);
+void	cat_file_get_content(char *sha_str, uint8_t flags);
+int	cat_file_get_content_loose(char *sha_str, uint8_t flags);
+void	cat_file_get_content_pack(char *sha_str, uint8_t flags);
+int	cat_file_main(int argc, char *argv[]);
 
 #endif

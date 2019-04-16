@@ -28,6 +28,6 @@
 #ifndef __PACK_INDEX_H__
 #define __PACK_INDEX_H__
 
-int index_pack_main(int argc, char *argv[]);
+int	index_pack_main(int argc, char *argv[]);
 
 #endif

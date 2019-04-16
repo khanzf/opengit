@@ -30,8 +30,9 @@
 
 #include <unistd.h>
 
-typedef int read_handler(void *, size_t, void *);
+typedef int	read_handler(void *, size_t, void *);
 
-ssize_t buf_read(int fd, void *buf, size_t count, read_handler read_handler, void *arg);
+ssize_t		buf_read(int fd, void *buf, size_t count, read_handler read_handler,
+		    void *arg);
 
 #endif
