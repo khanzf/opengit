@@ -30,6 +30,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <fcntl.h>
+#include <errno.h>
 #include "ini.h"
 
 static regex_t re_core_header;
@@ -156,6 +158,66 @@ config_parser()
 	}
 
 	return (0);
+}
+
+int
+ini_get_config(char *repodir)
+{
+	int fd;
+	char path[PATH_MAX];
+
+	strncpy(path, repodir, strlen(repodir));
+	strncat(path, "/.git/config", 12);
+	printf("config path: %s\n", path);
+
+	fd = open(path, O_WRONLY | O_CREAT);
+	if (fd == -1) {
+		fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
+		exit(errno);
+	}
+
+	return (fd);
+
+}
+
+void
+ini_write_config(int fd, struct section *sections)
+{
+	struct section *cur_section = sections;
+
+	while (cur_section) {
+		if (cur_section->type == CORE) {
+			dprintf(fd, "[core]\n");
+			if (cur_section->repositoryformatversion != 0xFF)
+				dprintf(fd, "\trepositoryformatversion = %d\n",
+				    cur_section->repositoryformatversion);
+			if (cur_section->filemode)
+				dprintf(fd, "\tfilemode = %s\n",
+				    (cur_section->filemode == TRUE ? "true" : "false"));
+			if (cur_section->bare)
+				dprintf(fd, "\tbare = %s\n",
+				    (cur_section->bare == TRUE ? "true" : "false"));
+			if (cur_section->logallrefupdates != 0xFF)
+				dprintf(fd, "\tlogallrefupdates = %s\n",
+				    (cur_section->logallrefupdates == TRUE ? "true" : "false"));
+		}
+		else if (cur_section->type == REMOTE) {
+			dprintf(fd, "[remote \"%s\"]\n", cur_section->repo_name);
+			if (cur_section->url)
+				dprintf(fd, "\turl = %s\n", cur_section->url);
+			if (cur_section->fetch)
+				dprintf(fd, "\tfetch = %s\n", cur_section->fetch);
+		}
+		else if (cur_section->type == BRANCH) {
+			dprintf(fd, "[branch \"\"]\n");//, cur_section->repo_name);
+			printf("Did write to fd\n");
+			if (cur_section->remote)
+				dprintf(fd, "\tremote = %s\n", cur_section->remote);
+			if (cur_section->merge)
+				dprintf(fd, "\tmerge = %s\n", cur_section->merge);
+		}
+	cur_section = cur_section->next;
+	}
 }
 
 void

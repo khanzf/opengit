@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <fetch.h>
+#include <errno.h>
 #include <sha.h>
 #include "lib/zlib-handler.h"
 #include "lib/common.h"
@@ -511,11 +512,54 @@ populate_packed_refs(char *repodir, struct smart_head *smart_head)
 	fclose(refs);
 }
 
+void
+clone_initial_config(char *repopath, char *repodir, struct section *sections)
+{
+	struct section core;
+	struct section remote;
+	struct section branch;
+	char path[PATH_MAX];
+	int fd;
+
+	/* Adds core, remote and branch */
+	sections = malloc(sizeof(struct section) * 3);
+
+	core.type = CORE;
+	core.repositoryformatversion = 0;
+	core.filemode = TRUE;
+	core.bare = FALSE;
+	core.logallrefupdates = TRUE;
+
+	remote.type = REMOTE;
+	remote.repo_name = "origin";
+	remote.url = repopath;
+	remote.fetch = "+refs/heads/*:refs/remotes/origin/*";
+
+	branch.type = BRANCH;
+	branch.remote = "origin";
+	branch.merge = "refs/heads/master";
+
+	core.next = &remote;
+	remote.next = &branch;
+	branch.next = NULL;
+
+	strncpy(path, repodir, strlen(repodir));
+	strncat(path, "/.git/config", 12);
+	fd = open(path, O_WRONLY | O_CREAT, 0660);
+	if (fd == -1) {
+		fprintf(stderr, "Unable to open file %s: %s\n", path, strerror(errno));
+		exit(errno);
+	}
+
+	ini_write_config(fd, &core);
+}
+
 int
 clone_main(int argc, char *argv[])
 {
 	struct smart_head smart_head;
 	char *repodir;
+	char *repopath;
 	int ret = 0;
 	int ch;
 	int q = 0;
@@ -535,16 +579,19 @@ clone_main(int argc, char *argv[])
 	argc = argc - q;
 	argv = argv + q;
 
+	repopath = argv[1];
 	repodir = get_repo_dir(argv[1]);
 
 	init_dirinit(repodir);
 
-
 	smart_head.refs = NULL;
-	clone_http(argv[1], repodir, &smart_head);
+	clone_http(repopath, repodir, &smart_head);
 
 	/* Populate .git/pack-refs */
 	populate_packed_refs(repodir, &smart_head);
+
+	/* Write the initial config file */
+	clone_initial_config(repopath, repodir, NULL);
 
 	/* Checkout Latest commit */
 	free(repodir);

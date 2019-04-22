@@ -62,8 +62,8 @@ remote_usage(int type)
 int
 remote_remove(int argc, char *argv[], uint8_t flags)
 {
-	char *repolocation;
-	char tmpconfig[PATH_MAX + NAME_MAX];
+	char tmpconfig[PATH_MAX];
+	char *repopath;
 	struct section *cur_section = sections;
 	int fd;
 	int match = 0;
@@ -71,11 +71,11 @@ remote_remove(int argc, char *argv[], uint8_t flags)
 	if (argc != 2)
 		return (remote_usage(REMOTE_USAGE_REMOVE));
 
-	repolocation = argv[1];
+	repopath = argv[1];
 
 	while (cur_section) {
 		if (cur_section->type == REMOTE && \
-		    !strncmp(cur_section->repo_name, repolocation, strlen(repolocation))) {
+		    !strncmp(cur_section->repo_name, repopath, strlen(repopath))) {
 			match = 1;
 			break;
 		}
@@ -83,7 +83,7 @@ remote_remove(int argc, char *argv[], uint8_t flags)
 	}
 
 	if (match == 0) {
-		fprintf(stderr, "fatal: No such remote: %s\n", repolocation);
+		fprintf(stderr, "fatal: No such remote: %s\n", repopath);
 		return (128);
 	}
 
@@ -97,32 +97,7 @@ remote_remove(int argc, char *argv[], uint8_t flags)
 	}
 
 	/* Rewrite config file */
-	while (cur_section) {
-		if (cur_section->type == CORE) {
-			dprintf(fd, "[core]\n");
-			if (cur_section->repositoryformatversion != 0xFF) {
-				dprintf(fd, "\trepositoryformatversion = %d\n", cur_section->repositoryformatversion);
-			}
-			if (cur_section->filemode)
-				dprintf(fd, "\tfilemode = %s\n", (cur_section->filemode == TRUE ? "true" : "false"));
-			if (cur_section->bare)
-				dprintf(fd, "\tbare = %s\n", (cur_section->bare == TRUE ? "true" : "false"));
-			if (cur_section->logallrefupdates != 0xFF)
-				dprintf(fd, "\tlogallrefupdates = %s\n", (cur_section->logallrefupdates == TRUE ? "true" : "false"));
-		}
-		else if (cur_section->type == REMOTE) {
-			if (strncmp(cur_section->repo_name, repolocation, strlen(repolocation))) {
-				dprintf(fd, "[remote \"%s\"]\n", cur_section->repo_name);
-				if (cur_section->url)
-					dprintf(fd, "\turl = %s\n", cur_section->url);
-				if (cur_section->fetch)
-					dprintf(fd, "\tfetch = %s\n", cur_section->fetch);
-			}
-		}
-
-		cur_section = cur_section->next;
-	}
-
+	ini_write_config(fd, cur_section);
 	close(fd);
 
 	return (0);

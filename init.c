@@ -34,7 +34,9 @@
 #include <getopt.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
+#include "lib/common.h"
 #include "lib/ini.h"
 #include "init.h"
 
@@ -48,6 +50,17 @@ static struct option long_options[] =
 	{NULL, 0, NULL, 0}
 };
 
+char *init_dirs[] = {
+	".git/objects",
+	".git/objects/pack",
+	".git/objects/info",
+	".git/refs",
+	".git/refs/tags",
+	".git/refs/heads",
+	".git/branches",
+	".git/hooks",
+};
+
 int
 init_usage(int type)
 {
@@ -56,14 +69,12 @@ init_usage(int type)
 
 /*
  * Initializes the directory
- * XXX Going forward each file/directory should be its own
- * inline function.
- * */
+ * Does not initialize the .git/config file
+ */
 int
 init_dirinit(char *repodir)
 {
 	struct stat sb;
-	struct section new_config;
 	char path[PATH_MAX];
 	char *subpath;
 	int fd;
@@ -71,6 +82,7 @@ init_dirinit(char *repodir)
 	int x;
 	int dirlen;
 
+	/*
 	char *dirs[] = {
 		    ".git/objects",
 		    ".git/objects/pack",
@@ -78,7 +90,10 @@ init_dirinit(char *repodir)
 		    ".git/refs",
 		    ".git/refs/tags",
 		    ".git/refs/heads",
-		    ".git/branches"};
+		    ".git/branches",
+		    ".git/hooks",
+	};
+	*/
 
 	/* Construct the "base" directory path */
 	if (repodir) {
@@ -96,8 +111,8 @@ init_dirinit(char *repodir)
 		dirlen = 0;
 	subpath = path + dirlen;
 
-	for(x = 0; x < 7; x++) {
-		strncpy(subpath, dirs[x], PATH_MAX-dirlen);
+	for(x = 0; x < nitems(init_dirs); x++) {
+		strncpy(subpath, init_dirs[x], PATH_MAX-dirlen);
 		fd = open(path, O_WRONLY | O_CREAT);
 		if (fd != -1) {
 			fprintf(stderr, "File or directory %s already exists\n", path);
@@ -105,26 +120,12 @@ init_dirinit(char *repodir)
 		}
 	}
 
-	new_config.type = CORE;
-	new_config.repositoryformatversion = 0;
-	new_config.filemode = TRUE;
-	new_config.bare = TRUE;
-	new_config.logallrefupdates = TRUE;
 
 	strncpy(subpath, ".git", PATH_MAX-dirlen);
 	mkdir(path, 0755);
 
-	strncpy(subpath, ".git/config", PATH_MAX-dirlen);
-	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-	dprintf(fd, "[core]\n");
-	dprintf(fd, "\trepositoryformatversion = 0\n");
-	dprintf(fd, "\tfilemode = true\n");
-	dprintf(fd, "\tbare = false\n");
-	dprintf(fd, "\tlogallrefupdates = true\n");
-	close(fd);
-
 	for(x = 0; x < 7; x++) {
-		strncpy(subpath, dirs[x], PATH_MAX-dirlen);
+		strncpy(subpath, init_dirs[x], PATH_MAX-dirlen);
 		ret = mkdir(path, 0755);
 		if (ret == -1) {
 			fprintf(stderr, "Cannot create %s\n", path);
@@ -153,7 +154,9 @@ init_dirinit(char *repodir)
 int
 init_main(int argc, char *argv[])
 {
+	struct section core;
 	int ret = 0;
+	int fd;
 	int ch;
 	char *repodir = NULL;
 	uint8_t flags = 0;
@@ -173,6 +176,21 @@ init_main(int argc, char *argv[])
 	}
 
 	ret = init_dirinit(repodir);
+	strncpy(path, ".git/config", 12);
+	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
+	if (fd == -1) {
+		fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
+		exit(errno);
+	}
+	core.type = CORE;
+	core.repositoryformatversion = 0;
+	core.filemode = TRUE;
+	core.bare = FALSE;
+	core.logallrefupdates = TRUE;
+	core.next = NULL;
+	ini_write_config(fd, &core);
+
+
 	if (!ret) {
 		if (repodir) {
 			strncpy(path, repodir, strlen(repodir));
@@ -184,6 +202,7 @@ init_main(int argc, char *argv[])
 		}
 		printf("Initialized empty Git repository in %s/.git/\n", path);
 	}
+
 
 	return (ret);
 }
