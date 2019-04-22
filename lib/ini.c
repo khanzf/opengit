@@ -210,7 +210,6 @@ ini_write_config(int fd, struct section *sections)
 		}
 		else if (cur_section->type == BRANCH) {
 			dprintf(fd, "[branch \"\"]\n");//, cur_section->repo_name);
-			printf("Did write to fd\n");
 			if (cur_section->remote)
 				dprintf(fd, "\tremote = %s\n", cur_section->remote);
 			if (cur_section->merge)

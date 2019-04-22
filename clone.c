@@ -543,7 +543,7 @@ clone_initial_config(char *repopath, char *repodir, struct section *sections)
 	remote.next = &branch;
 	branch.next = NULL;
 
-	strncpy(path, repodir, strlen(repodir));
+	strncpy(path, repodir, strlen(repodir)+1);
 	strncat(path, "/.git/config", 12);
 	fd = open(path, O_WRONLY | O_CREAT, 0660);
 	if (fd == -1) {
@@ -589,11 +589,10 @@ clone_main(int argc, char *argv[])
 
 	/* Populate .git/pack-refs */
 	populate_packed_refs(repodir, &smart_head);
-
 	/* Write the initial config file */
 	clone_initial_config(repopath, repodir, NULL);
-
 	/* Checkout Latest commit */
+
 	free(repodir);
 
 	return (ret);
