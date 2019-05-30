@@ -67,13 +67,13 @@ log_usage(int type)
 void
 log_print_commit_headers(struct logarg *logarg)
 {
-	char *token, *tmp;
+	char *end, *token, *tmp, *toff, *walker;
 	char *tofree;
 	char *datestr;
-	char author[255];
 	long t;
 
 	tofree = tmp = strdup(logarg->headers);
+
 	printf("\e[0;33mcommit %s\e[0m\n", logarg->sha);
 
 	while((token = strsep(&tmp, "\n")) != NULL) {
@@ -82,12 +82,33 @@ log_print_commit_headers(struct logarg *logarg)
 			logarg->status |= LOG_STATUS_PARENT;
 		}
 		else if (strncmp(token, "author ", 7) == 0) {
-			t = strtol(token + 38, NULL, 10);
-			datestr = ctime(&t);
-			datestr[24] = '\0';
-			strncpy(author, token+7, strlen(token)-23);
-			printf("Author:\t%s\n", author);
-			printf("Date:\t%s %s\n", datestr, token + strlen(token)-5);
+			/* Chop off the author */
+			token += 7;
+
+			/* Hop to the end; backtrack two spaces, that's the timestamp */
+			datestr = NULL;
+			toff = strrchr(token, ' ');
+			if (toff != NULL) {
+				*toff = '\0';
+				walker = strrchr(token, ' ');
+				if (walker != NULL) {
+					*walker = '\0';
+
+					t = strtol(walker + 1, NULL, 10);
+					datestr = ctime(&t);
+					/* Chop off the newline */
+					datestr[24] = '\0';
+				}
+			}
+
+			/*
+			 * Date parsing bits should have null terminated us back to the end
+			 * of the author string. Just print it off.
+			 */
+			printf("Author:\t%s\n", token);
+
+			if (datestr != NULL)
+				printf("Date:\t%s %s\n", datestr, toff + 1);
 			logarg->status |= LOG_STATUS_AUTHOR;
 		}
 	}
