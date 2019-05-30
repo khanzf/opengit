@@ -203,7 +203,6 @@ log_get_loose_object(struct logarg *logarg)
 	    logarg->sha+2);
 	objectfd = open(objectpath, O_RDONLY);
 	if (objectfd == -1) {
-		close(objectfd);
 		return 0;
 	}
 	deflate_caller(objectfd, NULL, NULL, log_display_cb, logarg);
