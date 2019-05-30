@@ -67,7 +67,7 @@ log_usage(int type)
 void
 log_print_commit_headers(struct logarg *logarg)
 {
-	char *end, *token, *tmp, *toff, *walker;
+	char *token, *tmp, *toff, *walker;
 	char *tofree;
 	char *datestr;
 	long t;
@@ -120,9 +120,9 @@ log_print_commit_headers(struct logarg *logarg)
 unsigned char *
 log_display_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *arg)
 {
-	char *content;
+	char *bstart, *content;
 	struct logarg *logarg = arg;
-	int offset = 0;
+	int offset = 0, oldsize;
 
 	if (logarg->status == LOG_STATUS_COMMIT) {
 		logarg->status = 1;
@@ -131,21 +131,24 @@ log_display_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *
 
 	if (logarg->status == LOG_STATUS_HEADERS) {
 		// Added content to headers
+		oldsize = logarg->size;
 		logarg->headers = realloc(logarg->headers, logarg->size + size - offset);
 		strncpy(logarg->headers + logarg->size, (char *)buf + offset, size - offset);
 
+		bstart = logarg->headers + logarg->size;
 		content = strstr(logarg->headers, "\n\n");
 		if (content != NULL) {
 			logarg->status = 2; // Found
-			content = content + 2;
+			/* Skip double newlines */
+			content += 2;
 
 			log_print_commit_headers(logarg);
 			putchar('\n');
-			printf("%s", content);
+			printf("%.*s", (size - offset) - (int)(content - bstart), content);
 		}
 	}
 	else
-		printf("%s", buf);
+		printf("%.*s", size, buf);
 
 	return NULL;
 }
