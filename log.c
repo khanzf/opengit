@@ -132,8 +132,8 @@ log_display_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *
 	if (logarg->status == LOG_STATUS_HEADERS) {
 		// Added content to headers
 		oldsize = logarg->size;
-		logarg->headers = realloc(logarg->headers, logarg->size + size - offset);
-		strncpy(logarg->headers + logarg->size, (char *)buf + offset, size - offset);
+		logarg->headers = realloc(logarg->headers, logarg->size + size - offset + 1);
+		strlcpy(logarg->headers + logarg->size, (char *)buf + offset, size - offset + 1);
 
 		bstart = logarg->headers + logarg->size;
 		content = strstr(logarg->headers, "\n\n");
