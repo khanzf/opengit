@@ -78,7 +78,10 @@ log_print_commit_headers(struct logarg *logarg)
 
 	while((token = strsep(&tmp, "\n")) != NULL) {
 		if (strncmp(token, "parent ", 7) == 0) {
-			strncpy(logarg->sha, token+7, 40);
+			token += 7;
+			if (strlen(token) < sizeof(logarg->sha) - 1)
+				continue;
+			strlcpy(logarg->sha, token, sizeof(logarg->sha));
 			logarg->status |= LOG_STATUS_PARENT;
 		}
 		else if (strncmp(token, "author ", 7) == 0) {

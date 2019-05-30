@@ -36,8 +36,8 @@
 struct logarg {
 	int	type;
 	int	status;
-	char	sha[40];
-	char	next_commit[40];
+	char	sha[41];
+	char	next_commit[41];
 	char	*headers;
 	int	size;
 };
