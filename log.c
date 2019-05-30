@@ -92,7 +92,6 @@ log_print_commit_headers(struct logarg *logarg)
 		}
 	}
 
-	free(tmp);
 	free(tofree);
 
 }
