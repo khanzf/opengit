@@ -71,7 +71,7 @@ log_print_commit_headers(struct logarg *logarg)
 	char *tofree;
 	char *datestr;
 	char author[255];
-	long t;
+	time_t t;
 
 	tofree = tmp = strdup(logarg->headers);
 	printf("\e[0;33mcommit %s\e[0m\n", logarg->sha);
@@ -139,7 +139,7 @@ log_get_start_sha(struct logarg *logarg)
 	char ref[PATH_MAX];
 	int l;
 
-	sprintf(headfile, "%s/HEAD", dotgitpath);
+	snprintf(headfile, sizeof(headfile), "%s/HEAD", dotgitpath);
 	headfd = open(headfile, O_RDONLY);
 	if (headfd == -1) {
 		fprintf(stderr, "Error, no HEAD file found. This may not be a git directory\n");
@@ -152,7 +152,7 @@ log_get_start_sha(struct logarg *logarg)
 		l = read(headfd, ref, PATH_MAX) - 1;
 		if (ref[l] == '\n')
 			ref[l] = '\0';
-		sprintf(refpath, "%s/%s", dotgitpath, ref);
+		snprintf(refpath, sizeof(refpath), "%s/%s", dotgitpath, ref);
 	}
 	else {
 		fprintf(stderr, "Currently not supporting the raw hash in HEAD\n");
@@ -175,7 +175,7 @@ log_get_loose_object(struct logarg *logarg)
 	int objectfd;
 	char objectpath[PATH_MAX];
 
-	sprintf(objectpath, "%s/objects/%c%c/%s",
+	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c/%s",
 	    dotgitpath, logarg->sha[0], logarg->sha[1],
 	    logarg->sha+2);
 	objectfd = open(objectpath, O_RDONLY);

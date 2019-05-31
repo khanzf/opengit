@@ -110,9 +110,10 @@ hash_object_create_zlib(FILE *source, FILE *dest, unsigned char *header, unsigne
 	int have;
 	Bytef in[CHUNK];
 	Bytef out[CHUNK];
-	char filepath[PATH_MAX + NAME_MAX];
+	char filepath[PATH_MAX];
 
-	sprintf(filepath, "%s/objects/%c%c", dotgitpath, checksum[0], checksum[1]);
+	snprintf(filepath, sizeof(filepath), "%s/objects/%c%c", dotgitpath,
+	    checksum[0], checksum[1]);
 
 	strm.zalloc = Z_NULL;
 	strm.zfree = Z_NULL;
@@ -169,13 +170,13 @@ hash_object_create_file(FILE **objectfileptr, char *checksum)
 	char objectpath[PATH_MAX];
 
 	// First create the directory
-	sprintf(objectpath, "%s/objects/%c%c",
+	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c",
 	    dotgitpath, checksum[0], checksum[1]);
 
 	mkdir(objectpath, 0755);
 
 	// Reusing objectpath variable
-	sprintf(objectpath, "%s/objects/%c%c/%s",
+	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c/%s",
 	    dotgitpath, checksum[0], checksum[1], checksum+2);
 
 	*objectfileptr = fopen(objectpath, "w");
