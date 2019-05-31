@@ -11,4 +11,8 @@ SRCS=	ogit.c lib/ini.c lib/index.c lib/common.c lib/pack.c remote.c init.c \
 
 CLEANFILES+=	${PROG}.core
 
+HAS_TESTS=
+# XXX TODO: MK_TESTS
+SUBDIR.yes+=	tests
+
 .include <bsd.prog.mk>
