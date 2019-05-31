@@ -570,6 +570,7 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
 	objectinfo->offset = offset;
 	objectinfo->used = 1;
 
+	c = 0;
 	buf_read(packfd, &c, 1, read_sha_update, packctx);
 
 	objectinfo->crc = crc32(objectinfo->crc, &c, 1);
