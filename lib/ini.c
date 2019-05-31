@@ -51,6 +51,7 @@ config_parser()
 	struct section *current_section = sections;
 	struct section *new_section;
 	char ini_file[PATH_MAX];
+	int sz;
 
 	char tmp[1000];
 	char tmpvar[1000];
@@ -82,18 +83,16 @@ config_parser()
 			}
 			else if (strncmp(tmp, "remote", 6) == 0) {
 				new_section->type = REMOTE;
-				tmpval = malloc(pmatch[2].rm_eo - pmatch[2].rm_so);
-				strncpy(tmpval, line + pmatch[2].rm_so,
-				    pmatch[2].rm_eo - pmatch[2].rm_so);
-				new_section->repo_name = tmpval;
+				sz = pmatch[2].rm_eo - pmatch[2].rm_so;
+				new_section->repo_name = malloc(sz + 1);
+				strlcpy(new_section->repo_name, line + pmatch[2].rm_so,
+				   sz + 1);
 			}
 
 			new_section->next = NULL;
 			if (sections == NULL) {
-				sections = new_section;
-				current_section = sections;
-			}
-			else {
+				current_section = sections = new_section;
+			} else {
 				current_section->next = new_section;
 				current_section = new_section;
 			}
