@@ -32,7 +32,7 @@
 #define nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #define BIT(nr)		(1 << (nr))
 
-extern char		dotgitpath[PATH_MAX + NAME_MAX];
+extern char		dotgitpath[PATH_MAX];
 int			git_repository_path();
 
 #endif

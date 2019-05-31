@@ -44,14 +44,14 @@
 	If errors, returns -1
 */
 
-char dotgitpath[PATH_MAX + NAME_MAX];
+char dotgitpath[PATH_MAX];
 
 int
 git_repository_path()
 {
 	char *d = NULL;
 	int s;
-	char path[PATH_MAX + 5];
+	char path[PATH_MAX];
 	struct stat sb;
 	int ret = 1;
 

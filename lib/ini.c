@@ -50,7 +50,7 @@ config_parser()
 	regmatch_t pmatch[10];
 	struct section *current_section = sections;
 	struct section *new_section;
-	char ini_file[PATH_MAX + NAME_MAX];
+	char ini_file[PATH_MAX];
 
 	char tmp[1000];
 	char tmpvar[1000];
