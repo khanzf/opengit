@@ -51,6 +51,9 @@ log_body()
 
 	echo ${commithash} | head -1
 	atf_check_equal "${commithash}" "${expectedhash}"
+
+	atf_check -x "head -2 ${wrkdir}/.log | tail -1 | grep -qe '^Author:'"
+	atf_check -x "grep -q '^Initial Commit.$\$' ${wrkdir}/.log"
 }
 
 atf_init_test_cases()
