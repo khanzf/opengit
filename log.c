@@ -130,13 +130,15 @@ log_display_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *
 	return NULL;
 }
 
+#define	HASH_SIZE	40
+
 void
 log_get_start_sha(struct logarg *logarg)
 {
 	int headfd;
 	char headfile[PATH_MAX];
 	char refpath[PATH_MAX];
-	char ref[PATH_MAX];
+	char ref[HASH_SIZE];
 	int l;
 
 	sprintf(headfile, "%s/HEAD", dotgitpath);
@@ -155,8 +157,10 @@ log_get_start_sha(struct logarg *logarg)
 		sprintf(refpath, "%s/%s", dotgitpath, ref);
 	}
 	else {
-		fprintf(stderr, "Currently not supporting the raw hash in HEAD\n");
-		exit(128);
+		read(headfd, ref + 5, HASH_SIZE - 5);
+		strlcpy(logarg->sha, ref, sizeof(logarg->sha));
+		close(headfd);
+		return;
 	}
 	close(headfd);
 
