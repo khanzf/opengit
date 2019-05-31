@@ -198,7 +198,7 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 		case OBJ_OFS_DELTA:
 			SHA1_Init(&index_generate_arg.shactx);
 			pack_delta_content(packfd, &objectinfo, packctx);
-			hdrlen = sprintf(hdr, "%s %lu",
+			hdrlen = snprintf(hdr, sizeof(hdr), "%s %lu",
 			    object_name[objectinfo.ftype],
 			    objectinfo.isize) + 1;
 			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
@@ -223,7 +223,7 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 			index_generate_arg.bytes = 0;
 			SHA1_Init(&index_generate_arg.shactx);
 
-			hdrlen = sprintf(hdr, "%s %lu",
+			hdrlen = snprintf(hdr, sizeof(hdr), "%s %lu",
 			    object_name[objectinfo.ftype],
 			    objectinfo.psize) + 1;
 			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
