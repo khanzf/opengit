@@ -171,6 +171,7 @@ log_get_start_sha(struct logarg *logarg)
 	}
 
 	read(headfd, logarg->sha, 40);
+	close(headfd);
 }
 
 int
