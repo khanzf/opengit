@@ -55,6 +55,15 @@ log_body()
 	atf_check -x "head -2 ${wrkdir}/.log | tail -1 | grep -qe '^Author:'"
 	atf_check -x "head -3 ${wrkdir}/.log | tail -1 | grep -qEe '^Date:.+[+-][0-9]{4}$'"
 	atf_check -x "grep -q '^Initial Commit.$\$' ${wrkdir}/.log"
+
+	touch foo
+	touch baz
+	git add foo baz
+	git commit -m "Second commit."
+	${OGIT} log --color=never > ${wrkdir}/.log
+
+	atf_check -x "head -2 ${wrkdir}/.log | tail -1 | grep -qe '^Author:'"
+	atf_check -x "head -3 ${wrkdir}/.log | tail -1 | grep -qEe '^Date:.+[+-][0-9]{4}$'"
 }
 
 atf_init_test_cases()
