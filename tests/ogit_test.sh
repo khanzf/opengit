@@ -46,6 +46,7 @@ log_body()
 	git commit -m "Initial Commit.$"
 	${OGIT} log --color=never > ${wrkdir}/.log
 
+	lines=$(cat ${wrkdir}/.log | wc -l | tr -d '[:space:]')
 	commithash=$(head -1 ${wrkdir}/.log | sed -e 's/commit //')
 	expectedhash=$(cat .git/refs/heads/master)
 
@@ -54,7 +55,9 @@ log_body()
 
 	atf_check -x "head -2 ${wrkdir}/.log | tail -1 | grep -qe '^Author:'"
 	atf_check -x "head -3 ${wrkdir}/.log | tail -1 | grep -qEe '^Date:.+[+-][0-9]{4}$'"
+	atf_check -x "head -4 ${wrkdir}/.log | tail -1 | grep -qe '^$'"
 	atf_check -x "grep -q '^Initial Commit.$\$' ${wrkdir}/.log"
+	atf_check_equal "${lines}" "5"
 
 	touch foo
 	touch baz
@@ -64,6 +67,7 @@ log_body()
 
 	atf_check -x "head -2 ${wrkdir}/.log | tail -1 | grep -qe '^Author:'"
 	atf_check -x "head -3 ${wrkdir}/.log | tail -1 | grep -qEe '^Date:.+[+-][0-9]{4}$'"
+	atf_check -x "head -4 ${wrkdir}/.log | tail -1 | grep -qe '^$'"
 }
 
 atf_init_test_cases()
