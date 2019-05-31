@@ -32,6 +32,8 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <errno.h>
+
+#include "common.h"
 #include "ini.h"
 
 static regex_t re_core_header;
@@ -39,8 +41,6 @@ static regex_t re_remote_header;
 static regex_t re_variable;
 
 struct section *sections = NULL;
-
-char dotgitpath[PATH_MAX + NAME_MAX];
 
 int
 config_parser()
