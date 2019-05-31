@@ -35,8 +35,6 @@ struct cmd {
 	int		(*c_func)(int argc, char *argv[]);
 };
 
-extern char dotgitpath[PATH_MAX + NAME_MAX];
-
 extern int cmd_count;
 
 extern int log_main();
