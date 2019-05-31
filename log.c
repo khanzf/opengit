@@ -43,9 +43,12 @@
 #include "log.h"
 #include "ogit.h"
 
+static int limit = -1;
+
 static struct option long_options[] =
 {
 	{"color", optional_argument, NULL, 'c'},
+	{"limit", required_argument, NULL, 'l'},
 	{NULL, 0, NULL, 0}
 };
 
@@ -229,12 +232,16 @@ void
 log_display_commits()
 {
 	struct logarg logarg;
+	int read;
 
 	bzero(&logarg, sizeof(struct logarg));
 	log_get_start_sha(&logarg);
 
 	logarg.status = LOG_STATUS_PARENT;
+	read = 0;
 	while(logarg.status & LOG_STATUS_PARENT) {
+		if (limit >= 0 && ++read > limit)
+			break;
 		logarg.status = 0;
 		if (!log_get_loose_object(&logarg) && !log_get_pack_object(&logarg)) {
 			fprintf(stderr, "The object %s not found, git repository may be corrupt.\n", logarg.sha);
@@ -249,12 +256,13 @@ int
 log_main(int argc, char *argv[])
 {
 	int ret = 0;
-	int ch;
+	int ch, prevch;
 	int q = 0;
 
 	argc--; argv++;
 
-	while((ch = getopt_long(argc, argv, "c::", long_options, NULL)) != -1) {
+	prevch = '\0';
+	while((ch = getopt_long(argc, argv, "0123456789c::", long_options, NULL)) != -1) {
 		switch(ch) {
 		case 0:
 			break;
@@ -263,10 +271,25 @@ log_main(int argc, char *argv[])
 		case 'c':
 			parse_color_opt(optarg);
 			break;
+		case '0': case '1': case '2': case '3': case '4':
+		case '5': case '6': case '7': case '8': case '9':
+			switch (prevch) {
+			case '0': case '1': case '2': case '3': case '4':
+			case '5': case '6': case '7': case '8': case '9':
+				limit = limit * 10 + (ch - '0');
+				break;
+			default:
+				limit = ch - '0';
+				break;
+			}
+
+			break;
 		default:
 			printf("Currently not implemented\n");
 			return -1;
 		}
+
+		prevch = ch;
 	}
 	argc = argc - q;
 	argv = argv + q;
