@@ -152,7 +152,8 @@ config_parser()
 				current_section->url = tmpval;
 			else if (strncmp("fetch", tmpvar, 5) == 0)
 				current_section->fetch = tmpval;
-
+			else
+				free(tmpval);
 			continue;
 		}
 	}
