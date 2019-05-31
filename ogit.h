@@ -28,6 +28,7 @@
 #ifndef _OGIT_H_
 #define _OGIT_H_
 
+#include <stdbool.h>
 #include <limits.h>
 
 struct cmd {
@@ -41,5 +42,9 @@ extern int cmd_count;
 
 extern int log_main();
 extern int remote_main();
+
+extern bool color;
+
+void parse_color_opt(const char *optarg);
 
 #endif

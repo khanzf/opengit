@@ -41,9 +41,11 @@
 #include "lib/pack.h"
 #include "lib/ini.h"
 #include "log.h"
+#include "ogit.h"
 
 static struct option long_options[] =
 {
+	{"color", optional_argument, NULL, 'c'},
 	{NULL, 0, NULL, 0}
 };
 
@@ -74,7 +76,9 @@ log_print_commit_headers(struct logarg *logarg)
 	long t;
 
 	tofree = tmp = strdup(logarg->headers);
-	printf("\e[0;33mcommit %s\e[0m\n", logarg->sha);
+
+	printf("%scommit %s%s\n", color ? "\e[0;33m" : "", logarg->sha,
+	    color ? "\e[0m" : "");
 
 	while((token = strsep(&tmp, "\n")) != NULL) {
 		if (strncmp(token, "parent ", 7) == 0) {
@@ -250,16 +254,20 @@ log_main(int argc, char *argv[])
 
 	argc--; argv++;
 
-	while((ch = getopt_long(argc, argv, "", long_options, NULL)) != -1)
+	while((ch = getopt_long(argc, argv, "c::", long_options, NULL)) != -1) {
 		switch(ch) {
 		case 0:
 			break;
 		case 1:
 			break;
+		case 'c':
+			parse_color_opt(optarg);
+			break;
 		default:
 			printf("Currently not implemented\n");
 			return -1;
 		}
+	}
 	argc = argc - q;
 	argv = argv + q;
 
