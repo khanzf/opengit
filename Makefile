@@ -1,8 +1,9 @@
-MAN=
+# $FreeBSD$
 
+MAN=
 CFLAGS=	-Wall -lmd -lz -lfetch
 
-PROG=	ogit	
+PROG=	ogit
 
 SRCS=	ogit.c lib/ini.c lib/index.c lib/common.c lib/pack.c remote.c init.c \
 	lib/zlib-handler.c lib/buffering.c \
