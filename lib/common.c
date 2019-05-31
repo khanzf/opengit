@@ -64,7 +64,7 @@ git_repository_path()
 	/* XXX Is there a better way to do this? */
 
 	while (strncmp(d, "/\0", 2) != 0) {
-		sprintf(path, "%s/.git", d);
+		snprintf(path, sizeof(path), "%s/.git", d);
 		s = stat(path, &sb);
 		if (s == -1) {
 			d = dirname(d);
@@ -76,7 +76,7 @@ git_repository_path()
 		}
 		else if (s == 0) {
 			ret = 0;
-			strncpy(dotgitpath, path, strlen(path));
+			strlcpy(dotgitpath, path, sizeof(dotgitpath));
 			break;
 		}
 	};
