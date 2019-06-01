@@ -89,4 +89,8 @@ struct parseread {
 
 int	clone_main(int argc, char *argv[]);
 
+int clone_http(char *url, char *repodir, struct smart_head *smart_head);
+size_t clone_pack_protocol_process(void *buffer, size_t size, size_t nmemb,
+    void *userp);
+
 #endif
