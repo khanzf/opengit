@@ -65,7 +65,6 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 		offset += r;
 	} while(r >= 1024);
 
-	printf("%s\n", response);
 	position = (char *)response;
 	sscanf(position, "%04lx", &offset);
 	position += offset;
