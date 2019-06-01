@@ -27,15 +27,12 @@
 
 
 #include <sys/param.h>
-#include <netinet/in.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
+#include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
-#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
-#include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <fetch.h>
