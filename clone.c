@@ -57,7 +57,7 @@ clone_usage(int type)
 }
 
 /* This requests a HEAD sha and parse out the results */
-void
+int
 clone_http_get_head(char *url, struct smart_head *smart_head)
 {
 	FILE *web;
@@ -69,11 +69,11 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 	long offset;
 	int count;
 
-	sprintf(fetchurl, "%s/info/refs?service=git-upload-pack", url);
-	if ((web = fetchGetURL(fetchurl, NULL)) == NULL) {
-		fprintf(stderr, "Unable to clone repository: %s\n", url);
-		exit(128);
-	}
+	snprintf(fetchurl, sizeof(fetchurl), "%s/info/refs?service=git-upload-pack",
+	    url);
+	if ((web = fetchGetURL(fetchurl, NULL)) == NULL)
+		return (ENOENT);
+
 	offset = 0;
 	smart_head->cap = 0;
 	response = NULL;
@@ -89,10 +89,9 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 	position += offset;
 
 	/* The first four bytes are 0000, check and skip ahead */
-	if (strncmp(position, "0000", 4)) {
-		fprintf(stderr, "Protocol mismatch.\n");
-		exit(128);
-	}
+	if (strncmp(position, "0000", 4))
+		return (EINVAL);
+
 	position += 4;
 
 	sscanf(position, "%04lx", &offset);
@@ -169,6 +168,7 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 		count++;
 	}
 	smart_head->refcount = count;
+	return (0);
 }
 
 int
@@ -386,8 +386,8 @@ clone_http_get_sha(int packfd, char *url, struct smart_head *smart_head)
 
 }
 
-void
-clone_http(char *url, char *repodir, struct smart_head *smart_head)
+static int
+clone_http(char *uri, char *repodir, struct smart_head *smart_head)
 {
 	int packfd;
 	int offset;
@@ -396,8 +396,8 @@ clone_http(char *url, char *repodir, struct smart_head *smart_head)
 	struct index_entry *index_entry;
 	char path[PATH_MAX];
 	char srcpath[PATH_MAX];
-	int pathlen;
-	char *suffix;
+	int pathlen, ret;
+	char *fetch_uri, *suffix;
 	SHA1_CTX packctx;
 	SHA1_CTX idxctx;
 
@@ -413,8 +413,22 @@ clone_http(char *url, char *repodir, struct smart_head *smart_head)
 		exit(-1);
 	}
 
-	clone_http_get_head(url, smart_head);
-	clone_http_get_sha(packfd, url, smart_head);
+	fetch_uri = uri;
+	ret = clone_http_get_head(fetch_uri, smart_head);
+	if (ret != 0) {
+		switch (ret) {
+		case ENOENT:
+			fprintf(stderr, "Unable to clone repository: %s\n", uri);
+			break;
+		case EINVAL:
+			fprintf(stderr, "Protocol mismatch.\n");
+			break;
+		}
+
+		ret = 128;
+		goto out;
+	}
+	clone_http_get_sha(packfd, fetch_uri, smart_head);
 
 	/* Jump to the beginning of the file */
 	lseek(packfd, 0, SEEK_SET);
@@ -438,7 +452,8 @@ clone_http(char *url, char *repodir, struct smart_head *smart_head)
 	idxfd = open(path, O_RDWR | O_CREAT, 0660);
 	if (idxfd == -1) {
 		fprintf(stderr, "Unable to open packout.idx for writing.\n");
-		exit(idxfd);
+		ret = -1;
+		goto out;
 	}
 
 	pack_build_index(idxfd, &packfileinfo, index_entry, &idxctx);
@@ -457,6 +472,11 @@ clone_http(char *url, char *repodir, struct smart_head *smart_head)
 	strncpy(srcpath+strlen(srcpath)-4, "idx", 4);
 	strncpy(path+strlen(path)-4, "idx", 5);
 	rename(srcpath, path);
+	ret = 0;
+out:
+	if (fetch_uri != uri)
+		free(fetch_uri);
+	return (ret);
 }
 
 /*
