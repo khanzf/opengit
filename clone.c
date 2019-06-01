@@ -25,6 +25,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/stat.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -252,6 +253,28 @@ populate_packed_refs(char *repodir, struct smart_head *smart_head)
 }
 
 static void
+populate_symrefs(char *repodir, struct smart_head *smart_head)
+{
+	char path[PATH_MAX];
+	struct symref *ref;
+	FILE *symfile;
+
+	/* HEAD -> refs/heads/master */
+	STAILQ_FOREACH(ref, &smart_head->symrefs, link) {
+		snprintf(path, sizeof(path), "%s/.git/%s", repodir, ref->symbol);
+		symfile = fopen(path, "w");
+		if (symfile == NULL) {
+			fprintf(stderr, "Unable to open file for writing. %s.\n",
+			    path);
+			continue;
+		}
+
+		fprintf(symfile, "ref: %s\n", ref->path);
+		fclose(symfile);
+	}
+}
+
+static void
 clone_initial_config(char *repopath, char *repodir, struct section *sections)
 {
 	struct section core;
@@ -347,13 +370,16 @@ clone_main(int argc, char *argv[])
 	init_dirinit(repodir);
 
 	smart_head.refs = NULL;
-
+	STAILQ_INIT(&smart_head.symrefs);
 	ret = chandler->handler(repopath, repodir, &smart_head);
 	if (ret != 0)
 		goto out;
 
 	/* Populate .git/pack-refs */
 	populate_packed_refs(repodir, &smart_head);
+
+	if (!STAILQ_EMPTY(&smart_head.symrefs))
+		populate_symrefs(repodir, &smart_head);
 	/* Write the initial config file */
 	clone_initial_config(repopath, repodir, NULL);
 	/* Checkout Latest commit */

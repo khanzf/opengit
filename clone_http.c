@@ -37,6 +37,42 @@
 #include "lib/pack.h"
 #include "clone.h"
 
+static int
+push_ref(struct smart_head *smart_head, const char *refspec)
+{
+	char *ref, *sep;
+	struct symref *symref;
+	int ret;
+
+	ref = strdup(refspec);
+	if (ref == NULL)
+		return (ENOMEM);
+
+	symref = malloc(sizeof(*symref));
+	if (symref == NULL) {
+		ret = ENOMEM;
+		goto out;
+	}
+
+	sep = strchr(ref, ':');
+	if (sep == NULL) {
+		ret = EINVAL;
+		goto out;
+	}
+
+	*sep++ = '\0';
+	symref->symbol = strdup(ref);
+	symref->path = strdup(sep);
+	STAILQ_INSERT_HEAD(&smart_head->symrefs, symref, link);
+
+	ret = 0;
+out:
+	if (ret != 0)
+		free(symref);
+	free(ref);
+	return (ret);
+}
+
 /* This requests a HEAD sha and parse out the results */
 static int
 clone_http_get_head(char *url, struct smart_head *smart_head)
@@ -129,6 +165,8 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 			smart_head->cap |= CLONE_PUSH_CERT;
 		else if (!strncmp(token, "filter", 6))
 			smart_head->cap |= CLONE_FILTER;
+		else if (!strncmp(token, "symref", 6))
+			push_ref(smart_head, strstr(token, "=") + 1);
 	}
 	free(tofree);
 
