@@ -45,6 +45,28 @@
 #include "clone.h"
 #include "init.h"
 
+/* uri, destdir, smart_head */
+typedef int (*clone_handle_func)(char *, char *, struct smart_head *);
+
+static int clone_http(char *url, char *repodir, struct smart_head *smart_head);
+
+static struct clone_handler {
+	const char *uri_scheme;
+	clone_handle_func handler;
+} clone_handlers[] = {
+	{
+		.uri_scheme = "http://",
+		.handler = clone_http,
+	},
+	{
+		.uri_scheme = "https://",
+		.handler = clone_http,
+	},
+};
+
+/* XXX Assume ssh by default? */
+static struct clone_handler *default_handler = NULL;
+
 static struct option long_options[] =
 {
 	{NULL, 0, NULL, 0}
@@ -577,9 +599,11 @@ clone_main(int argc, char *argv[])
 	struct smart_head smart_head;
 	char *repodir;
 	char *repopath;
-	int ret = 0;
+	struct clone_handler *chandler;
+	int nch, ret = 0;
 	int ch;
 	int q = 0;
+	bool found;
 
 	argc--; argv++;
 
@@ -595,14 +619,38 @@ clone_main(int argc, char *argv[])
 		}
 	argc = argc - q;
 	argv = argv + q;
-
 	repopath = argv[1];
 	repodir = get_repo_dir(argv[1]);
+
+	found = false;
+	chandler = NULL;
+	for (nch = 0; nch < nitems(clone_handlers); ++nch) {
+		chandler = &clone_handlers[nch];
+		assert(chandler->uri_scheme != NULL);
+		assert(chandler->handler != NULL);
+
+		if (strncmp(repopath, chandler->uri_scheme,
+		    strlen(chandler->uri_scheme)) == 0) {
+			found = true;
+			break;
+		}
+	}
+
+	/* This will become stale when we setup the default handler... (ssh?) */
+	if (!found && default_handler != NULL) {
+		fprintf(stderr, "URI Scheme not recognized for '%s'\n", repopath);
+		return (128);
+	} else if (!found) {
+		chandler = default_handler;
+	}
 
 	init_dirinit(repodir);
 
 	smart_head.refs = NULL;
-	clone_http(repopath, repodir, &smart_head);
+
+	ret = chandler->handler(repopath, repodir, &smart_head);
+	if (ret != 0)
+		goto out;
 
 	/* Populate .git/pack-refs */
 	populate_packed_refs(repodir, &smart_head);
@@ -610,6 +658,7 @@ clone_main(int argc, char *argv[])
 	clone_initial_config(repopath, repodir, NULL);
 	/* Checkout Latest commit */
 
+out:
 	free(repodir);
 
 	return (ret);
