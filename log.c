@@ -67,32 +67,55 @@ log_usage(int type)
 void
 log_print_commit_headers(struct logarg *logarg)
 {
-	char *token, *tmp;
+	char *token, *tmp, *toff, *walker;
 	char *tofree;
 	char *datestr;
-	char author[255];
 	long t;
 
 	tofree = tmp = strdup(logarg->headers);
+
 	printf("\e[0;33mcommit %s\e[0m\n", logarg->sha);
 
 	while((token = strsep(&tmp, "\n")) != NULL) {
 		if (strncmp(token, "parent ", 7) == 0) {
-			strncpy(logarg->sha, token+7, 40);
+			token += 7;
+			if (strlen(token) < sizeof(logarg->sha) - 1)
+				continue;
+			strlcpy(logarg->sha, token, sizeof(logarg->sha));
 			logarg->status |= LOG_STATUS_PARENT;
 		}
 		else if (strncmp(token, "author ", 7) == 0) {
-			t = strtol(token + 38, NULL, 10);
-			datestr = ctime(&t);
-			datestr[24] = '\0';
-			strncpy(author, token+7, strlen(token)-23);
-			printf("Author:\t%s\n", author);
-			printf("Date:\t%s %s\n", datestr, token + strlen(token)-5);
+			/* Chop off the author */
+			token += 7;
+
+			/* Hop to the end; backtrack two spaces, that's the timestamp */
+			datestr = NULL;
+			toff = strrchr(token, ' ');
+			if (toff != NULL) {
+				*toff = '\0';
+				walker = strrchr(token, ' ');
+				if (walker != NULL) {
+					*walker = '\0';
+
+					t = strtol(walker + 1, NULL, 10);
+					datestr = ctime(&t);
+					/* Chop off the newline */
+					datestr[24] = '\0';
+				}
+			}
+
+			/*
+			 * Date parsing bits should have null terminated us back to the end
+			 * of the author string. Just print it off.
+			 */
+			printf("Author:\t%s\n", token);
+
+			if (datestr != NULL)
+				printf("Date:\t%s %s\n", datestr, toff + 1);
 			logarg->status |= LOG_STATUS_AUTHOR;
 		}
 	}
 
-	free(tmp);
 	free(tofree);
 
 }
@@ -100,9 +123,9 @@ log_print_commit_headers(struct logarg *logarg)
 unsigned char *
 log_display_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *arg)
 {
-	char *content;
+	char *bstart, *content;
 	struct logarg *logarg = arg;
-	int offset = 0;
+	int offset = 0, oldsize;
 
 	if (logarg->status == LOG_STATUS_COMMIT) {
 		logarg->status = 1;
@@ -111,21 +134,24 @@ log_display_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *
 
 	if (logarg->status == LOG_STATUS_HEADERS) {
 		// Added content to headers
-		logarg->headers = realloc(logarg->headers, logarg->size + size - offset);
-		strncpy(logarg->headers + logarg->size, (char *)buf + offset, size - offset);
+		oldsize = logarg->size;
+		logarg->headers = realloc(logarg->headers, logarg->size + size - offset + 1);
+		strlcpy(logarg->headers + logarg->size, (char *)buf + offset, size - offset + 1);
 
+		bstart = logarg->headers + logarg->size;
 		content = strstr(logarg->headers, "\n\n");
 		if (content != NULL) {
 			logarg->status = 2; // Found
-			content = content + 2;
+			/* Skip double newlines */
+			content += 2;
 
 			log_print_commit_headers(logarg);
 			putchar('\n');
-			printf("%s", content);
+			printf("%.*s", (size - offset) - (int)(content - bstart), content);
 		}
 	}
 	else
-		printf("%s", buf);
+		printf("%.*s", size, buf);
 
 	return NULL;
 }
@@ -180,7 +206,6 @@ log_get_loose_object(struct logarg *logarg)
 	    logarg->sha+2);
 	objectfd = open(objectpath, O_RDONLY);
 	if (objectfd == -1) {
-		close(objectfd);
 		return 0;
 	}
 	deflate_caller(objectfd, NULL, NULL, log_display_cb, logarg);
@@ -195,13 +220,12 @@ log_get_pack_object(struct logarg *logarg)
 	char filename[PATH_MAX];
 	int offset;
 	int packfd;
-	struct packfileinfo packfileinfo;
 	struct objectinfo objectinfo;
 
+	/* filename to be filled in by pack_get_packfile_offset */
 	offset = pack_get_packfile_offset(logarg->sha, filename);
 	if (offset == -1)
 		return 0;
-
 
 	strncpy(filename+strlen(filename)-4, ".pack", 6);
 	packfd = open(filename, O_RDONLY);
@@ -209,9 +233,7 @@ log_get_pack_object(struct logarg *logarg)
 		fprintf(stderr, "fatal: git log: could not get object info\n");
 		exit(128);
 	}
-	pack_parse_header(packfd, &packfileinfo, NULL);
 
-	lseek(packfd, offset, SEEK_SET);
 	pack_object_header(packfd, offset, &objectinfo, NULL);
 
 	lseek(packfd, offset + objectinfo.used, SEEK_SET);
