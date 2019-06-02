@@ -156,8 +156,6 @@ log_display_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *
 	return NULL;
 }
 
-#define	HASH_SIZE	40
-
 void
 log_get_start_sha(struct logarg *logarg)
 {
@@ -196,7 +194,7 @@ log_get_start_sha(struct logarg *logarg)
 		exit(128);
 	}
 
-	read(headfd, logarg->sha, 40);
+	read(headfd, logarg->sha, HASH_SIZE);
 	close(headfd);
 }
 

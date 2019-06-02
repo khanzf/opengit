@@ -29,6 +29,7 @@
 
 #include <limits.h>
 
+#define HASH_SIZE	40
 #define nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #define BIT(nr)		(1 << (nr))
 

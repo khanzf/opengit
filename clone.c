@@ -100,7 +100,7 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 
 	sscanf(position, "%04lx", &offset);
 	position += 4;
-	strncpy(smart_head->sha, position, 40);
+	strncpy(smart_head->sha, position, HASH_SIZE);
 
 	tofree = string = strndup(position+41+strlen(position+41)+1,
 	    offset-(47+strlen(position+41)));
@@ -162,8 +162,8 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 	while(strncmp(position, "0000", 4)) {
 		smart_head->refs = realloc(smart_head->refs, sizeof(struct smart_head) * (count+1));
 		sscanf(position, "%04lx", &offset);
-		strncpy(smart_head->refs[count].sha, position+4, 40);
-		smart_head->refs[count].sha[40] = '\0';
+		strncpy(smart_head->refs[count].sha, position+4, HASH_SIZE);
+		smart_head->refs[count].sha[HASH_SIZE] = '\0';
 
 		smart_head->refs[count].path = strndup(position+4+41,
 		    offset-(4+42));
@@ -189,7 +189,7 @@ clone_http_build_want(char **content, int content_length, char *capabilities, co
 	int len;
 
 	/* size + want + space + SHA(40) + space + capabilities + newline */
-	len = 4 + 4 + 1 + 40 + 1 + strlen(capabilities) + 1;
+	len = 4 + 4 + 1 + HASH_SIZE + 1 + strlen(capabilities) + 1;
 
 	sprintf(line, "%04xwant %s %s\n", len, sha, capabilities);
 	*content = realloc(*content, content_length + len + 1);
