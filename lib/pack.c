@@ -198,7 +198,7 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 		case OBJ_OFS_DELTA:
 			SHA1_Init(&index_generate_arg.shactx);
 			pack_delta_content(packfd, &objectinfo, packctx);
-			hdrlen = sprintf(hdr, "%s %lu",
+			hdrlen = snprintf(hdr, sizeof(hdr), "%s %lu",
 			    object_name[objectinfo.ftype],
 			    objectinfo.isize) + 1;
 			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
@@ -223,7 +223,7 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 			index_generate_arg.bytes = 0;
 			SHA1_Init(&index_generate_arg.shactx);
 
-			hdrlen = sprintf(hdr, "%s %lu",
+			hdrlen = snprintf(hdr, sizeof(hdr), "%s %lu",
 			    object_name[objectinfo.ftype],
 			    objectinfo.psize) + 1;
 			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
@@ -428,7 +428,7 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 	for (i=0;i<20;i++)
 		sscanf(sha_str+i*2, "%2hhx", &sha_bin[i]);
 
-	sprintf(packdir, "%s/objects/pack", dotgitpath);
+	snprintf(packdir, sizeof(packdir), "%s/objects/pack", dotgitpath);
 	d = opendir(packdir);
 
 	/* Find hash in idx file or die */
@@ -437,7 +437,9 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 			file_ext = strrchr(dir->d_name, '.');
 			if (!file_ext || strncmp(file_ext, ".idx", 4))
 				continue;
-			sprintf(filename, "%s/objects/pack/%s", dotgitpath, dir->d_name);
+			/* XXX This is wrong; we need to know the size of the buffer */
+			snprintf(filename, PATH_MAX, "%s/objects/pack/%s", dotgitpath,
+			    dir->d_name);
 
 			packfd = open(filename, O_RDONLY);
 			fstat(packfd, &sb);
@@ -570,6 +572,7 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
 	objectinfo->offset = offset;
 	objectinfo->used = 1;
 
+	c = 0;
 	buf_read(packfd, &c, 1, read_sha_update, packctx);
 
 	objectinfo->crc = crc32(objectinfo->crc, &c, 1);

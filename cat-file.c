@@ -152,7 +152,7 @@ cat_file_get_content_loose(char *sha_str, uint8_t flags)
 	int objectfd;
 	struct loosearg loosearg;
 
-	sprintf(objectpath, "%s/objects/%c%c/%s", dotgitpath, sha_str[0], sha_str[1], sha_str+2);
+	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c/%s", dotgitpath, sha_str[0], sha_str[1], sha_str+2);
 	objectfd = open(objectpath, O_RDONLY);
 	if (objectfd == -1)
 		return 0;

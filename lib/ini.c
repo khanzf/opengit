@@ -32,6 +32,8 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <errno.h>
+
+#include "common.h"
 #include "ini.h"
 
 static regex_t re_core_header;
@@ -39,8 +41,6 @@ static regex_t re_remote_header;
 static regex_t re_variable;
 
 struct section *sections = NULL;
-
-char dotgitpath[PATH_MAX + NAME_MAX];
 
 int
 config_parser()
@@ -50,7 +50,8 @@ config_parser()
 	regmatch_t pmatch[10];
 	struct section *current_section = sections;
 	struct section *new_section;
-	char ini_file[PATH_MAX + NAME_MAX];
+	char ini_file[PATH_MAX];
+	int sz;
 
 	char tmp[1000];
 	char tmpvar[1000];
@@ -60,14 +61,14 @@ config_parser()
 
 	ini_init_regex();
 
-	sprintf(ini_file, "%s/config", dotgitpath);
+	snprintf(ini_file, sizeof(ini_file), "%s/config", dotgitpath);
 	fp = fopen(ini_file, "r");
 	if (!fp) {
 		printf("Unable to open file: %s\n", ini_file);
 		return (-1);
 	}
 
-	while (fgets(line, 1000, fp) != NULL) {
+	while (fgets(line, sizeof(line), fp) != NULL) {
 		line[strlen(line)-1] = '\0'; // chomp()
 
 		if (regexec(&re_core_header, line, 2, pmatch, 0) != REG_NOMATCH ||
@@ -82,18 +83,16 @@ config_parser()
 			}
 			else if (strncmp(tmp, "remote", 6) == 0) {
 				new_section->type = REMOTE;
-				tmpval = malloc(pmatch[2].rm_eo - pmatch[2].rm_so);
-				strncpy(tmpval, line + pmatch[2].rm_so,
-				    pmatch[2].rm_eo - pmatch[2].rm_so);
-				new_section->repo_name = tmpval;
+				sz = pmatch[2].rm_eo - pmatch[2].rm_so;
+				new_section->repo_name = malloc(sz + 1);
+				strlcpy(new_section->repo_name, line + pmatch[2].rm_so,
+				   sz + 1);
 			}
 
 			new_section->next = NULL;
 			if (sections == NULL) {
-				sections = new_section;
-				current_section = sections;
-			}
-			else {
+				current_section = sections = new_section;
+			} else {
 				current_section->next = new_section;
 				current_section = new_section;
 			}
@@ -152,7 +151,8 @@ config_parser()
 				current_section->url = tmpval;
 			else if (strncmp("fetch", tmpvar, 5) == 0)
 				current_section->fetch = tmpval;
-
+			else
+				free(tmpval);
 			continue;
 		}
 	}

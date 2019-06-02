@@ -72,7 +72,8 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 	long offset;
 	int count;
 
-	sprintf(fetchurl, "%s/info/refs?service=git-upload-pack", url);
+	snprintf(fetchurl, sizeof(fetchurl), "%s/info/refs?service=git-upload-pack",
+	    url);
 	if ((web = fetchGetURL(fetchurl, NULL)) == NULL) {
 		fprintf(stderr, "Unable to clone repository: %s\n", url);
 		exit(128);
@@ -191,9 +192,9 @@ clone_http_build_want(char **content, int content_length, char *capabilities, co
 	/* size + want + space + SHA(40) + space + capabilities + newline */
 	len = 4 + 4 + 1 + HASH_SIZE + 1 + strlen(capabilities) + 1;
 
-	sprintf(line, "%04xwant %s %s\n", len, sha, capabilities);
+	snprintf(line, sizeof(line), "%04xwant %s %s\n", len, sha, capabilities);
 	*content = realloc(*content, content_length + len + 1);
-	strncpy(*content+content_length, line, len+1);
+	strlcpy(*content+content_length, line, len+1);
 
 	return len;
 }
@@ -353,7 +354,7 @@ clone_http_get_sha(int packfd, char *url, struct smart_head *smart_head)
 	struct url *fetchurl;
 	FILE *packptr;
 
-	sprintf(git_upload_pack, "%s/git-upload-pack", url);
+	snprintf(git_upload_pack, sizeof(git_upload_pack), "%s/git-upload-pack", url);
 
 	fetchurl = fetchParseURL(git_upload_pack);
 	if (fetchurl == NULL) {
