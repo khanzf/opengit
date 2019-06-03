@@ -25,36 +25,34 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __CAT_FILE_H_
-#define __CAT_FILE_H_
 
-/* Commands */
-#define CAT_FILE_DEFAULT	0x00
-#define CAT_FILE_TYPE		0x01
-#define CAT_FILE_PRINT		0x02
-#define CAT_FILE_SIZE		0x04
-#define CAT_FILE_EXIT		0x08
+#include <stdio.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <stdint.h>
+#include <unistd.h>
 
-struct loosearg {
-	int		fd;
-	uint8_t		cmd;
-	int		step;
-	long		sent;
-
-	int		type;
-	long		size;
-};
+#include "zlib-handler.h"
+#include "common.h"
+#include "loose.h"
 
 /*
-struct packarg {
-	uint8_t		flags;
-//	int		fd;
-};
-*/
+ * Provides a generic way to parse loose content
+ * This is used to parse data in multiple ways.
+ * Similar to pack_content_handler
+ */
+int loose_content_handler(char *sha, deflated_handler deflated_handler, void *darg,
+    inflated_handler inflated_handler, void *iarg)
+{
+	char objectpath[PATH_MAX];
+	int objectfd;
 
-void	cat_file_get_content(char *sha_str, uint8_t flags);
-int	cat_file_get_content_loose(char *sha_str, uint8_t flags);
-void	cat_file_get_content_pack(char *sha_str, uint8_t flags);
-int	cat_file_main(int argc, char *argv[]);
+	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c/%s", dotgitpath, sha[0], sha[1], sha+2);
+	objectfd = open(objectpath, O_RDONLY);
+	if (objectfd == -1)
+		return 0;
 
-#endif
+	deflate_caller(objectfd, deflated_handler, darg, inflated_handler, iarg);
+
+	return 1;
+}

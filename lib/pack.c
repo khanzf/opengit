@@ -25,6 +25,7 @@
  * SUCH DAMAGE.
  */
 
+
 #include <netinet/in.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -76,16 +77,16 @@ sortindexentry(const void *a, const void *b)
 unsigned long
 readvint(unsigned char **datap, unsigned char *top)
 {
-        unsigned char *data = *datap;
-        unsigned long opcode, size = 0;
-        int i = 0;
-        do {
-                opcode = *data++;
-                size |= (opcode & 0x7f) << i;
-                i += 7;
-        } while (opcode & BIT(7) && data < top);
-        *datap = data;
-        return (size);
+	unsigned char *data = *datap;
+	unsigned long opcode, size = 0;
+	int i = 0;
+	do {
+		opcode = *data++;
+		size |= (opcode & 0x7f) << i;
+		i += 7;
+	} while (opcode & BIT(7) && data < top);
+	*datap = data;
+	return (size);
 }
 
 void
@@ -411,6 +412,7 @@ pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *
 	return (buf);
 }
 
+/* Gets the offset and filename prefix based on the SHA */
 int
 pack_get_packfile_offset(char *sha_str, char *filename)
 {
@@ -669,4 +671,70 @@ pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap)
 	offsets = (struct offset *)(idxmap + idx_offset);
 
 	return (ntohl(offsets[n].addr));
+}
+
+/*
+ * Provides a generic way to parse loose content
+ * After getting the correct packfile fd and information, it will pass on
+ * this information to 'packhandler' to be handled per the specific needs.
+ * This is done because multiple functions will parse pack file data.
+ */
+void
+pack_content_handler(char *sha, packhandler packhandler, void *parg)
+{
+	char filename[PATH_MAX];
+	unsigned long offset;
+	int packfd;
+	struct packfileinfo packfileinfo;
+	struct objectinfo objectinfo;
+
+	offset = pack_get_packfile_offset(sha, filename);
+/*	if (flags == CAT_FILE_EXIT) {
+		if (offset == -1)
+			exit(1);
+		else
+			exit(0);
+	}
+*/
+
+	if (offset == -1) {
+		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
+		exit(128);
+	}
+
+	strncpy(filename+strlen(filename)-4, ".pack", 6);
+	packfd = open(filename, O_RDONLY);
+	if (packfd == -1) {
+		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
+		fprintf(stderr, "This The git repository may be corrupt.\n");
+		exit(128);
+	}
+	pack_parse_header(packfd, &packfileinfo, NULL);
+
+	lseek(packfd, offset, SEEK_SET);
+	pack_object_header(packfd, offset, &objectinfo, NULL);
+
+	// XXX This if-condition might not be necessary
+	if (objectinfo.ftype == OBJ_OFS_DELTA) {
+		int c;
+		unsigned long r = 0;
+
+		// Reads header of read ofs delta
+		do {
+			buf_read(packfd, &c, 1, NULL, NULL);
+			r |= c & 0x7f;
+			if (!(c & BIT(7)))
+				break;
+			r++;
+			r <<= 7;
+		} while(c & BIT(7));
+
+		lseek(packfd, offset - r, SEEK_SET);
+	}
+	else if (objectinfo.ftype == OBJ_REF_DELTA) {
+		printf("obj_ref_delta --- supposed to apply patch\n");
+	}
+
+	packhandler(packfd, &objectinfo, parg);
+	close(packfd);
 }

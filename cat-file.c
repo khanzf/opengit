@@ -42,6 +42,7 @@
 #include "lib/zlib-handler.h"
 #include "lib/buffering.h"
 #include "lib/common.h"
+#include "lib/loose.h"
 #include "lib/pack.h"
 #include "lib/ini.h"
 #include "cat-file.h"
@@ -57,24 +58,6 @@ cat_file_usage(int type)
 	fprintf(stderr, "usage: git cat-file (-t [--allow-unknown-type] | -s [--allow-unknown-type] | -e | -p | <type> | --textconv | --filters) [--path=<path>] <object>\n");
 	fprintf(stderr, "\n");
 	exit(type);
-}
-
-void
-cat_file_get_content(char *sha_str, uint8_t flags)
-{
-	// Check if the loose file exists. If not, check the pack files
-	if (cat_file_get_content_loose(sha_str, flags) == 0)
-		cat_file_get_content_pack(sha_str, flags);
-}
-
-void
-cat_file_print_type_by_id(int object_type)
-{
-	if (object_type <= 0 || object_type >= 8) {
-		fprintf(stderr, "Unknown type, exiting.\n");
-		exit(128);
-	}
-	printf("%s\n", object_name[object_type]);
 }
 
 int
@@ -116,6 +99,18 @@ cat_file_get_loose_headers(unsigned char *buf, int size, void *arg)
 	return hdr_offset;
 }
 
+/* Just print object type */
+void
+cat_file_print_type_by_id(int object_type)
+{
+	if (object_type <= 0 || object_type >= 8) {
+		fprintf(stderr, "Unknown type, exiting.\n");
+		exit(128);
+	}
+	printf("%s\n", object_name[object_type]);
+}
+
+/* Handles loose object the callback, used by cat_file_get_content */
 unsigned char *
 cat_loose_object_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *arg)
 {
@@ -141,32 +136,10 @@ cat_loose_object_cb(unsigned char *buf, int size, int __unused deflated_bytes, v
 	}
 
 	write(loosearg->fd, buf, size);
-
 	return buf;
 }
 
-int
-cat_file_get_content_loose(char *sha_str, uint8_t flags)
-{
-	char objectpath[PATH_MAX];
-	int objectfd;
-	struct loosearg loosearg;
-
-	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c/%s", dotgitpath, sha_str[0], sha_str[1], sha_str+2);
-	objectfd = open(objectpath, O_RDONLY);
-	if (objectfd == -1)
-		return 0;
-
-	loosearg.fd = STDOUT_FILENO;
-	loosearg.cmd = flags;
-	loosearg.step = 0;
-	loosearg.sent = 0;
-
-	deflate_caller(objectfd, NULL, NULL, cat_loose_object_cb, &loosearg);
-
-	return 1;
-}
-
+/* Print out content of pack objects */
 void
 print_content(int packfd, struct objectinfo *objectinfo)
 {
@@ -185,6 +158,7 @@ print_content(int packfd, struct objectinfo *objectinfo)
 	}
 }
 
+/* Print out the size of pack objects */
 void
 print_size(int packfd, struct objectinfo *objectinfo)
 {
@@ -204,74 +178,41 @@ print_size(int packfd, struct objectinfo *objectinfo)
 	}
 }
 
+/* Used by pack_content_handler to output packfile by flags */
 void
-cat_file_get_content_pack(char *sha_str, uint8_t flags)
+cat_file_pack_handler(int packfd, struct objectinfo *objectinfo, void *pargs)
 {
-	char filename[PATH_MAX];
-	unsigned long offset;
-	int packfd;
-	struct packfileinfo packfileinfo;
-	struct objectinfo objectinfo;
+	uint8_t *flags = pargs;
 
-	offset = pack_get_packfile_offset(sha_str, filename);
-	if (flags == CAT_FILE_EXIT) {
-		if (offset == -1)
-			exit(1);
-		else
-			exit(0);
-	}
-
-	if (offset == -1) {
-		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
-		exit(128);
-	}
-
-	strncpy(filename+strlen(filename)-4, ".pack", 6);
-	packfd = open(filename, O_RDONLY);
-	if (packfd == -1) {
-		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
-		fprintf(stderr, "This The git repository may be corrupt.\n");
-		exit(128);
-	}
-	pack_parse_header(packfd, &packfileinfo, NULL);
-
-	lseek(packfd, offset, SEEK_SET);
-	pack_object_header(packfd, offset, &objectinfo, NULL);
-
-	// XXX This if-condition might not be necessary
-	if (objectinfo.ftype == OBJ_OFS_DELTA) {
-		int c;
-		unsigned long r = 0;
-
-		// Reads header of read ofs delta
-		do {
-			buf_read(packfd, &c, 1, NULL, NULL);
-			r |= c & 0x7f;
-			if (!(c & BIT(7)))
-				break;
-			r++;
-			r <<= 7;
-		} while(c & BIT(7));
-
-		lseek(packfd, offset - r, SEEK_SET);
-	}
-	else if (objectinfo.ftype == OBJ_REF_DELTA) {
-		printf("obj_ref_delta --- supposed to apply patch\n");
-	}
-
-	switch(flags) {
+	switch(*flags) {
 		case CAT_FILE_PRINT:
-			print_content(packfd, &objectinfo);
+			print_content(packfd, objectinfo);
 			break;
 		case CAT_FILE_SIZE:
-			print_size(packfd, &objectinfo);
+			print_size(packfd, objectinfo);
 			break;
 		case CAT_FILE_TYPE:
-			cat_file_print_type_by_id(objectinfo.ftype);
+			cat_file_print_type_by_id(objectinfo->ftype);
 			break;
 	}
+}
 
-	close(packfd);
+/*
+ * This will first attempt to locate a loose object.
+ * If not found, it will search through the pack files.
+ */
+void
+cat_file_get_content(char *sha_str, uint8_t flags)
+{
+	struct loosearg loosearg;
+
+	loosearg.fd = STDOUT_FILENO;
+	loosearg.cmd = flags;
+	loosearg.step = 0;
+	loosearg.sent = 0;
+
+	if (loose_content_handler(sha_str, NULL, NULL, cat_loose_object_cb, &loosearg) == 0)
+		pack_content_handler(sha_str, cat_file_pack_handler, &flags);
 }
 
 int

@@ -123,6 +123,8 @@ struct index_generate_arg {
 	SHA1_CTX	shactx;
 };
 
+typedef void 	 packhandler(int, struct objectinfo *, void *);
+
 ssize_t		 sha_write(int fd, const void *buf, size_t nbytes, SHA1_CTX *idxctx);
 int		 pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap);
 int		 pack_get_packfile_offset(char *sha_str, char *filename);
@@ -141,6 +143,6 @@ void		 write_checksums(int idxfd, struct packfileinfo *packfileinfo, SHA1_CTX *i
 void		 pack_build_index(int idxfd, struct packfileinfo *packfileinfo, struct index_entry *index_entry, SHA1_CTX *idxctx);
 int		 sortindexentry(const void *a, const void *b);
 int		 read_sha_update(void *buf, size_t count, void *arg);
-
+void		 pack_content_handler(char *sha, packhandler packhandler, void *args);
 
 #endif
