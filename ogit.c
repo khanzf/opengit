@@ -51,7 +51,21 @@ static struct cmd cmds[] = {
 	{"index-pack",		index_pack_main}
 };
 
+bool color = true;
+
 int cmd_count = nitems(cmds);
+
+void
+parse_color_opt(const char *optarg)
+{
+
+	if (optarg == NULL || strcasecmp(optarg, "always") == 0)
+		color = true;
+	else if (strcasecmp(optarg, "never") == 0)
+		color = false;
+	else if (strcasecmp(optarg, "auto") == 0)
+		color = isatty(STDOUT_FILENO);
+}
 
 void
 usage()
