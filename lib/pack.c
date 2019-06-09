@@ -738,3 +738,28 @@ pack_content_handler(char *sha, packhandler packhandler, void *parg)
 	packhandler(packfd, &objectinfo, parg);
 	close(packfd);
 }
+
+/*
+ * Description: Captures the buffer from a pack, stores content is a
+ * decompressed_object struct. Handler for pack_object_handler
+ * Arguments: pargs is a pointer to a decompressed_object
+ */
+void
+pack_buffer_cb(int packfd, struct objectinfo *objectinfo, void *pargs)
+{
+	struct decompressed_object *decompressed_object = pargs;
+
+	if (objectinfo->ptype != OBJ_OFS_DELTA) {
+		decompressed_object->size = 0;
+		decompressed_object->data = NULL;
+		decompressed_object->deflated_size = 0;
+		lseek(packfd, objectinfo->offset + objectinfo->used, SEEK_SET);
+		deflate_caller(packfd, NULL, NULL, buffer_cb, decompressed_object);
+	}
+	else {
+		pack_delta_content(packfd, objectinfo, NULL);
+		free(objectinfo->deltas);
+		decompressed_object->data = objectinfo->data;
+		decompressed_object->size = objectinfo->isize;
+	}
+}

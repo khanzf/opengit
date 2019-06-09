@@ -42,6 +42,7 @@
 #include <errno.h>
 #include <sha.h>
 #include "lib/zlib-handler.h"
+#include "lib/loose.h"
 #include "lib/common.h"
 #include "lib/pack.h"
 #include "lib/ini.h"
@@ -555,12 +556,40 @@ clone_initial_config(char *repopath, char *repodir, struct section *sections)
 	ini_write_config(fd, &core);
 }
 
+/*
+ * Description: Recover a commit's tree SHA
+ * Going forward, this function may be replaced by a function that simply parses an object's
+ * header, rather than specifically recovering the tree sha.
+ * Arguments: 1) populated smart_head value, 2) treesha, a char[HASH_SIZE], stores the sha value.
+ */
+void
+get_tree_hash(struct smart_head *smart_head, char *treesha)
+{
+	struct decompressed_object decompressed_object;
+
+	if (loose_content_handler(smart_head->sha, NULL, NULL, buffer_cb, &decompressed_object) == 0) {
+		pack_content_handler(smart_head->sha, pack_buffer_cb, &decompressed_object);
+	}
+
+	char *token, *tofree, *string;
+	tofree = string = strndup((char *)decompressed_object.data, decompressed_object.size);
+
+	while((token = strsep(&string, "\n")) != NULL)
+		if (!strncmp(token, "tree ", 5))
+			strncpy(treesha, token+5, HASH_SIZE);
+
+	free(decompressed_object.data);
+
+	free(tofree);
+}
+
 int
 clone_main(int argc, char *argv[])
 {
 	struct smart_head smart_head;
 	char *repodir;
 	char *repopath;
+	char treesha[HASH_SIZE];
 	int ret = 0;
 	int ch;
 	int q = 0;
@@ -592,7 +621,11 @@ clone_main(int argc, char *argv[])
 	populate_packed_refs(repodir, &smart_head);
 	/* Write the initial config file */
 	clone_initial_config(repopath, repodir, NULL);
-	/* Checkout Latest commit */
+	/* Set dotgitpath */
+	strlcpy(dotgitpath, repodir, PATH_MAX);
+	strlcat(dotgitpath, "/.git", PATH_MAX);
+
+	get_tree_hash(&smart_head, treesha);
 
 	free(repodir);
 
