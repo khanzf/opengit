@@ -51,7 +51,8 @@ int
 zlib_update_sha(unsigned char *data, int use, void *darg)
 {
 	SHA1_CTX *ctxv = darg;
-	SHA1_Update(ctxv, data, use);
+	if (ctxv)
+		SHA1_Update(ctxv, data, use);
 	return (0);
 }
 
@@ -59,7 +60,8 @@ int
 zlib_update_crc(unsigned char *data, int use, void *darg)
 {
 	uint32_t *crcv = darg;
-	*crcv = crc32(*crcv, data, use);
+	if (crcv)
+		*crcv = crc32(*crcv, data, use);
 	return (0);
 }
 
