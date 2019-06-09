@@ -55,6 +55,14 @@ sha_write(int fd, const void *buf, size_t nbytes, SHA1_CTX *idxctx)
 	return (write(fd, buf, nbytes));
 }
 
+void
+get_type_pack_cb(int packfd, struct objectinfo *objectinfo, void *pargs)
+{
+	uint8_t *type = pargs;
+	*type = objectinfo->ftype;
+}
+
+
 int
 read_sha_update(void *buf, size_t count, void *arg)
 {
@@ -697,7 +705,7 @@ pack_content_handler(char *sha, packhandler packhandler, void *parg)
 */
 
 	if (offset == -1) {
-		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
+		fprintf(stderr, "fatal: git cat-file: could not get object info 1\n");
 		exit(128);
 	}
 

@@ -145,5 +145,6 @@ int		 sortindexentry(const void *a, const void *b);
 int		 read_sha_update(void *buf, size_t count, void *arg);
 void		 pack_content_handler(char *sha, packhandler packhandler, void *args);
 void		 pack_buffer_cb(int packfd, struct objectinfo *objectinfo, void *pargs);
+void		 get_type_pack_cb(int packfd, struct objectinfo *objectinfo, void *pargs);
 
 #endif
