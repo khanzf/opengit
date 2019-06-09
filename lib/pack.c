@@ -56,6 +56,22 @@ sha_write(int fd, const void *buf, size_t nbytes, SHA1_CTX *idxctx)
 }
 
 void
+write_pack_cb(int packfd, struct objectinfo *objectinfo, void *pargs)
+{
+	struct writer_args *writer_args = pargs;
+	if (objectinfo->ptype != OBJ_OFS_DELTA) {
+		lseek(packfd, objectinfo->offset + objectinfo->used, SEEK_SET);
+		deflate_caller(packfd, NULL, NULL, write_cb, writer_args);
+	}
+	else {
+		pack_delta_content(packfd, objectinfo, NULL);
+		write(writer_args->fd, objectinfo->data, objectinfo->isize);
+		free(objectinfo->data);
+		free(objectinfo->deltas);
+	}
+}
+
+void
 get_type_pack_cb(int packfd, struct objectinfo *objectinfo, void *pargs)
 {
 	uint8_t *type = pargs;

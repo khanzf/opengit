@@ -412,7 +412,7 @@ clone_http(char *url, char *repodir, struct smart_head *smart_head)
 	suffix = path + strlen(repodir);
 
 	strncat(suffix, "/.git/objects/pack/_tmp.pack", PATH_MAX-pathlen);
-	packfd = open(path, O_RDWR | O_CREAT, 0660);
+	packfd = open(path, O_RDWR | O_CREAT, 0666);
 	if (packfd == -1) {
 		fprintf(stderr, "Unable to open file %s.\n", path);
 		exit(-1);
@@ -582,6 +582,46 @@ get_tree_hash(struct smart_head *smart_head, char *treesha)
 	free(tofree);
 }
 
+/*
+ * Description: Used to loop through each tree object and iteratively
+ * through each sub-tree object.
+ * Handler for iterate_tree
+ */
+void
+generate_tree_item(char *mode, uint8_t type, char *sha, char *filename, void *arg)
+{
+	char *prefix = arg;
+	char *buildpath = prefix;
+	char *fn = prefix + strlen(prefix);
+	int imode;
+
+	imode = strtol(mode+2, 0, 8);
+	printf("Mode: %s %d\n", mode, imode);
+
+	snprintf(fn, PATH_MAX, "/%s", filename);
+	if (type == OBJ_TREE) {
+		mkdir(buildpath, 0777);
+		iterate_tree(sha, generate_tree_item, prefix);
+	}
+	else {
+		struct loosearg loosearg;
+		int buildfd;
+		loosearg.fd = STDOUT_FILENO;
+		loosearg.cmd = 0;
+		loosearg.step = 0;
+		loosearg.sent = 0;
+
+		buildfd = open(buildpath, O_CREAT|O_RDWR, imode);
+		struct writer_args writer_args;
+		writer_args.fd = buildfd;
+		writer_args.sent = 0;
+
+		if (loose_content_handler(sha, NULL, NULL, write_cb, &writer_args) == 0)
+			pack_content_handler(sha, write_pack_cb, &writer_args);
+	}
+	*fn = '\0';
+}
+
 int
 clone_main(int argc, char *argv[])
 {
@@ -628,7 +668,7 @@ clone_main(int argc, char *argv[])
 	char inodepath[PATH_MAX];
 	strlcpy(inodepath, repodir, PATH_MAX);
 
-	iterate_tree(treesha, NULL, NULL);
+	iterate_tree(treesha, generate_tree_item, inodepath);
 
 	free(repodir);
 
