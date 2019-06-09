@@ -35,23 +35,6 @@
 #define CAT_FILE_SIZE		0x04
 #define CAT_FILE_EXIT		0x08
 
-struct loosearg {
-	int		fd;
-	uint8_t		cmd;
-	int		step;
-	long		sent;
-
-	int		type;
-	long		size;
-};
-
-/*
-struct packarg {
-	uint8_t		flags;
-//	int		fd;
-};
-*/
-
 void	cat_file_get_content(char *sha_str, uint8_t flags);
 int	cat_file_get_content_loose(char *sha_str, uint8_t flags);
 void	cat_file_get_content_pack(char *sha_str, uint8_t flags);

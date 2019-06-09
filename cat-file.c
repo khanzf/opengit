@@ -60,45 +60,6 @@ cat_file_usage(int type)
 	exit(type);
 }
 
-int
-cat_file_get_loose_headers(unsigned char *buf, int size, void *arg)
-{
-	struct loosearg *loosearg = arg;
-	unsigned char *endptr;
-	int hdr_offset = 0;
-
-	// Is there a cleaner way to do this?
-	if (!memcmp(buf, "commit ", 7)) {
-		loosearg->type = OBJ_COMMIT;
-		loosearg->size = strtol((char *)buf + 7, (char **)&endptr, 10);
-		hdr_offset = 8 + (endptr - (buf+7));
-	}
-	else if (!memcmp(buf, "tree ", 5)) {
-		loosearg->type = OBJ_TREE;
-		loosearg->size = strtol((char *)buf + 5, (char **)&endptr, 10);
-		hdr_offset = 6 + (endptr - (buf+5));
-	}
-	else if (!memcmp(buf, "blob ", 5)) {
-		loosearg->type = OBJ_BLOB;
-		loosearg->size = strtol((char *)buf + 5, (char **)&endptr, 10);
-		hdr_offset = 6 + (endptr - buf);
-	}
-	else if (!memcmp(buf, "tag", 3)) {
-		loosearg->type = OBJ_TAG;
-		hdr_offset = 3;
-	}
-	else if (!memcmp(buf, "obj_ofs_delta", 13)) {
-		loosearg->type = OBJ_REF_DELTA;
-		hdr_offset = 15;
-	}
-	else if (!memcmp(buf, "obj_ref_delta", 13)) {
-		loosearg->type = OBJ_REF_DELTA;
-		hdr_offset = 15;
-	}
-
-	return hdr_offset;
-}
-
 /* Just print object type */
 void
 cat_file_print_type_by_id(int object_type)
@@ -119,10 +80,10 @@ cat_loose_object_cb(unsigned char *buf, int size, int __unused deflated_bytes, v
 
 	if (loosearg->step == 0) {
 		loosearg->step++;
-		hdr_offset = cat_file_get_loose_headers(buf, size, arg);
+		hdr_offset = loose_get_headers(buf, size, arg);
 		switch(loosearg->cmd) {
 		case CAT_FILE_TYPE:
-			cat_file_get_loose_headers(buf, size, arg);
+			loose_get_headers(buf, size, loosearg);
 			cat_file_print_type_by_id(loosearg->type);
 			return NULL;
 		case CAT_FILE_SIZE:

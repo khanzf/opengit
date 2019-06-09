@@ -29,7 +29,6 @@
 #ifndef LOOSE_H
 #define LOOSE_H
 
-/*
 struct loosearg {
 	int	fd;
 	uint8_t	cmd;
@@ -39,7 +38,8 @@ struct loosearg {
 	int	type;
 	long	size;
 };
-*/
+
+int loose_get_headers(unsigned char *buf, int size, void *arg);
 int loose_content_handler(char *sha, deflated_handler deflated_handler, void *darg, inflated_handler inflated_handler, void *iarg);
 
 #endif
