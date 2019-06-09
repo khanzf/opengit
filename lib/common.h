@@ -28,12 +28,18 @@
 #define __COMMON_H__
 
 #include <limits.h>
+#include <stdint.h>
 
 #define HASH_SIZE	40
 #define nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #define BIT(nr)		(1 << (nr))
 
+typedef void		tree_handler(char *, uint8_t, char *, char *, void *);
+
 extern char		dotgitpath[PATH_MAX];
 int			git_repository_path();
+
+void			iterate_tree(char *treesha, tree_handler tree_handler, void *args);
+void			sha_bin_to_str(uint8_t *bin, char *str);
 
 #endif

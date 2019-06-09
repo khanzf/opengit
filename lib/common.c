@@ -36,6 +36,8 @@
 #include <stdio.h>
 
 #include "common.h"
+#include "pack.h"
+#include "zlib-handler.h"
 
 /*
 	Gets the path of the .git directory
@@ -45,6 +47,48 @@
 */
 
 char dotgitpath[PATH_MAX];
+
+/*
+ * Description: Recovers a tree object and iterates through it. It will also
+ * identify the object type.
+ * Arguments: 1) treesha is a char[HASH_SIZE]
+ * 2) tree_handler is what the function should do with the resultant data
+ */
+void
+iterate_tree(char *treesha, tree_handler tree_handler, void *args)
+{
+	struct decompressed_object decompressed_object;
+	if (loose_content_handler(treesha, NULL, NULL, buffer_cb, &decompressed_object) == 0)
+		pack_content_handler(treesha, pack_buffer_cb, &decompressed_object);
+
+	long offset = 0;
+	long y;
+	uint8_t *shabin;
+	char shastr[HASH_SIZE+1], mode[7];
+	char *filename;
+	uint8_t type;
+
+	while(offset<decompressed_object.size) {
+		strlcpy(mode, (char *)decompressed_object.data+offset, 7);
+		if (mode[5] != ' ')
+			y = 6;
+		else
+			y = 5;
+		offset = offset + y;
+		mode[y] = '\0';
+
+		filename = (char *)decompressed_object.data+offset+1;
+
+		shabin = decompressed_object.data + offset;
+		sha_bin_to_str(shabin, shastr);
+		shastr[HASH_SIZE] = '\0';
+
+		if (tree_handler)
+			tree_handler(mode, type, shastr, filename, args);
+	}
+
+	free(decompressed_object.data);
+}
 
 int
 git_repository_path()
@@ -94,4 +138,25 @@ update_branch_pointer(char repodir, char *ref, char *sha)
 	if (reffile == NULL) {
 		exit(-1);
 	}
+}
+
+/*
+ * Description: Converts a SHA in binary format to a string
+ * Arguments: 1) pointer to the SHA, 2) str is a char[HASH_SIZE]
+ * which stores the output string
+ */
+void
+sha_bin_to_str(uint8_t *bin, char *str)
+{
+	int x;
+	for(x=0;x<HASH_SIZE/2;x++) {
+		str[(x*2)] = bin[x] >> 4;
+		str[(x*2)+1] = bin[x] & 0x0f;
+	}
+
+	for(x=0;x<HASH_SIZE;x++)
+		if (str[x] <= 9)
+			str[x] = str[x] + '0';
+		else
+			str[x] = str[x] + 87;
 }

@@ -567,9 +567,8 @@ get_tree_hash(struct smart_head *smart_head, char *treesha)
 {
 	struct decompressed_object decompressed_object;
 
-	if (loose_content_handler(smart_head->sha, NULL, NULL, buffer_cb, &decompressed_object) == 0) {
+	if (loose_content_handler(smart_head->sha, NULL, NULL, buffer_cb, &decompressed_object) == 0)
 		pack_content_handler(smart_head->sha, pack_buffer_cb, &decompressed_object);
-	}
 
 	char *token, *tofree, *string;
 	tofree = string = strndup((char *)decompressed_object.data, decompressed_object.size);
@@ -626,6 +625,10 @@ clone_main(int argc, char *argv[])
 	strlcat(dotgitpath, "/.git", PATH_MAX);
 
 	get_tree_hash(&smart_head, treesha);
+	char inodepath[PATH_MAX];
+	strlcpy(inodepath, repodir, PATH_MAX);
+
+	iterate_tree(treesha, NULL, NULL);
 
 	free(repodir);
 

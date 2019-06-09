@@ -354,7 +354,6 @@ pack_build_index(int idxfd, struct packfileinfo *packfileinfo,
  * it should be, but this is the best approach I had without using a file-scope
  * variable, which is GPL git's approach.
  */
-
 void
 pack_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx)
 {
