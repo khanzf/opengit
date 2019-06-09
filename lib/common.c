@@ -37,6 +37,7 @@
 
 #include "common.h"
 #include "pack.h"
+#include "loose.h"
 #include "zlib-handler.h"
 
 /*
@@ -62,29 +63,39 @@ iterate_tree(char *treesha, tree_handler tree_handler, void *args)
 		pack_content_handler(treesha, pack_buffer_cb, &decompressed_object);
 
 	long offset = 0;
-	long y;
+	long space;
 	uint8_t *shabin;
 	char shastr[HASH_SIZE+1], mode[7];
 	char *filename;
 	uint8_t type;
 
 	while(offset<decompressed_object.size) {
+		/* Get the file mode */
 		strlcpy(mode, (char *)decompressed_object.data+offset, 7);
 		if (mode[5] != ' ')
-			y = 6;
+			space = 6;
 		else
-			y = 5;
-		offset = offset + y;
-		mode[y] = '\0';
+			space = 5;
+		offset = offset + space;
+		mode[space] = '\0';
 
 		filename = (char *)decompressed_object.data+offset+1;
+		offset = offset + strlen((char *)decompressed_object.data+offset) + 1;
 
+		/* Get the SHA, convert it to a string */
 		shabin = decompressed_object.data + offset;
 		sha_bin_to_str(shabin, shastr);
 		shastr[HASH_SIZE] = '\0';
 
+		/* Determine the type */
+		if (loose_content_handler(shastr, NULL, NULL, get_type_loose_cb, &type) == 0)
+			pack_content_handler(shastr, get_type_pack_cb, &type);
+
 		if (tree_handler)
 			tree_handler(mode, type, shastr, filename, args);
+
+		/* Skip over the binary sha */
+		offset = offset + 20;
 	}
 
 	free(decompressed_object.data);
