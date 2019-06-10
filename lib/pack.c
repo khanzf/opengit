@@ -200,7 +200,7 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 	struct index_generate_arg index_generate_arg;
 	char hdr[32];
 	int hdrlen;
-	char tmpref[2];
+	Bytef tmpref[2];
 	struct two_darg two_darg;
 
 	for (x = 0; x < packfileinfo->nobjects; x++) {
