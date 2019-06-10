@@ -13,8 +13,11 @@ SRCS=	ogit.c remote.c init.c hash-object.c update-index.c cat-file.c log.c \
 
 CLEANFILES+=	${PROG}.core
 
+# These tests rely on Kyua/atf bits
+.if .FreeBSD
 HAS_TESTS=
 # XXX TODO: MK_TESTS
 SUBDIR.yes+=	tests
+.endif
 
 .include <bsd.prog.mk>
