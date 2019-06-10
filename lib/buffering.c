@@ -27,8 +27,8 @@
 
 #include <stdlib.h>
 #include <zlib.h>
-#include <sha.h>
 #include "buffering.h"
+#include "common.h"
 
 ssize_t
 buf_read(int fd, void *buf, size_t count, read_handler read_handler, void *arg)

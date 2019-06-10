@@ -40,7 +40,6 @@
 #include <fcntl.h>
 #include <fetch.h>
 #include <errno.h>
-#include <sha.h>
 #include "lib/zlib-handler.h"
 #include "lib/loose.h"
 #include "lib/common.h"

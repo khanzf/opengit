@@ -37,7 +37,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <zlib.h>
-#include <sha.h>
 #include "buffering.h"
 #include "zlib-handler.h"
 #include "pack.h"

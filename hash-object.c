@@ -35,7 +35,6 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sha.h>
 #include <zlib.h>
 #include "lib/zlib-handler.h"
 #include "lib/common.h"

@@ -36,7 +36,6 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sha.h>
 #include "lib/common.h"
 #include "lib/index.h"
 #include "lib/ini.h"

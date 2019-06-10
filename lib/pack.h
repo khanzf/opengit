@@ -30,7 +30,7 @@
 
 #include <sys/types.h>
 #include <stdint.h>
-#include <sha.h>
+#include "common.h"
 
 
 /*

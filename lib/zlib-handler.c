@@ -31,7 +31,7 @@
 #include <zlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <sha.h>
+#include "common.h"
 #include "zlib-handler.h"
 
 unsigned char *

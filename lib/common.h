@@ -30,8 +30,24 @@
 #include <limits.h>
 #include <stdint.h>
 
+/* Portability */
+#if defined(__FreeBSD__)
+#include <sha.h>
+#elif defined(__OpenBSD__)
+#include <sha1.h>
+
+#define SHA1_End(x, y)	SHA1End(x, y)
+#define SHA1_Final(x, y) SHA1Final(x, y)
+#define SHA1_Init(x)	SHA1Init(x)
+#define SHA1_Update(x, y, z) SHA1Update(x, y, z)
+#endif
+
 #define HASH_SIZE	40
+
+#ifndef nitems
 #define nitems(x)	(sizeof((x)) / sizeof((x)[0]))
+#endif
+
 #define BIT(nr)		(1 << (nr))
 
 typedef void		tree_handler(char *, uint8_t, char *, char *, void *);
