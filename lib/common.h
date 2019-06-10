@@ -40,6 +40,8 @@
 #define SHA1_Final(x, y) SHA1Final(x, y)
 #define SHA1_Init(x)	SHA1Init(x)
 #define SHA1_Update(x, y, z) SHA1Update(x, y, z)
+#else
+#error "Unsure what to do for inclusion of sha1 bits in this environment"
 #endif
 
 #define HASH_SIZE	40
