@@ -1,6 +1,6 @@
 ogit
-ogit.debug
-ogit.full
+*.debug
+*.full
 *.o
 *.core
 .depend*
