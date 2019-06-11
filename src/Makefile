@@ -1,4 +1,3 @@
-# $FreeBSD$
 
 MAN=
 CFLAGS+= -Wall
