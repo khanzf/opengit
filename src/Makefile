@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/lib
-
 MAN=
 CFLAGS+= -Wall
 LDFLAGS= -lmd -lz -lfetch
