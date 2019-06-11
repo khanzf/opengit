@@ -26,13 +26,11 @@
  */
 
 #ifndef INDEX_H
-#define INDEX_H 
+#define INDEX_H
 
 #include <stdint.h>
 
-/*
-Header source Documentation/technical/index-format.txt
-*/
+/* Header source Documentation/technical/index-format.txt */
 
 struct cache_tree {
 	int			entry_count;
@@ -42,12 +40,12 @@ struct cache_tree {
 };
 
 struct indexhdr {
-	char			sig[4];		/* Always "DIRC" */
+	char			sig[4];		/* Cache type */
 	uint32_t		version;	/* Version Number */
 	uint32_t		entries;	/* Number of extensions */
 };
 
-struct indexentry {
+struct dircentry {
 	uint32_t		ctime_sec;
 	uint32_t		ctime_nsec;
 	uint32_t		mtime_sec;
@@ -65,7 +63,7 @@ struct indexentry {
 
 #define CE_EXTENDED	0x4000
 
-struct indexextentry {
+struct dircextentry {
 	uint32_t		ctime_sec;
 	uint32_t		ctime_nsec;
 	uint32_t		mtime_sec;
@@ -81,13 +79,5 @@ struct indexextentry {
 	uint16_t		flags2;
 	char			name[1];
 };
-
-struct indexcache {
-	struct indexhdr		*indexhdrs;
-	struct indexextentry	*indexextentry;
-	struct cache_tree	*cache_tree;
-};
-
-struct cache_tree	*parse_index(unsigned char *indexmap, off_t indexsize);
 
 #endif

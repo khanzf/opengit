@@ -37,9 +37,6 @@
     and updating it at the end of the function
 */
 /*
-    This code is very confusing and is worse on the GPL git side.
-    This is the best I could do to make it readable.
-*/
 struct cache_tree *
 parse_treeentries(unsigned char *indexmap, int *offset)
 {
@@ -80,30 +77,31 @@ parse_treeentries(unsigned char *indexmap, int *offset)
 
 	return (cache_tree);
 }
+*/
 
 void
-parse_indexentries(unsigned char *indexmap, int *offset, int entries)
+dirc_entry(unsigned char *indexmap, long *offset, int entries)
 {
-	struct indexentry *indexentry;
-	struct indexextentry *indexextentry;
+	struct dircentry *dircentry;
+	struct dircextentry *dircextentry;
 	char *name;
 	uint8_t *sha;
 	int i;
 
-	indexentry = (struct indexentry *)((char *)indexmap + *offset);
+	dircentry = (struct dircentry *)((char *)indexmap + *offset);
 
 	for(i=0;i<entries;i++) {
-		indexentry = (struct indexentry *)((char *)indexmap + *offset);
-		if (ntohs(indexentry->flags) & CE_EXTENDED) {
-			indexextentry = (struct indexextentry *)((char *)indexmap + *offset);
-			*offset += (72 + strlen(indexextentry->name)) & ~0x7;
-			name = indexextentry->name;
-			sha = indexextentry->sha;
+		dircentry = (struct dircentry *)((char *)indexmap + *offset);
+		if (ntohs(dircentry->flags) & CE_EXTENDED) {
+			dircextentry = (struct dircextentry *)((char *)indexmap + *offset);
+			*offset += (72 + strlen(dircextentry->name)) & ~0x7;
+			name = dircextentry->name;
+			sha = dircextentry->sha;
 		}
 		else {
-			*offset += (70 + strlen(indexentry->name)) & ~0x7;
-			name = indexentry->name;
-			sha = indexentry->sha;
+			*offset += (70 + strlen(dircentry->name)) & ~0x7;
+			name = dircentry->name;
+			sha = dircentry->sha;
 		}
 		printf("Name: %x:%x:%x:%x:%x:%x:%x:%x:%x:%x %s\n", sha[0], sha[1], sha[2], sha[3], sha[4], sha[5], sha[6], sha[7], sha[8], sha[9], name);
 
@@ -111,31 +109,30 @@ parse_indexentries(unsigned char *indexmap, int *offset, int entries)
 }
 
 struct cache_tree *
-parse_index(unsigned char *indexmap, off_t indexsize)
+index_parse(unsigned char *indexmap, off_t indexsize)
 {
 	struct cache_tree *cache_tree = NULL;
-	struct indexcache *indexcache;
 	struct indexhdr *indexhdr;
-
-	int offset;
+	long offset;
 
 	offset = 0;
-
-	indexcache = malloc(sizeof(struct indexcache));
 
 	while (offset < indexsize) {
 		indexhdr = (struct indexhdr *)((char *)indexmap + offset);
 
 		if (!memcmp(indexhdr->sig, "DIRC", 4)) {
 			offset += sizeof(struct indexhdr);
-			parse_indexentries(indexmap, &offset, ntohl(indexhdr->entries));
+			dirc_entry(indexmap, &offset, ntohl(indexhdr->entries));
 		}
 		else if (!memcmp(indexhdr->sig, "TREE", 4)) {
+			exit(0);
+			/*
 			uint32_t extsize;
 			memcpy(&extsize, (struct indexhdr *)((char *)indexmap + offset + 4), 4);
 			offset += 8;
 			indexcache->cache_tree = parse_treeentries(indexmap, &offset);	
 			offset += extsize + 8;
+			*/
 		}
 		else {
 			printf("Found something after DIRC\n");

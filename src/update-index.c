@@ -81,7 +81,7 @@ update_index_parse(FILE **indexptr)
 		exit(1);
 	}
 
-	parse_index(indexmap, sb.st_size);
+	index_parse(indexmap, sb.st_size);
 	return 0;
 }
 
