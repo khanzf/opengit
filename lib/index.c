@@ -79,9 +79,13 @@ parse_treeentries(unsigned char *indexmap, int *offset)
 }
 */
 
-void
+/*
+ * Must free: dircleaf
+ */
+static struct dircextleaf *
 dirc_entry(unsigned char *indexmap, long *offset, int entries)
 {
+	struct dircleaf *dircleaf;
 	struct dircentry *dircentry;
 	struct dircextentry *dircextentry;
 	char *name;
@@ -90,39 +94,82 @@ dirc_entry(unsigned char *indexmap, long *offset, int entries)
 
 	dircentry = (struct dircentry *)((char *)indexmap + *offset);
 
+	dircleaf = malloc(sizeof(struct dircleaf) * entries);
+
 	for(i=0;i<entries;i++) {
 		dircentry = (struct dircentry *)((char *)indexmap + *offset);
 		if (ntohs(dircentry->flags) & CE_EXTENDED) {
 			dircextentry = (struct dircextentry *)((char *)indexmap + *offset);
+			dircleaf[i].isextended = true;
+			dircleaf[i].flags2 = dircextentry->flags;
+			strlcpy(dircleaf[i].name, dircextentry->name, strlen(dircextentry->name)+1);
+
 			*offset += (72 + strlen(dircextentry->name)) & ~0x7;
-			name = dircextentry->name;
-			sha = dircextentry->sha;
 		}
 		else {
+			dircleaf[i].isextended = false;
+			strlcpy(dircleaf[i].name, dircentry->name, strlen(dircentry->name)+1);
 			*offset += (70 + strlen(dircentry->name)) & ~0x7;
-			name = dircentry->name;
-			sha = dircentry->sha;
 		}
-		printf("Name: %x:%x:%x:%x:%x:%x:%x:%x:%x:%x %s\n", sha[0], sha[1], sha[2], sha[3], sha[4], sha[5], sha[6], sha[7], sha[8], sha[9], name);
+
+		dircleaf[i].ctime_sec = dircentry->ctime_sec;
+		dircleaf[i].ctime_nsec = dircentry->ctime_nsec;
+		dircleaf[i].mtime_sec = dircentry->mtime_sec;
+		dircleaf[i].mtime_nsec = dircentry->mtime_nsec;
+		dircleaf[i].dev = dircentry->dev;
+		dircleaf[i].ino = dircentry->ino;
+		dircleaf[i].mode = dircentry->mode;
+		dircleaf[i].uid = dircentry->uid;
+		dircleaf[i].gid = dircentry->gid;
+		dircleaf[i].size = dircentry->size;
+		memcpy(dircleaf[i].sha, dircentry->sha, 20);
+		dircleaf[i].flags = dircentry->flags;
+		
+
+		printf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x %s\n",
+				dircleaf[i].sha[0],
+				dircleaf[i].sha[1],
+				dircleaf[i].sha[2],
+				dircleaf[i].sha[3],
+				dircleaf[i].sha[4],
+				dircleaf[i].sha[5],
+				dircleaf[i].sha[6],
+				dircleaf[i].sha[7],
+				dircleaf[i].sha[8],
+				dircleaf[i].sha[9],
+				dircleaf[i].name);
 
 	}
+
+	return dircleaf;
 }
 
-struct cache_tree *
+struct indextree *
 index_parse(unsigned char *indexmap, off_t indexsize)
 {
-	struct cache_tree *cache_tree = NULL;
+	struct indextree *indextree = NULL;
+	struct indextree *currentleaf = NULL;
 	struct indexhdr *indexhdr;
-	long offset;
+	long offset = 0;
 
-	offset = 0;
+	indextree = malloc(sizeof(indextree));
+	indextree->next = NULL;
+	currentleaf = indextree;
+
+	if (indextree == NULL) {
+		fprintf(stderr, "Unable to allocate memory, exiting.\n");
+		exit(0);
+	}
 
 	while (offset < indexsize) {
 		indexhdr = (struct indexhdr *)((char *)indexmap + offset);
 
 		if (!memcmp(indexhdr->sig, "DIRC", 4)) {
+			currentleaf->type = DIRCACHE;
+			currentleaf->entries = indexhdr->entries;
+
 			offset += sizeof(struct indexhdr);
-			dirc_entry(indexmap, &offset, ntohl(indexhdr->entries));
+			currentleaf->data = dirc_entry(indexmap, &offset, ntohl(indexhdr->entries));
 		}
 		else if (!memcmp(indexhdr->sig, "TREE", 4)) {
 			exit(0);
@@ -140,7 +187,9 @@ index_parse(unsigned char *indexmap, off_t indexsize)
 			printf("Exiting.\n");
 			exit(0);
 		}
+		currentleaf->next = NULL;
+		currentleaf = currentleaf->next;
 	}
 
-	return (cache_tree);
+	return (indextree);
 }
