@@ -36,6 +36,7 @@
     XXX This code could be cleaned up by having a local offset value
     and updating it at the end of the function
 */
+
 /*
 struct cache_tree *
 parse_treeentries(unsigned char *indexmap, int *offset)
@@ -82,14 +83,12 @@ parse_treeentries(unsigned char *indexmap, int *offset)
 /*
  * Must free: dircleaf
  */
-static struct dircextleaf *
+static struct dircleaf *
 dirc_entry(unsigned char *indexmap, long *offset, int entries)
 {
 	struct dircleaf *dircleaf;
 	struct dircentry *dircentry;
 	struct dircextentry *dircextentry;
-	char *name;
-	uint8_t *sha;
 	int i;
 
 	dircentry = (struct dircentry *)((char *)indexmap + *offset);
