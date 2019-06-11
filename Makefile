@@ -8,10 +8,10 @@ LDFLAGS= -lmd -lz -lfetch
 
 PROG=	ogit
 
-SRCS=	cat-file.c clone.c hash-object.c index-pack.c init.c log.c \
-	ogit.c remote.c update-index.c
-
-SRCS+=	buffering.c common.c index.c ini.c loose.c pack.c zlib-handler.c
+SRCS=	ogit.c lib/ini.c lib/index.c lib/common.c lib/pack.c remote.c init.c \
+	lib/zlib-handler.c lib/buffering.c lib/loose.c \
+	hash-object.c update-index.c cat-file.c log.c clone.c clone_http.c \
+	index-pack.c
 
 CLEANFILES+=	${PROG}.core
 
