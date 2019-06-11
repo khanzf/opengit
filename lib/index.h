@@ -28,16 +28,20 @@
 #ifndef INDEX_H
 #define INDEX_H
 
+#include <limits.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 /* Header source Documentation/technical/index-format.txt */
 
-struct cache_tree {
+/*
+struct index {
 	int			entry_count;
 	int			subtree_count;
 	uint8_t			objectname[20];
 	struct cache_tree	**subtree;
 };
+*/
 
 struct indexhdr {
 	char			sig[4];		/* Cache type */
@@ -78,6 +82,48 @@ struct dircextentry {
 	uint16_t		flags;
 	uint16_t		flags2;
 	char			name[1];
+} __packed;
+
+struct dircleaf {
+	bool			 isextended;
+	uint32_t		 ctime_sec;
+	uint32_t		 ctime_nsec;
+	uint32_t		 mtime_sec;
+	uint32_t		 mtime_nsec;
+	uint32_t		 dev;
+	uint32_t		 ino;
+	uint32_t		 mode;
+	uint32_t		 uid;
+	uint32_t		 gid;
+	uint32_t		 size;
+	uint8_t			 sha[20];
+	uint16_t		 flags;
+	uint16_t		 flags2; /* Only for the extended type */
+	char			 name[PATH_MAX];
+
+	struct dirleaf		*next;
 };
+
+
+/* Index tree "leaf" types */
+#define DIRCACHE	0x1	/* Directory cache */
+#define TREECACHE	0x2	/* Tree cache */
+#define REUCCACHE	0x3	/* Resolve undo */
+#define LINKCACHE	0x4	/* Split index */
+#define UNTRACKCACHE	0x5	/* Untrack cache */
+#define FSMONITORCACHE	0x6	/* File system monitor cache */
+#define INDEXEND	0x6	/* End of index entry */
+#define ENTRYOFFSET	0x7	/* Index entry offset table */
+#define UNKNOWNCACHE	0xFF	/* Unknown type */
+
+struct indextree {
+	uint8_t			 type;
+	int			 entries;
+	void			*data;
+
+	struct indextree	*next;
+};
+
+struct indextree	*index_parse(unsigned char *indexmap, off_t indexsize);
 
 #endif
