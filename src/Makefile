@@ -1,7 +1,8 @@
 
 MAN=
-CFLAGS+= -Wall
-LDFLAGS= -lmd -lz -lfetch
+CFLAGS+= -Wall -I${.CURDIR}/..
+LDFLAGS+= -lmd -lz -lfetch
+LDFLAGS+=	${.OBJDIR}/../lib/libogit.a
 
 PROG=	ogit
 
