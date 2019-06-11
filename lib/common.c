@@ -59,7 +59,7 @@ void
 iterate_tree(char *treesha, tree_handler tree_handler, void *args)
 {
 	struct decompressed_object decompressed_object;
-	if (loose_content_handler(treesha, NULL, NULL, buffer_cb, &decompressed_object) == 0)
+	if (loose_content_handler(treesha, NULL, NULL, buffer_cb, &decompressed_object))
 		pack_content_handler(treesha, pack_buffer_cb, &decompressed_object);
 
 	long offset = 0;
@@ -88,7 +88,7 @@ iterate_tree(char *treesha, tree_handler tree_handler, void *args)
 		shastr[HASH_SIZE] = '\0';
 
 		/* Determine the type */
-		if (loose_content_handler(shastr, NULL, NULL, get_type_loose_cb, &type) == 0)
+		if (loose_content_handler(shastr, NULL, NULL, get_type_loose_cb, &type))
 			pack_content_handler(shastr, get_type_pack_cb, &type);
 
 		if (tree_handler)

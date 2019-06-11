@@ -53,11 +53,11 @@ int loose_content_handler(char *sha, deflated_handler deflated_handler, void *da
 	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c/%s", dotgitpath, sha[0], sha[1], sha+2);
 	objectfd = open(objectpath, O_RDONLY);
 	if (objectfd == -1)
-		return 0;
+		return 1;
 
 	deflate_caller(objectfd, deflated_handler, darg, inflated_handler, iarg);
 
-	return 1;
+	return 0;
 }
 
 /*

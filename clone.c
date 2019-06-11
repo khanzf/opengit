@@ -323,7 +323,7 @@ get_tree_hash(struct smart_head *smart_head, char *treesha)
 {
 	struct decompressed_object decompressed_object;
 
-	if (loose_content_handler(smart_head->sha, NULL, NULL, buffer_cb, &decompressed_object) == 0)
+	if (loose_content_handler(smart_head->sha, NULL, NULL, buffer_cb, &decompressed_object))
 		pack_content_handler(smart_head->sha, pack_buffer_cb, &decompressed_object);
 
 	char *token, *tofree, *string;
@@ -352,27 +352,20 @@ generate_tree_item(char *mode, uint8_t type, char *sha, char *filename, void *ar
 	int imode;
 
 	imode = strtol(mode+2, 0, 8);
-	printf("Mode: %s %d\n", mode, imode);
-
 	snprintf(fn, PATH_MAX, "/%s", filename);
 	if (type == OBJ_TREE) {
 		mkdir(buildpath, 0777);
 		iterate_tree(sha, generate_tree_item, prefix);
 	}
 	else {
-		struct loosearg loosearg;
-		int buildfd;
-		loosearg.fd = STDOUT_FILENO;
-		loosearg.cmd = 0;
-		loosearg.step = 0;
-		loosearg.sent = 0;
-
-		buildfd = open(buildpath, O_CREAT|O_RDWR, imode);
 		struct writer_args writer_args;
+		int buildfd;
+
+		buildfd = open(buildpath, O_CREAT|O_WRONLY, imode);
 		writer_args.fd = buildfd;
 		writer_args.sent = 0;
 
-		if (loose_content_handler(sha, NULL, NULL, write_cb, &writer_args) == 0)
+		if (loose_content_handler(sha, NULL, NULL, write_cb, &writer_args))
 			pack_content_handler(sha, write_pack_cb, &writer_args);
 	}
 	*fn = '\0';
