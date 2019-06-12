@@ -80,6 +80,92 @@ parse_treeentries(unsigned char *indexmap, int *offset)
 }
 */
 
+static struct treeleaf *
+tree_entry(unsigned char *indexmap, long *offset, int entries)
+{
+	struct treeleaf *treeleaf;
+	unsigned char *endptr;
+	char *component_path;
+	int entry_count, subtrees;
+	uint8_t treeid[20];
+
+	treeleaf = malloc(sizeof(treeleaf) * entries);
+
+	printf("Entries: %d\n", ntohs(entries));
+
+	/* Skip past TREE */
+	*offset = *offset + 4;
+
+	while(!indexmap[*offset])
+		*offset = *offset + 1;
+
+	component_path = indexmap + *offset;
+	printf("Path Component: %s\n", component_path);
+	*offset = *offset + strlen(component_path) + 1;
+
+	entry_count = strtol(indexmap + *offset, (char **)&endptr, 10);
+	printf("Entry_count: %ld\n", entry_count);
+	*offset = endptr - indexmap;
+
+	subtrees = strtol(indexmap + *offset, (char **)&endptr, 10);
+	printf("Subtrees: %ld\n", subtrees);
+
+	memcpy(treeid, indexmap + *offset, 20);
+
+	*offset = *offset + 20;
+
+	int x;
+	printf("Top Hash: ");
+	for(x=0;x<20;x++)
+		printf("%02x", indexmap[*offset + x]);
+	printf("\n");
+
+	*offset = *offset + 1;
+	*offset = *offset + 1;
+	*offset = *offset + 1;
+
+	//printf("Subtrees: %s\n", reem);
+	printf("Now processing subtree------\n");
+	int s;
+
+	for(s=0;s<subtrees;s++){
+		component_path = indexmap + *offset;
+		printf("Path Component: %s\n", component_path);
+		*offset = *offset + strlen(component_path) + 1;
+
+		entry_count = strtol(indexmap + *offset, (char **)&endptr, 10);
+		printf("Entry_count: %ld\n", entry_count);
+		*offset = endptr - indexmap;
+
+		subtrees = strtol(indexmap + *offset, (char **)&endptr, 10);
+		printf("Subtrees: %ld\n", subtrees);
+
+		memcpy(treeid, indexmap + *offset, 20);
+		for(x=0;x<20;x++)
+			printf("%02x", indexmap[*offset + x]);
+		printf("\n");
+
+		*offset = *offset + 20;
+	}
+
+	exit(0);
+
+	printf("-------------------\n");
+
+	/* Skip past the null terminator */
+	*offset = *offset + 1;
+
+	treeleaf->entry_count = strtol((const char *)(indexmap + (int)*offset), (char **)&endptr, 10);
+	printf("String? %s\n", indexmap + *offset);
+	printf("wtf is this: %d\n", treeleaf->entry_count);
+
+	int q;
+
+	q = strtol(indexmap + (int)*offset, (char **)&endptr, 10);
+	printf("Something: %d\n", q);
+	return NULL;
+}
+
 /*
  * Must free: dircleaf
  */
@@ -143,34 +229,22 @@ dirc_entry(unsigned char *indexmap, long *offset, int entries)
 	return dircleaf;
 }
 
-struct indextree *
-index_parse(unsigned char *indexmap, off_t indexsize)
+void
+index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsize)
 {
-	struct indextree *indextree = NULL;
-	struct indextree *currentleaf = NULL;
 	struct indexhdr *indexhdr;
-	long offset = 0;
-
-	indextree = malloc(sizeof(indextree));
-	indextree->next = NULL;
-	currentleaf = indextree;
-
-	if (indextree == NULL) {
-		fprintf(stderr, "Unable to allocate memory, exiting.\n");
-		exit(0);
-	}
+	off_t offset = 0;
 
 	while (offset < indexsize) {
 		indexhdr = (struct indexhdr *)((char *)indexmap + offset);
 
 		if (!memcmp(indexhdr->sig, "DIRC", 4)) {
-			currentleaf->type = DIRCACHE;
-			currentleaf->entries = indexhdr->entries;
-
 			offset += sizeof(struct indexhdr);
-			currentleaf->data = dirc_entry(indexmap, &offset, ntohl(indexhdr->entries));
+			indextree->dircleaf = dirc_entry(indexmap, &offset, ntohl(indexhdr->entries));
 		}
 		else if (!memcmp(indexhdr->sig, "TREE", 4)) {
+			printf("\nTree object\n");
+			indextree->treeleaf = tree_entry(indexmap, &offset, ntohl(indexhdr->entries));
 			exit(0);
 			/*
 			uint32_t extsize;
@@ -186,9 +260,6 @@ index_parse(unsigned char *indexmap, off_t indexsize)
 			printf("Exiting.\n");
 			exit(0);
 		}
-		currentleaf->next = NULL;
-		currentleaf = currentleaf->next;
 	}
-
-	return (indextree);
+	printf("Comes here\n");
 }
