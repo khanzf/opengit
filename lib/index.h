@@ -104,26 +104,23 @@ struct dircleaf {
 	struct dirleaf		*next;
 };
 
-
-/* Index tree "leaf" types */
-#define DIRCACHE	0x1	/* Directory cache */
-#define TREECACHE	0x2	/* Tree cache */
-#define REUCCACHE	0x3	/* Resolve undo */
-#define LINKCACHE	0x4	/* Split index */
-#define UNTRACKCACHE	0x5	/* Untrack cache */
-#define FSMONITORCACHE	0x6	/* File system monitor cache */
-#define INDEXEND	0x6	/* End of index entry */
-#define ENTRYOFFSET	0x7	/* Index entry offset table */
-#define UNKNOWNCACHE	0xFF	/* Unknown type */
-
-struct indextree {
-	uint8_t			 type;
-	int			 entries;
-	void			*data;
-
-	struct indextree	*next;
+struct treeleaf {
+	char path[PATH_MAX];
+	int entry_count;
+	int subtree_count;
+	uint8_t objectname[160];
 };
 
-struct indextree	*index_parse(unsigned char *indexmap, off_t indexsize);
+struct indextree {
+	struct dircleaf		*dircleaf;
+	struct treeleaf		*treeleaf;
+//	uint8_t			 type;
+//	int			 entries;
+//	void			*data;
+
+//	struct indextree	*next;
+};
+
+void		index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsize);
 
 #endif

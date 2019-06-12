@@ -70,6 +70,7 @@ update_index_open_index(FILE **indexptr)
 int
 update_index_parse(FILE **indexptr)
 {
+	struct indextree indextree;
 	unsigned char *indexmap;
 	struct stat sb;
 
@@ -81,7 +82,7 @@ update_index_parse(FILE **indexptr)
 		exit(1);
 	}
 
-	index_parse(indexmap, sb.st_size);
+	index_parse(&indextree, indexmap, sb.st_size);
 	return 0;
 }
 
