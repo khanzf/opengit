@@ -33,23 +33,26 @@
 #include "common.h"
 #include "index.h"
 
+/*
+ * Description: Captures the cache tree data
+ * ToFree: Requires treeleaf->subtree to be freed
+ */
 static struct treeleaf *
 tree_entry(unsigned char *indexmap, long *offset, int extsize)
 {
 	struct treeleaf *treeleaf;
 	unsigned char *endptr;
 	int entry_count, trees;
-	uint8_t treeid[20];
 	int x, s;
 
 	treeleaf = malloc(sizeof(struct treeleaf));
 
 	/* Capture entry_count for the base */
-	entry_count = strtol(indexmap + *offset, (char **)&endptr, 10);
+	entry_count = strtol((char *)indexmap + *offset, (char **)&endptr, 10);
 	*offset = endptr - indexmap;
 
 	/* Capture subtree count for the base */
-	trees = strtol(indexmap + *offset, (char **)&endptr, 10);
+	trees = strtol((char *)indexmap + *offset, (char **)&endptr, 10);
 	*offset = endptr - indexmap;
 
 	/* Assign values to treeleaf */
@@ -59,21 +62,25 @@ tree_entry(unsigned char *indexmap, long *offset, int extsize)
 	/* Skip past the new line */
 	*offset=*offset+1;
 
-	memcpy(treeid, indexmap + *offset, 20);
-
-
+	memcpy(treeleaf->sha, indexmap + *offset, HASH_SIZE/2);
 	/* Skip past the SHA value */
-	*offset = *offset + 20;
+	*offset = *offset + HASH_SIZE/2;
 
+	/*
+	 * This part captures the number of subtree data
+	 * The treecache is catured as treeleaf->local_tree_count. However,
+	 * the number of entries in the index file can be more due to the cache
+	 * also listing subtrees of the trees. Therefore, the number is, very
+	 * unfortunately, realloc()'ed in the loop.
+	 */
 	treeleaf->subtree = malloc(sizeof(struct subtree) * trees);
 	for(s=0;s<trees;s++){
-		x = strlcpy(treeleaf->subtree[s].path, indexmap + *offset, PATH_MAX);
-//		printf("Subpath: %s\t", treeleaf->subtree[s].path);
+		x = strlcpy(treeleaf->subtree[s].path, (char *)indexmap + *offset, PATH_MAX);
 		*offset = *offset + x + 1;
 
-		treeleaf->subtree[s].entries = strtol(indexmap + *offset, (char **)&endptr, 10);
+		treeleaf->subtree[s].entries = strtol((char *)indexmap + *offset, (char **)&endptr, 10);
 		*offset = endptr - indexmap;
-		treeleaf->subtree[s].sub_count = strtol(indexmap + *offset, (char **)&endptr, 10);
+		treeleaf->subtree[s].sub_count = strtol((char *)indexmap + *offset, (char **)&endptr, 10);
 		*offset = endptr - indexmap;
 
 		/* Is this the best approach? The size of the trees grows */
@@ -83,13 +90,8 @@ tree_entry(unsigned char *indexmap, long *offset, int extsize)
 		/* Skip past the new line */
 		*offset=*offset+1;
 
-//		printf("entry_count: %d\tsubtrees: %d\t", treeleaf->subtree[s].entries, treeleaf->subtree[s].sub_count);
-
-		memcpy(treeid, indexmap + *offset, 20);
-//		for(x=0;x<20;x++)
-//			printf("%02x", indexmap[*offset+x]);
-//		printf("\n");
-		*offset = *offset + 20;
+		memcpy(treeleaf->subtree[s].sha, indexmap + *offset, HASH_SIZE/2);
+		*offset = *offset + HASH_SIZE/2;
 	}
 
 	/* Assign the total number of subtrees in the cache */
@@ -176,27 +178,14 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 			indextree->dircleaf = dirc_entry(indexmap, &offset, ntohl(indexhdr->entries));
 		}
 		else if (!memcmp(indexhdr->sig, "TREE", 4)) {
-			printf("\nTree object\n");
 			offset = offset + 4;
 
 			memcpy(&extsize, indexmap+offset, 4);
 			extsize = htonl(extsize);
-			printf("Ext Size: %d\n", extsize);
-			// Skip over the extension size
-			offset = offset + 4;
 
-			// Skip over the newline
-			offset = offset + 1;
+			/* Skip over the extension size and newline */
+			offset = offset + 5;
 			indextree->treeleaf = tree_entry(indexmap, &offset, extsize);
-
-			for(int xx = 0; xx < indextree->treeleaf->total_tree_count; xx++){
-				printf("%s %d %d\n",
-						indextree->treeleaf->subtree[xx].path,
-						indextree->treeleaf->subtree[xx].entries,
-						indextree->treeleaf->subtree[xx].sub_count);
-			}
-			/*
-			*/
 		}
 		else {
 			printf("Found something after DIRC\n");
