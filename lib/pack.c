@@ -724,7 +724,7 @@ pack_content_handler(char *sha, packhandler packhandler, void *parg)
 		exit(128);
 	}
 
-	strncpy(filename+strlen(filename)-4, ".pack", 6);
+	strlcpy(filename+strlen(filename)-4, ".pack", 6);
 	packfd = open(filename, O_RDONLY);
 	if (packfd == -1) {
 		fprintf(stderr, "fatal: git cat-file: could not get object info\n");

@@ -76,8 +76,7 @@ config_parser()
 			new_section = calloc(1, sizeof(struct section));
 			new_section->logallrefupdates = 0xFF;
 
-			strncpy(tmp, line + pmatch[1].rm_so,
-			    pmatch[1].rm_eo - pmatch[1].rm_so);
+			strlcpy(tmp, line + pmatch[1].rm_so, pmatch[1].rm_eo - pmatch[1].rm_so);
 			if (strncmp(tmp, "core", 4) == 0) {
 				new_section->type = CORE;
 			}
@@ -109,12 +108,12 @@ config_parser()
 				exit(1);
 			}
 		
-			strncpy(tmpvar,
+			strlcpy(tmpvar,
 			    line + pmatch[1].rm_so,
 			    pmatch[1].rm_eo - pmatch[1].rm_so);
 
 			tmpval = malloc(pmatch[2].rm_eo - pmatch[2].rm_so + 1);
-			strncpy(tmpval,
+			strlcpy(tmpval,
 			    line + pmatch[2].rm_so,
 			    pmatch[2].rm_eo - pmatch[2].rm_so);
 
@@ -158,26 +157,6 @@ config_parser()
 	}
 
 	return (0);
-}
-
-int
-ini_get_config(char *repodir)
-{
-	int fd;
-	char path[PATH_MAX];
-
-	strncpy(path, repodir, strlen(repodir));
-	strncat(path, "/.git/config", 12);
-	printf("config path: %s\n", path);
-
-	fd = open(path, O_WRONLY | O_CREAT);
-	if (fd == -1) {
-		fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
-		exit(errno);
-	}
-
-	return (fd);
-
 }
 
 void

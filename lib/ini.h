@@ -73,6 +73,5 @@ extern struct section		*sections;
 int	config_parser();
 void	ini_init_regex();
 void	ini_write_config(int fd, struct section *sections);
-int	ini_get_config(char *repodir);
 
 #endif

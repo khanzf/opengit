@@ -113,7 +113,7 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 
 	sscanf(position, "%04lx", &offset);
 	position += 4;
-	strncpy(smart_head->sha, position, 40);
+	strncpy(smart_head->sha, position, HASH_SIZE);
 
 	tofree = string = strndup(position+41+strlen(position+41)+1,
 	    offset-(47+strlen(position+41)));
@@ -177,7 +177,7 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 	while(strncmp(position, "0000", 4)) {
 		smart_head->refs = realloc(smart_head->refs, sizeof(struct smart_head) * (count+1));
 		sscanf(position, "%04lx", &offset);
-		strncpy(smart_head->refs[count].sha, position+4, 40);
+		strlcpy(smart_head->refs[count].sha, position+4, HASH_SIZE);
 		smart_head->refs[count].sha[40] = '\0';
 
 		smart_head->refs[count].path = strndup(position+4+41,
@@ -194,7 +194,7 @@ static int
 clone_http_build_done(char **content, int content_length)
 {
 	*content = realloc(*content, content_length + 14);
-	strncpy(*content+content_length, "00000009done\n\0", 14);
+	strlcpy(*content+content_length, "00000009done\n\0", 14);
 	return 13; // Always the same length
 }
 
@@ -209,7 +209,7 @@ clone_http_build_want(char **content, int content_length, char *capabilities, co
 
 	sprintf(line, "%04xwant %s %s\n", len, sha, capabilities);
 	*content = realloc(*content, content_length + len + 1);
-	strncpy(*content+content_length, line, len+1);
+	strlcpy(*content+content_length, line, len+1);
 
 	return len;
 }
@@ -290,12 +290,12 @@ clone_http(char *uri, char *repodir, struct smart_head *smart_head)
 	SHA1_CTX packctx;
 	SHA1_CTX idxctx;
 
-	pathlen = strlen(repodir);
-	strncpy(path, repodir, pathlen);
-	strncpy(srcpath, repodir, pathlen);
+	pathlen = strlen(repodir)+1;
+	strlcpy(path, repodir, pathlen);
+	strlcpy(srcpath, repodir, pathlen);
 	suffix = path + strlen(repodir);
 
-	strncat(suffix, "/.git/objects/pack/_tmp.pack", PATH_MAX-pathlen);
+	strlcat(suffix, "/.git/objects/pack/_tmp.pack", PATH_MAX-pathlen);
 	packfd = open(path, O_RDWR | O_CREAT, 0660);
 	if (packfd == -1) {
 		fprintf(stderr, "Unable to open file %s.\n", path);
@@ -357,17 +357,17 @@ again:
 	free(index_entry);
 	close(idxfd);
 
-	strncpy(suffix, "/.git/objects/pack/pack-", 24);
+	strncpy(suffix, "/.git/objects/pack/pack-", PATH_MAX-pathlen);
 	for(int x=0;x<20;x++)
 		snprintf(suffix+24+(x*2), 3, "%02x", packfileinfo.sha[x]);
 
 	/* Rename pack and index files */
-	strncat(suffix, ".pack", 6);
-	strncat(srcpath, "/.git/objects/pack/_tmp.pack", strlen(path));
+	strlcat(suffix, ".pack", PATH_MAX-strlen(repodir));
+	strlcat(srcpath, "/.git/objects/pack/_tmp.pack", PATH_MAX);
 	rename(srcpath, path);
 
-	strncpy(srcpath+strlen(srcpath)-4, "idx", 4);
-	strncpy(path+strlen(path)-4, "idx", 5);
+	strlcpy(srcpath+strlen(srcpath)-4, "idx", 4);
+	strlcpy(path+strlen(path)-4, "idx", 4);
 	rename(srcpath, path);
 	ret = 0;
 out:

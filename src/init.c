@@ -82,28 +82,15 @@ init_dirinit(char *repodir)
 	int x;
 	int dirlen;
 
-	/*
-	char *dirs[] = {
-		    ".git/objects",
-		    ".git/objects/pack",
-		    ".git/objects/info",
-		    ".git/refs",
-		    ".git/refs/tags",
-		    ".git/refs/heads",
-		    ".git/branches",
-		    ".git/hooks",
-	};
-	*/
-
 	/* Construct the "base" directory path */
 	if (repodir) {
 		mkdir(repodir, 0755);
 		dirlen = strlen(repodir);
-		strncpy(path, repodir, PATH_MAX);
+		strlcpy(path, repodir, PATH_MAX);
 		subpath = path + dirlen;
 		if (repodir[dirlen-1] != '/' && dirlen < PATH_MAX) {
 			dirlen++;
-			strncat(path, "/", PATH_MAX);
+			strlcat(path, "/", PATH_MAX);
 			subpath++;
 		}
 	}
@@ -112,7 +99,7 @@ init_dirinit(char *repodir)
 	subpath = path + dirlen;
 
 	for(x = 0; x < nitems(init_dirs); x++) {
-		strncpy(subpath, init_dirs[x], PATH_MAX-dirlen);
+		strlcpy(subpath, init_dirs[x], PATH_MAX-dirlen);
 		fd = open(path, O_WRONLY | O_CREAT);
 		if (fd != -1) {
 			fprintf(stderr, "File or directory %s already exists\n", path);
@@ -121,11 +108,11 @@ init_dirinit(char *repodir)
 	}
 
 
-	strncpy(subpath, ".git", PATH_MAX-dirlen);
+	strlcpy(subpath, ".git", PATH_MAX-dirlen);
 	mkdir(path, 0755);
 
 	for(x = 0; x < 7; x++) {
-		strncpy(subpath, init_dirs[x], PATH_MAX-dirlen);
+		strlcpy(subpath, init_dirs[x], PATH_MAX-dirlen);
 		ret = mkdir(path, 0755);
 		if (ret == -1) {
 			fprintf(stderr, "Cannot create %s\n", path);
@@ -133,7 +120,7 @@ init_dirinit(char *repodir)
 		}
 	}
 
-	strncpy(subpath, ".git/description", PATH_MAX-dirlen);
+	strlcpy(subpath, ".git/description", PATH_MAX-dirlen);
 	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
 	if (fd == -1 || fstat(fd, &sb)) {
 		fprintf(stderr, "Cannot create description file\n");
@@ -141,7 +128,7 @@ init_dirinit(char *repodir)
 	}
 	close(fd);
 
-	strncpy(subpath, ".git/HEAD", PATH_MAX-dirlen);
+	strlcpy(subpath, ".git/HEAD", PATH_MAX-dirlen);
 	fd = open(path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (fd != -1 && fstat(fd, &sb) == 0) {
 		write(fd, "ref: refs/heads/master\x0a", 23); 
@@ -176,7 +163,7 @@ init_main(int argc, char *argv[])
 	}
 
 	ret = init_dirinit(repodir);
-	strncpy(path, ".git/config", 12);
+	strlcpy(path, ".git/config", 12);
 	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
 	if (fd == -1) {
 		fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
@@ -193,7 +180,7 @@ init_main(int argc, char *argv[])
 
 	if (!ret) {
 		if (repodir) {
-			strncpy(path, repodir, strlen(repodir));
+			strlcpy(path, repodir, PATH_MAX);
 			if (repodir[strlen(repodir)-1] == '/')
 				path[strlen(repodir)-1] = '\0';
 		}

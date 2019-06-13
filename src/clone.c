@@ -89,7 +89,7 @@ static void
 process_remote(unsigned char *reply, struct parseread *parseread)
 {
 	char buf[200];
-	strncpy(buf, (char *)reply+5, parseread->osize-5);
+	strlcpy(buf, (char *)reply+5, parseread->osize-5);
 	buf[parseread->osize-5] = '\0';
 }
 
@@ -301,7 +301,7 @@ clone_initial_config(char *repopath, char *repodir, struct section *sections)
 	remote.next = &branch;
 	branch.next = NULL;
 
-	strncpy(path, repodir, strlen(repodir)+1);
+	strncpy(path, repodir, PATH_MAX);
 	strncat(path, "/.git/config", 12);
 	fd = open(path, O_WRONLY | O_CREAT, 0660);
 	if (fd == -1) {
