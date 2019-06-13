@@ -31,6 +31,7 @@
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "common.h"
 
 /* Header source Documentation/technical/index-format.txt */
 
@@ -104,11 +105,19 @@ struct dircleaf {
 	struct dirleaf		*next;
 };
 
+struct subtree {
+	char path[PATH_MAX];
+	uint8_t sha[40];
+	int entries;
+	int sub_count;
+};
+
 struct treeleaf {
 	char path[PATH_MAX];
 	int entry_count;
-	int subtree_count;
-	uint8_t objectname[160];
+	int local_tree_count;
+	int total_tree_count;
+	struct subtree *subtree;
 };
 
 struct indextree {

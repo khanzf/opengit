@@ -118,7 +118,6 @@ update_index_main(int argc, char *argv[])
 
 	FILE *indexptr;
 
-	printf("update_index\n");
 	update_index_open_index(&indexptr);
 	update_index_parse(&indexptr);
 
