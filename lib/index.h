@@ -122,6 +122,8 @@ struct treeleaf {
 };
 
 struct indextree {
+	int			version;
+	int			entries;
 	struct dircleaf		*dircleaf;
 	struct treeleaf		*treeleaf;
 //	uint8_t			 type;
