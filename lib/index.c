@@ -148,6 +148,14 @@ dirc_entry(unsigned char *indexmap, long *offset, int entries)
 	return dircleaf;
 }
 
+/*
+ * Description: Reads and index file and stores the result in the
+ * struct indextree.
+ * Arguments: 1. indextree must be pre-allocated
+ *            2. indexmap is a buffer to the index file, typically an
+ *               mmap(2) of the file
+ *            3. indexsize is the size of the index file
+ */
 void
 index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsize)
 {
@@ -166,7 +174,7 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 	offset += sizeof(struct indexhdr);
 	indextree->dircleaf = dirc_entry(indexmap, &offset, ntohl(indexhdr->entries));
 
-	while (offset < indexsize) {
+	while (offset <= indexsize - HASH_SIZE/2 - 8) {
 		indexhdr = (struct indexhdr *)((char *)indexmap + offset);
 
 		/* Capture the extension size */
@@ -174,18 +182,18 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 		memcpy(&extsize, indexmap+offset, 4);
 		extsize = htonl(extsize);
 
-		if (!memcmp(indexhdr->sig, "TREE", 4)) {
+		/* Jump past the 4-byte size and NULL character */
+		offset = offset + 5;
 
+		/*
+		 * GNU git pre-converted "TREE" to a 4-byte value and uses a
+		 * switch-case. That might be every so slightly more efficient.
+		 */
+		if (!memcmp(indexhdr->sig, "TREE", 4))
 			/* Skip over the extension size and newline */
-			offset = offset + 5;
 			indextree->treeleaf = tree_entry(indexmap, &offset, extsize);
-		}
-		else {
-			printf("Found something after DIRC\n");
-			printf("Found this: %c%c%c%c\n", indexhdr->sig[0], indexhdr->sig[1], indexhdr->sig[2], indexhdr->sig[3]);
-			printf("Exiting.\n");
+		else
+			fprintf(stderr, "Unknown data at the end of the index, exiting.\n");
 			exit(0);
-		}
 	}
-	printf("Comes here\n");
 }
