@@ -155,18 +155,26 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 	off_t offset = 0;
 	unsigned extsize;
 
+	indexhdr = (struct indexhdr *)((char *)indexmap + offset);
+	if (memcmp(indexhdr->sig, "DIRC", 4)) {
+		fprintf(stderr, "Does not match???\n");
+		exit(0);
+	}
+	indextree->version = indexhdr->version;
+	indextree->entries = indexhdr->entries;
+
+	offset += sizeof(struct indexhdr);
+	indextree->dircleaf = dirc_entry(indexmap, &offset, ntohl(indexhdr->entries));
+
 	while (offset < indexsize) {
 		indexhdr = (struct indexhdr *)((char *)indexmap + offset);
 
-		if (!memcmp(indexhdr->sig, "DIRC", 4)) {
-			offset += sizeof(struct indexhdr);
-			indextree->dircleaf = dirc_entry(indexmap, &offset, ntohl(indexhdr->entries));
-		}
-		else if (!memcmp(indexhdr->sig, "TREE", 4)) {
-			offset = offset + 4;
+		/* Capture the extension size */
+		offset = offset + 4;
+		memcpy(&extsize, indexmap+offset, 4);
+		extsize = htonl(extsize);
 
-			memcpy(&extsize, indexmap+offset, 4);
-			extsize = htonl(extsize);
+		if (!memcmp(indexhdr->sig, "TREE", 4)) {
 
 			/* Skip over the extension size and newline */
 			offset = offset + 5;
