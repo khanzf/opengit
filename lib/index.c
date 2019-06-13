@@ -30,140 +30,72 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "common.h"
 #include "index.h"
 
-/*
-    XXX This code could be cleaned up by having a local offset value
-    and updating it at the end of the function
-*/
-
-/*
-struct cache_tree *
-parse_treeentries(unsigned char *indexmap, int *offset)
-{
-	struct cache_tree *cache_tree;
-	unsigned char *endptr;
-	int q=0;
-
-	cache_tree = malloc(sizeof(struct cache_tree));
-
-	while (indexmap[*offset])
-		*offset = *offset + 1;
-	*offset = *offset + 1;
-
-	cache_tree->entry_count = strtol((const char *)(indexmap + (int)*offset), (char **)&endptr, 10);
-	*offset = *offset + (endptr - (indexmap + *offset));
-
-	*offset = *offset + 1; // Jump past the space
-
-	cache_tree->subtree_count = strtol((const char *)(indexmap + *offset), (char **)&endptr, 10);
-	*offset = *offset + (endptr - (indexmap + *offset));
-
-	*offset = *offset + 1; // Jump past the new line
-
-	// XXX rename from objectname to sha?
-	memcpy(cache_tree->objectname, indexmap + *offset, 20); 
-	printf("Tree: %x%x%x%x%x%x%x%x%x%x\n", cache_tree->objectname[0], cache_tree->objectname[1],
-	cache_tree->objectname[2], cache_tree->objectname[3], cache_tree->objectname[4],
-	cache_tree->objectname[5], cache_tree->objectname[6], cache_tree->objectname[7],
-	cache_tree->objectname[8], cache_tree->objectname[9]);
-
-	if (cache_tree->subtree_count >= 0)
-		*offset = *offset + 20;
-
-	cache_tree->subtree = malloc(sizeof(struct cache_tree *) * q);
-
-	for(q=0;q<cache_tree->subtree_count;q++)
-		cache_tree->subtree[q] = parse_treeentries(indexmap, offset);
-
-	return (cache_tree);
-}
-*/
-
 static struct treeleaf *
-tree_entry(unsigned char *indexmap, long *offset, int entries)
+tree_entry(unsigned char *indexmap, long *offset, int extsize)
 {
 	struct treeleaf *treeleaf;
 	unsigned char *endptr;
-	char *component_path;
-	int entry_count, subtrees;
+	int entry_count, trees;
 	uint8_t treeid[20];
+	int x, s;
 
-	treeleaf = malloc(sizeof(treeleaf) * entries);
+	treeleaf = malloc(sizeof(struct treeleaf));
 
-	printf("Entries: %d\n", ntohs(entries));
-
-	/* Skip past TREE */
-	*offset = *offset + 4;
-
-	while(!indexmap[*offset])
-		*offset = *offset + 1;
-
-	component_path = indexmap + *offset;
-	printf("Path Component: %s\n", component_path);
-	*offset = *offset + strlen(component_path) + 1;
-
+	/* Capture entry_count for the base */
 	entry_count = strtol(indexmap + *offset, (char **)&endptr, 10);
-	printf("Entry_count: %ld\n", entry_count);
 	*offset = endptr - indexmap;
 
-	subtrees = strtol(indexmap + *offset, (char **)&endptr, 10);
-	printf("Subtrees: %ld\n", subtrees);
+	/* Capture subtree count for the base */
+	trees = strtol(indexmap + *offset, (char **)&endptr, 10);
+	*offset = endptr - indexmap;
+
+	/* Assign values to treeleaf */
+	treeleaf->entry_count = entry_count;
+	treeleaf->local_tree_count = trees;
+
+	/* Skip past the new line */
+	*offset=*offset+1;
 
 	memcpy(treeid, indexmap + *offset, 20);
 
+
+	/* Skip past the SHA value */
 	*offset = *offset + 20;
 
-	int x;
-	printf("Top Hash: ");
-	for(x=0;x<20;x++)
-		printf("%02x", indexmap[*offset + x]);
-	printf("\n");
+	treeleaf->subtree = malloc(sizeof(struct subtree) * trees);
+	for(s=0;s<trees;s++){
+		x = strlcpy(treeleaf->subtree[s].path, indexmap + *offset, PATH_MAX);
+//		printf("Subpath: %s\t", treeleaf->subtree[s].path);
+		*offset = *offset + x + 1;
 
-	*offset = *offset + 1;
-	*offset = *offset + 1;
-	*offset = *offset + 1;
-
-	//printf("Subtrees: %s\n", reem);
-	printf("Now processing subtree------\n");
-	int s;
-
-	for(s=0;s<subtrees;s++){
-		component_path = indexmap + *offset;
-		printf("Path Component: %s\n", component_path);
-		*offset = *offset + strlen(component_path) + 1;
-
-		entry_count = strtol(indexmap + *offset, (char **)&endptr, 10);
-		printf("Entry_count: %ld\n", entry_count);
+		treeleaf->subtree[s].entries = strtol(indexmap + *offset, (char **)&endptr, 10);
+		*offset = endptr - indexmap;
+		treeleaf->subtree[s].sub_count = strtol(indexmap + *offset, (char **)&endptr, 10);
 		*offset = endptr - indexmap;
 
-		subtrees = strtol(indexmap + *offset, (char **)&endptr, 10);
-		printf("Subtrees: %ld\n", subtrees);
+		/* Is this the best approach? The size of the trees grows */
+		trees+=treeleaf->subtree[s].sub_count;
+		treeleaf->subtree = realloc(treeleaf->subtree, sizeof(struct subtree) * trees);
+
+		/* Skip past the new line */
+		*offset=*offset+1;
+
+//		printf("entry_count: %d\tsubtrees: %d\t", treeleaf->subtree[s].entries, treeleaf->subtree[s].sub_count);
 
 		memcpy(treeid, indexmap + *offset, 20);
-		for(x=0;x<20;x++)
-			printf("%02x", indexmap[*offset + x]);
-		printf("\n");
-
+//		for(x=0;x<20;x++)
+//			printf("%02x", indexmap[*offset+x]);
+//		printf("\n");
 		*offset = *offset + 20;
 	}
 
-	exit(0);
+	/* Assign the total number of subtrees in the cache */
+	treeleaf->total_tree_count = trees;
 
-	printf("-------------------\n");
-
-	/* Skip past the null terminator */
-	*offset = *offset + 1;
-
-	treeleaf->entry_count = strtol((const char *)(indexmap + (int)*offset), (char **)&endptr, 10);
-	printf("String? %s\n", indexmap + *offset);
-	printf("wtf is this: %d\n", treeleaf->entry_count);
-
-	int q;
-
-	q = strtol(indexmap + (int)*offset, (char **)&endptr, 10);
-	printf("Something: %d\n", q);
-	return NULL;
+	return (treeleaf);
 }
 
 /*
@@ -234,6 +166,7 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 {
 	struct indexhdr *indexhdr;
 	off_t offset = 0;
+	unsigned extsize;
 
 	while (offset < indexsize) {
 		indexhdr = (struct indexhdr *)((char *)indexmap + offset);
@@ -244,14 +177,25 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 		}
 		else if (!memcmp(indexhdr->sig, "TREE", 4)) {
 			printf("\nTree object\n");
-			indextree->treeleaf = tree_entry(indexmap, &offset, ntohl(indexhdr->entries));
-			exit(0);
+			offset = offset + 4;
+
+			memcpy(&extsize, indexmap+offset, 4);
+			extsize = htonl(extsize);
+			printf("Ext Size: %d\n", extsize);
+			// Skip over the extension size
+			offset = offset + 4;
+
+			// Skip over the newline
+			offset = offset + 1;
+			indextree->treeleaf = tree_entry(indexmap, &offset, extsize);
+
+			for(int xx = 0; xx < indextree->treeleaf->total_tree_count; xx++){
+				printf("%s %d %d\n",
+						indextree->treeleaf->subtree[xx].path,
+						indextree->treeleaf->subtree[xx].entries,
+						indextree->treeleaf->subtree[xx].sub_count);
+			}
 			/*
-			uint32_t extsize;
-			memcpy(&extsize, (struct indexhdr *)((char *)indexmap + offset + 4), 4);
-			offset += 8;
-			indexcache->cache_tree = parse_treeentries(indexmap, &offset);	
-			offset += extsize + 8;
 			*/
 		}
 		else {
