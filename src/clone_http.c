@@ -345,7 +345,7 @@ again:
 	qsort(index_entry, packfileinfo.nobjects, sizeof(struct index_entry),
 	    sortindexentry);
 
-	strncpy(suffix, "/.git/objects/pack/_tmp.idx", PATH_MAX-pathlen);
+	strlcpy(suffix, "/.git/objects/pack/_tmp.idx", PATH_MAX-pathlen);
 	idxfd = open(path, O_RDWR | O_CREAT, 0660);
 	if (idxfd == -1) {
 		fprintf(stderr, "Unable to open packout.idx for writing.\n");
@@ -357,7 +357,7 @@ again:
 	free(index_entry);
 	close(idxfd);
 
-	strncpy(suffix, "/.git/objects/pack/pack-", PATH_MAX-pathlen);
+	strlcpy(suffix, "/.git/objects/pack/pack-", PATH_MAX-pathlen);
 	for(int x=0;x<20;x++)
 		snprintf(suffix+24+(x*2), 3, "%02x", packfileinfo.sha[x]);
 
