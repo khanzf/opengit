@@ -107,13 +107,14 @@ struct dircleaf {
 
 struct subtree {
 	char path[PATH_MAX];
-	uint8_t sha[40];
+	uint8_t sha[40/2];
 	int entries;
 	int sub_count;
 };
 
 struct treeleaf {
 	char path[PATH_MAX];
+	uint8_t sha[40/2];
 	int entry_count;
 	int local_tree_count;
 	int total_tree_count;
