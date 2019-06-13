@@ -113,7 +113,7 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 
 	sscanf(position, "%04lx", &offset);
 	position += 4;
-	strncpy(smart_head->sha, position, HASH_SIZE);
+	memcpy(smart_head->sha, position, HASH_SIZE);
 
 	tofree = string = strndup(position+41+strlen(position+41)+1,
 	    offset-(47+strlen(position+41)));

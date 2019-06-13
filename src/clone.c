@@ -301,8 +301,8 @@ clone_initial_config(char *repopath, char *repodir, struct section *sections)
 	remote.next = &branch;
 	branch.next = NULL;
 
-	strncpy(path, repodir, PATH_MAX);
-	strncat(path, "/.git/config", 12);
+	strlcpy(path, repodir, PATH_MAX);
+	strlcat(path, "/.git/config", PATH_MAX);
 	fd = open(path, O_WRONLY | O_CREAT, 0660);
 	if (fd == -1) {
 		fprintf(stderr, "Unable to open file %s: %s\n", path, strerror(errno));
@@ -331,7 +331,7 @@ get_tree_hash(struct smart_head *smart_head, char *treesha)
 
 	while((token = strsep(&string, "\n")) != NULL)
 		if (!strncmp(token, "tree ", 5))
-			strncpy(treesha, token+5, HASH_SIZE);
+			memcpy(treesha, token+5, HASH_SIZE);
 
 	free(decompressed_object.data);
 
