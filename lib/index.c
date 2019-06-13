@@ -143,21 +143,6 @@ dirc_entry(unsigned char *indexmap, long *offset, int entries)
 		dircleaf[i].size = dircentry->size;
 		memcpy(dircleaf[i].sha, dircentry->sha, 20);
 		dircleaf[i].flags = dircentry->flags;
-		
-
-		printf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x %s\n",
-				dircleaf[i].sha[0],
-				dircleaf[i].sha[1],
-				dircleaf[i].sha[2],
-				dircleaf[i].sha[3],
-				dircleaf[i].sha[4],
-				dircleaf[i].sha[5],
-				dircleaf[i].sha[6],
-				dircleaf[i].sha[7],
-				dircleaf[i].sha[8],
-				dircleaf[i].sha[9],
-				dircleaf[i].name);
-
 	}
 
 	return dircleaf;
