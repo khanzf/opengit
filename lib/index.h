@@ -97,7 +97,7 @@ struct dircleaf {
 	uint32_t		 uid;
 	uint32_t		 gid;
 	uint32_t		 size;
-	uint8_t			 sha[20];
+	uint8_t			 sha[HASH_SIZE/2];
 	uint16_t		 flags;
 	uint16_t		 flags2; /* Only for the extended type */
 	char			 name[PATH_MAX];
@@ -106,31 +106,26 @@ struct dircleaf {
 };
 
 struct subtree {
-	char path[PATH_MAX];
-	uint8_t sha[40/2];
-	int entries;
-	int sub_count;
+	char			path[PATH_MAX];
+	uint8_t			sha[HASH_SIZE/2];
+	int			entries;
+	int			sub_count;
 };
 
 struct treeleaf {
-	char path[PATH_MAX];
-	uint8_t sha[40/2];
-	int entry_count;
-	int local_tree_count;
-	int total_tree_count;
-	struct subtree *subtree;
+	char			path[PATH_MAX];
+	uint8_t			sha[HASH_SIZE/2];
+	int			entry_count;
+	int			local_tree_count;
+	int			total_tree_count;
+	struct			subtree *subtree;
 };
 
 struct indextree {
-	int			version;
-	int			entries;
+	int			 version;
+	int			 entries;
 	struct dircleaf		*dircleaf;
 	struct treeleaf		*treeleaf;
-//	uint8_t			 type;
-//	int			 entries;
-//	void			*data;
-
-//	struct indextree	*next;
 };
 
 void		index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsize);
