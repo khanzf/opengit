@@ -38,7 +38,7 @@
  * ToFree: Requires treeleaf->subtree to be freed
  */
 static struct treeleaf *
-tree_entry(unsigned char *indexmap, long *offset, int extsize)
+tree_entry(unsigned char *indexmap, off_t *offset, int extsize)
 {
 	struct treeleaf *treeleaf;
 	unsigned char *endptr;
@@ -104,7 +104,7 @@ tree_entry(unsigned char *indexmap, long *offset, int extsize)
  * Must free: dircleaf
  */
 static struct dircleaf *
-dirc_entry(unsigned char *indexmap, long *offset, int entries)
+dirc_entry(unsigned char *indexmap, off_t *offset, int entries)
 {
 	struct dircleaf *dircleaf;
 	struct dircentry *dircentry;
