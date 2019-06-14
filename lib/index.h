@@ -63,6 +63,7 @@ struct dircentry {
 	uint32_t		size;
 	uint8_t			sha[20];
 	uint16_t		flags;
+#define DIRCENTRYSIZE		70
 	char			name[1];
 } __packed;
 
@@ -82,6 +83,7 @@ struct dircextentry {
 	uint8_t			sha[20];
 	uint16_t		flags;
 	uint16_t		flags2;
+#define DIRCEXTENTRYSIZE	72
 	char			name[1];
 } __packed;
 
