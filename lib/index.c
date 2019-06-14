@@ -123,12 +123,12 @@ dirc_entry(unsigned char *indexmap, off_t *offset, int entries)
 			dircleaf[i].flags2 = dircextentry->flags;
 			strlcpy(dircleaf[i].name, dircextentry->name, strlen(dircextentry->name)+1);
 
-			*offset += (72 + strlen(dircextentry->name)) & ~0x7;
+			*offset += (DIRCEXTENTRYSIZE + strlen(dircextentry->name)) & ~0x7;
 		}
 		else {
 			dircleaf[i].isextended = false;
 			strlcpy(dircleaf[i].name, dircentry->name, strlen(dircentry->name)+1);
-			*offset += (70 + strlen(dircentry->name)) & ~0x7;
+			*offset += (DIRCENTRYSIZE + strlen(dircentry->name)) & ~0x7;
 		}
 
 		dircleaf[i].ctime_sec = dircentry->ctime_sec;
