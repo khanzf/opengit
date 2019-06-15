@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include "common.h"
 #include "index.h"
 
@@ -109,18 +110,16 @@ dirc_entry(unsigned char *indexmap, off_t *offset, int entries)
 	struct dircleaf *dircleaf;
 	struct dircentry *dircentry;
 	struct dircextentry *dircextentry;
-	int i;
 
 	dircentry = (struct dircentry *)((char *)indexmap + *offset);
-
 	dircleaf = malloc(sizeof(struct dircleaf) * entries);
 
-	for(i=0;i<entries;i++) {
+	for(int i=0;i<entries;i++) {
 		dircentry = (struct dircentry *)((char *)indexmap + *offset);
-		if (ntohs(dircentry->flags) & CE_EXTENDED) {
+		if (ntohs(dircentry->flags) & DIRC_EXT_FLAG) {
 			dircextentry = (struct dircextentry *)((char *)indexmap + *offset);
 			dircleaf[i].isextended = true;
-			dircleaf[i].flags2 = dircextentry->flags;
+			dircleaf[i].flags2 = dircextentry->flags & ~0x0fff;
 			strlcpy(dircleaf[i].name, dircextentry->name, strlen(dircextentry->name)+1);
 
 			*offset += (DIRCEXTENTRYSIZE + strlen(dircextentry->name)) & ~0x7;
@@ -192,8 +191,58 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 		if (!memcmp(indexhdr->sig, "TREE", 4))
 			/* Skip over the extension size and newline */
 			indextree->treeleaf = tree_entry(indexmap, &offset, extsize);
-		else
+		else {
 			fprintf(stderr, "Unknown data at the end of the index, exiting.\n");
 			exit(0);
+		}
 	}
+}
+
+void
+index_write(struct indextree *indextree, int indexfd)
+{
+	struct dircleaf *dircleaf = indextree->dircleaf;
+	int c;
+
+	c = write(indexfd, "DIRC", 4);
+	if (c == -1) {
+		fprintf(stderr, "Unable to write to index file, exiting.\n");
+		exit(c);
+
+	}
+	write(indexfd, &indextree->version, 4);
+	write(indexfd, &indextree->entries, 4);
+
+	char null = 0x00;
+	int padding;
+
+	for(int i=0;i<ntohl(indextree->entries);i++) {
+		write(indexfd, &dircleaf[i].ctime_sec, 4);
+		write(indexfd, &dircleaf[i].ctime_nsec, 4);
+		write(indexfd, &dircleaf[i].mtime_sec, 4);
+		write(indexfd, &dircleaf[i].mtime_nsec, 4);
+		write(indexfd, &dircleaf[i].dev, 4);
+		write(indexfd, &dircleaf[i].ino, 4);
+		write(indexfd, &dircleaf[i].mode, 4);
+		write(indexfd, &dircleaf[i].uid, 4);
+		write(indexfd, &dircleaf[i].gid, 4);
+		write(indexfd, &dircleaf[i].size, 4);
+		write(indexfd, &dircleaf[i].sha, 20);
+		write(indexfd, &dircleaf[i].flags, 2);
+		if (dircleaf[i].isextended == true)
+			c = write(indexfd, &dircleaf[i].flags2, 2);
+
+		write(indexfd, &dircleaf[i].name, strlen(dircleaf[i].name));
+
+		/*
+		 * This determines how much null character padding to add after the filename
+		 * Another possible function:
+		 * padding = 8 - ((strlen(dircleaf[i].name) + 6) % 8);
+		 */
+		padding = (0x7 & ~(strlen(dircleaf[i].name) - 2)) + 1;
+
+		for(int z=0;z<padding;z++)
+			write(indexfd, &null, 1);
+	}
+
 }

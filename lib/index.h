@@ -35,15 +35,6 @@
 
 /* Header source Documentation/technical/index-format.txt */
 
-/*
-struct index {
-	int			entry_count;
-	int			subtree_count;
-	uint8_t			objectname[20];
-	struct cache_tree	**subtree;
-};
-*/
-
 struct indexhdr {
 	char			sig[4];		/* Cache type */
 	uint32_t		version;	/* Version Number */
@@ -61,13 +52,13 @@ struct dircentry {
 	uint32_t		uid;
 	uint32_t		gid;
 	uint32_t		size;
-	uint8_t			sha[20];
+	uint8_t			sha[HASH_SIZE/2];
 	uint16_t		flags;
 #define DIRCENTRYSIZE		70
 	char			name[1];
 } __packed;
 
-#define CE_EXTENDED	0x4000
+#define DIRC_EXT_FLAG		BIT(14)
 
 struct dircextentry {
 	uint32_t		ctime_sec;
@@ -103,8 +94,6 @@ struct dircleaf {
 	uint16_t		 flags;
 	uint16_t		 flags2; /* Only for the extended type */
 	char			 name[PATH_MAX];
-
-	struct dirleaf		*next;
 };
 
 struct subtree {
@@ -131,5 +120,6 @@ struct indextree {
 };
 
 void		index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsize);
+void		index_write(struct indextree *indextree, int indexfd);
 
 #endif
