@@ -75,7 +75,6 @@ log_print_commit_headers(struct logarg *logarg)
 	char *token, *tmp, *toff, *walker;
 	char *tofree;
 	char *datestr;
-	char author[255];
 	time_t t;
 
 	tofree = tmp = strdup(logarg->headers);
