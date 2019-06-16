@@ -34,6 +34,14 @@
 #include "common.h"
 #include "index.h"
 
+/* Write and update the SHA Context */
+void
+write_sha(SHA1_CTX *ctx, int fd, void *data, int len)
+{
+	write(fd, data, len);
+	SHA1_Update(ctx, data, len);
+}
+
 /*
  * Description: Captures the cache tree data
  * ToFree: Requires treeleaf->subtree to be freed
@@ -197,6 +205,12 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 			exit(0);
 		}
 	}
+
+	int q;
+	for(q=0;q<20;q++) {
+		printf("%02x", indexmap[offset+q]);
+	}
+	printf("\n");
 }
 
 /*
@@ -204,27 +218,31 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
  * Requires a populated indextree and index file descriptor
  * ToFree; Nothing
  */
-const void
-write_tree(struct indextree *indextree, int indexfd)
+static void
+write_tree(SHA1_CTX *indexctx, struct indextree *indextree, int indexfd)
 {
 	int x;
+	char tmp[100];
 	struct treeleaf *treeleaf = indextree->treeleaf;
 
-	dprintf(indexfd, "TREE");
+	write_sha(indexctx, indexfd, "TREE", 4);
 
 	x = htonl(treeleaf->ext_size);
-	write(indexfd, &x, 4);
+	write_sha(indexctx, indexfd, &x, 4);
 
-	write(indexfd, "\x00", 1);
-	dprintf(indexfd, "%u %u\n", treeleaf->entry_count, treeleaf->local_tree_count);
+	write_sha(indexctx, indexfd, "\x00", 1);
+	x = snprintf(tmp, 100, "%u %u\n", treeleaf->entry_count, treeleaf->local_tree_count);
+	write_sha(indexctx, indexfd, tmp, x);
 
-	write(indexfd, treeleaf->sha, HASH_SIZE/2);
+	write_sha(indexctx, indexfd, treeleaf->sha, HASH_SIZE/2);
 
 	for(int s = 0;s<treeleaf->total_tree_count;s++) {
-		dprintf(indexfd, "%s", treeleaf->subtree[s].path);
-		write(indexfd, "\x00", 1);
-		dprintf(indexfd, "%u %u\n", treeleaf->subtree[s].entries, treeleaf->subtree[s].sub_count);
-		write(indexfd, treeleaf->subtree[s].sha, HASH_SIZE/2);
+		x = snprintf(tmp, 100, "%s", treeleaf->subtree[s].path);
+		write_sha(indexctx, indexfd, tmp, x);
+		write_sha(indexctx, indexfd, "\x00", 1);
+		x = snprintf(tmp, 100, "%u %u\n", treeleaf->subtree[s].entries, treeleaf->subtree[s].sub_count);
+		write_sha(indexctx, indexfd, tmp, x);
+		write_sha(indexctx, indexfd, treeleaf->subtree[s].sha, HASH_SIZE/2);
 	}
 
 }
@@ -238,37 +256,34 @@ void
 index_write(struct indextree *indextree, int indexfd)
 {
 	struct dircleaf *dircleaf = indextree->dircleaf;
-	int c;
+	SHA1_CTX indexctx;
+	char sha[20];
+	SHA1_Init(&indexctx);
 
-	c = write(indexfd, "DIRC", 4);
-	if (c == -1) {
-		fprintf(stderr, "Unable to write to index file, exiting.\n");
-		exit(c);
-
-	}
-	write(indexfd, &indextree->version, 4);
-	write(indexfd, &indextree->entries, 4);
+	write_sha(&indexctx, indexfd, "DIRC", 4);
+	write_sha(&indexctx, indexfd, &indextree->version, 4);
+	write_sha(&indexctx, indexfd, &indextree->entries, 4);
 
 	char null = 0x00;
 	int padding;
 
 	for(int i=0;i<ntohl(indextree->entries);i++) {
-		write(indexfd, &dircleaf[i].ctime_sec, 4);
-		write(indexfd, &dircleaf[i].ctime_nsec, 4);
-		write(indexfd, &dircleaf[i].mtime_sec, 4);
-		write(indexfd, &dircleaf[i].mtime_nsec, 4);
-		write(indexfd, &dircleaf[i].dev, 4);
-		write(indexfd, &dircleaf[i].ino, 4);
-		write(indexfd, &dircleaf[i].mode, 4);
-		write(indexfd, &dircleaf[i].uid, 4);
-		write(indexfd, &dircleaf[i].gid, 4);
-		write(indexfd, &dircleaf[i].size, 4);
-		write(indexfd, &dircleaf[i].sha, 20);
-		write(indexfd, &dircleaf[i].flags, 2);
+		write_sha(&indexctx, indexfd, &dircleaf[i].ctime_sec, 4);
+		write_sha(&indexctx, indexfd, &dircleaf[i].ctime_nsec, 4);
+		write_sha(&indexctx, indexfd, &dircleaf[i].mtime_sec, 4);
+		write_sha(&indexctx, indexfd, &dircleaf[i].mtime_nsec, 4);
+		write_sha(&indexctx, indexfd, &dircleaf[i].dev, 4);
+		write_sha(&indexctx, indexfd, &dircleaf[i].ino, 4);
+		write_sha(&indexctx, indexfd, &dircleaf[i].mode, 4);
+		write_sha(&indexctx, indexfd, &dircleaf[i].uid, 4);
+		write_sha(&indexctx, indexfd, &dircleaf[i].gid, 4);
+		write_sha(&indexctx, indexfd, &dircleaf[i].size, 4);
+		write_sha(&indexctx, indexfd, &dircleaf[i].sha, 20);
+		write_sha(&indexctx, indexfd, &dircleaf[i].flags, 2);
 		if (dircleaf[i].isextended == true)
-			c = write(indexfd, &dircleaf[i].flags2, 2);
+			write_sha(&indexctx, indexfd, &dircleaf[i].flags2, 2);
 
-		write(indexfd, &dircleaf[i].name, strlen(dircleaf[i].name));
+		write_sha(&indexctx, indexfd, &dircleaf[i].name, strlen(dircleaf[i].name));
 
 		/*
 		 * This determines how much null character padding to add after the filename
@@ -278,10 +293,13 @@ index_write(struct indextree *indextree, int indexfd)
 		padding = (0x7 & ~(strlen(dircleaf[i].name) - 2)) + 1;
 
 		for(int z=0;z<padding;z++)
-			write(indexfd, &null, 1);
+			write_sha(&indexctx, indexfd, &null, 1);
 	}
 
 	if (indextree->treeleaf)
-		write_tree(indextree, indexfd);
+		write_tree(&indexctx, indextree, indexfd);
 
+	/* Write the trailing SHA */
+	SHA1_Final(sha, &indexctx);
+	write(indexfd, sha, 20);
 }
