@@ -1,7 +1,10 @@
 
 MAN=
-CFLAGS+= -Wall -I${.CURDIR}/..
-LDFLAGS+= -lmd -lz -lfetch
+.if defined(DEBUG)
+CFLAGS+=	-Wunreachable-code -Werror -O0 -g
+.endif
+CFLAGS+=	-Wall -I${.CURDIR}/..
+LDFLAGS+=	-lmd -lz -lfetch
 LDFLAGS+=	${.OBJDIR}/../lib/libogit.a
 
 PROG=	ogit

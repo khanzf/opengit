@@ -251,7 +251,7 @@ index_write(struct indextree *indextree, int indexfd)
 {
 	struct dircleaf *dircleaf = indextree->dircleaf;
 	SHA1_CTX indexctx;
-	char sha[20];
+	uint8_t sha[20];
 	SHA1_Init(&indexctx);
 
 	write_sha(&indexctx, indexfd, "DIRC", 4);
@@ -294,6 +294,6 @@ index_write(struct indextree *indextree, int indexfd)
 		write_tree(&indexctx, indextree, indexfd);
 
 	/* Write the trailing SHA */
-	SHA1_Final(sha, &indexctx);
+	SHA1_Final((unsigned char *)sha, &indexctx);
 	write(indexfd, sha, 20);
 }
