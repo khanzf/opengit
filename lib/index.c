@@ -205,12 +205,6 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 			exit(0);
 		}
 	}
-
-	int q;
-	for(q=0;q<20;q++) {
-		printf("%02x", indexmap[offset+q]);
-	}
-	printf("\n");
 }
 
 /*
