@@ -39,7 +39,7 @@
  * ToFree: Requires treeleaf->subtree to be freed
  */
 static struct treeleaf *
-tree_entry(unsigned char *indexmap, off_t *offset, int extsize)
+tree_entry(unsigned char *indexmap, off_t *offset, int ext_size)
 {
 	struct treeleaf *treeleaf;
 	unsigned char *endptr;
@@ -48,6 +48,7 @@ tree_entry(unsigned char *indexmap, off_t *offset, int extsize)
 
 	treeleaf = malloc(sizeof(struct treeleaf));
 
+	treeleaf->ext_size = ext_size;
 	/* Capture entry_count for the base */
 	entry_count = strtol((char *)indexmap + *offset, (char **)&endptr, 10);
 	*offset = endptr - indexmap;
@@ -198,6 +199,41 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 	}
 }
 
+/*
+ * Writes the tree cache portion of the index file
+ * Requires a populated indextree and index file descriptor
+ * ToFree; Nothing
+ */
+const void
+write_tree(struct indextree *indextree, int indexfd)
+{
+	int x;
+	struct treeleaf *treeleaf = indextree->treeleaf;
+
+	dprintf(indexfd, "TREE");
+
+	x = htonl(treeleaf->ext_size);
+	write(indexfd, &x, 4);
+
+	write(indexfd, "\x00", 1);
+	dprintf(indexfd, "%u %u\n", treeleaf->entry_count, treeleaf->local_tree_count);
+
+	write(indexfd, treeleaf->sha, HASH_SIZE/2);
+
+	for(int s = 0;s<treeleaf->total_tree_count;s++) {
+		dprintf(indexfd, "%s", treeleaf->subtree[s].path);
+		write(indexfd, "\x00", 1);
+		dprintf(indexfd, "%u %u\n", treeleaf->subtree[s].entries, treeleaf->subtree[s].sub_count);
+		write(indexfd, treeleaf->subtree[s].sha, HASH_SIZE/2);
+	}
+
+}
+
+/*
+ * Writes the index file
+ * Requires a populated indextree and index file descriptor
+ * ToFree: Nothing
+ */
 void
 index_write(struct indextree *indextree, int indexfd)
 {
@@ -244,5 +280,8 @@ index_write(struct indextree *indextree, int indexfd)
 		for(int z=0;z<padding;z++)
 			write(indexfd, &null, 1);
 	}
+
+	if (indextree->treeleaf)
+		write_tree(indextree, indexfd);
 
 }
