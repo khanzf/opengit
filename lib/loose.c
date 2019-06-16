@@ -44,8 +44,7 @@
  * This is used to parse data in multiple ways.
  * Similar to pack_content_handler
  */
-int loose_content_handler(char *sha, deflated_handler deflated_handler, void *darg,
-    inflated_handler inflated_handler, void *iarg)
+int loose_content_handler(char *sha, inflated_handler inflated_handler, void *iarg)
 {
 	char objectpath[PATH_MAX];
 	int objectfd;
@@ -55,7 +54,7 @@ int loose_content_handler(char *sha, deflated_handler deflated_handler, void *da
 	if (objectfd == -1)
 		return 1;
 
-	deflate_caller(objectfd, deflated_handler, darg, inflated_handler, iarg);
+	deflate_caller(objectfd, NULL, NULL, inflated_handler, iarg);
 
 	return 0;
 }

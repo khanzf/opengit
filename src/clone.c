@@ -323,7 +323,7 @@ get_tree_hash(struct smart_head *smart_head, char *treesha)
 {
 	struct decompressed_object decompressed_object;
 
-	if (loose_content_handler(smart_head->sha, NULL, NULL, buffer_cb, &decompressed_object))
+	if (loose_content_handler(smart_head->sha, buffer_cb, &decompressed_object))
 		pack_content_handler(smart_head->sha, pack_buffer_cb, &decompressed_object);
 
 	char *token, *tofree, *string;
@@ -365,7 +365,7 @@ generate_tree_item(char *mode, uint8_t type, char *sha, char *filename, void *ar
 		writer_args.fd = buildfd;
 		writer_args.sent = 0;
 
-		if (loose_content_handler(sha, NULL, NULL, write_cb, &writer_args))
+		if (loose_content_handler(sha, write_cb, &writer_args))
 			pack_content_handler(sha, write_pack_cb, &writer_args);
 	}
 	*fn = '\0';

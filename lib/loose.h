@@ -42,7 +42,7 @@ struct loosearg {
 };
 
 int		 loose_get_headers(unsigned char *buf, int size, void *arg);
-int 		 loose_content_handler(char *sha, deflated_handler deflated_handler, void *darg, inflated_handler inflated_handler, void *iarg);
+int 		 loose_content_handler(char *sha, inflated_handler inflated_handler, void *iarg);
 unsigned char	*get_type_loose_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *arg);
 
 #endif

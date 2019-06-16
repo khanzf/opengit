@@ -172,7 +172,7 @@ cat_file_get_content(char *sha_str, uint8_t flags)
 	loosearg.step = 0;
 	loosearg.sent = 0;
 
-	if (loose_content_handler(sha_str, NULL, NULL, cat_loose_object_cb, &loosearg))
+	if (loose_content_handler(sha_str, cat_loose_object_cb, &loosearg))
 		pack_content_handler(sha_str, cat_file_pack_handler, &flags);
 }
 
