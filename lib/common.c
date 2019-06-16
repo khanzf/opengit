@@ -59,15 +59,14 @@ void
 iterate_tree(char *treesha, tree_handler tree_handler, void *args)
 {
 	struct decompressed_object decompressed_object;
-	if (loose_content_handler(treesha, buffer_cb, &decompressed_object))
-		pack_content_handler(treesha, pack_buffer_cb, &decompressed_object);
-
 	long offset = 0;
 	long space;
 	uint8_t *shabin;
 	char shastr[HASH_SIZE+1], mode[7];
 	char *filename;
 	uint8_t type;
+
+	CONTENT_HANDLER(treesha, buffer_cb, pack_buffer_cb, &decompressed_object);
 
 	while(offset<decompressed_object.size) {
 		/* Get the file mode */
@@ -88,8 +87,7 @@ iterate_tree(char *treesha, tree_handler tree_handler, void *args)
 		shastr[HASH_SIZE] = '\0';
 
 		/* Determine the type */
-		if (loose_content_handler(shastr, get_type_loose_cb, &type))
-			pack_content_handler(shastr, get_type_pack_cb, &type);
+		CONTENT_HANDLER(shastr, get_type_loose_cb, get_type_pack_cb, &type);
 
 		if (tree_handler)
 			tree_handler(mode, type, shastr, filename, args);

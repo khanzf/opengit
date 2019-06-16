@@ -322,11 +322,10 @@ void
 get_tree_hash(struct smart_head *smart_head, char *treesha)
 {
 	struct decompressed_object decompressed_object;
-
-	if (loose_content_handler(smart_head->sha, buffer_cb, &decompressed_object))
-		pack_content_handler(smart_head->sha, pack_buffer_cb, &decompressed_object);
-
 	char *token, *tofree, *string;
+
+	CONTENT_HANDLER(smart_head->sha, buffer_cb, pack_buffer_cb, &decompressed_object);
+
 	tofree = string = strndup((char *)decompressed_object.data, decompressed_object.size);
 
 	while((token = strsep(&string, "\n")) != NULL)
@@ -334,7 +333,6 @@ get_tree_hash(struct smart_head *smart_head, char *treesha)
 			memcpy(treesha, token+5, HASH_SIZE);
 
 	free(decompressed_object.data);
-
 	free(tofree);
 }
 
@@ -365,8 +363,7 @@ generate_tree_item(char *mode, uint8_t type, char *sha, char *filename, void *ar
 		writer_args.fd = buildfd;
 		writer_args.sent = 0;
 
-		if (loose_content_handler(sha, write_cb, &writer_args))
-			pack_content_handler(sha, write_pack_cb, &writer_args);
+		CONTENT_HANDLER(sha, write_cb, write_pack_cb, &writer_args);
 	}
 	*fn = '\0';
 }

@@ -46,6 +46,12 @@
 
 #define HASH_SIZE	40
 
+#define CONTENT_HANDLER(sha, loose_handler, pack_handler, args) {	\
+	if (loose_content_handler(sha, loose_handler, args))		\
+		pack_content_handler(sha, pack_handler, args);		\
+} while(0)
+
+
 #ifndef nitems
 #define nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #endif

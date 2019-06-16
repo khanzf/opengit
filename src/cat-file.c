@@ -143,9 +143,9 @@ print_size(int packfd, struct objectinfo *objectinfo)
 void
 cat_file_pack_handler(int packfd, struct objectinfo *objectinfo, void *pargs)
 {
-	uint8_t *flags = pargs;
+	struct loosearg *loosearg = pargs;
 
-	switch(*flags) {
+	switch(loosearg->cmd) {
 		case CAT_FILE_PRINT:
 			print_content(packfd, objectinfo);
 			break;
@@ -172,8 +172,7 @@ cat_file_get_content(char *sha_str, uint8_t flags)
 	loosearg.step = 0;
 	loosearg.sent = 0;
 
-	if (loose_content_handler(sha_str, cat_loose_object_cb, &loosearg))
-		pack_content_handler(sha_str, cat_file_pack_handler, &flags);
+	CONTENT_HANDLER(sha_str, cat_loose_object_cb, cat_file_pack_handler, &loosearg);
 }
 
 int
