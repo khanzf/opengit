@@ -104,11 +104,11 @@ struct subtree {
 };
 
 struct treeleaf {
-	char			path[PATH_MAX];
+	int			ext_size;
 	uint8_t			sha[HASH_SIZE/2];
-	int			entry_count;
-	int			local_tree_count;
-	int			total_tree_count;
+	unsigned int		entry_count;
+	unsigned int		local_tree_count;
+	unsigned int		total_tree_count;
 	struct			subtree *subtree;
 };
 
