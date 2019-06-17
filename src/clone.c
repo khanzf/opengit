@@ -294,6 +294,7 @@ clone_initial_config(char *repopath, char *repodir, struct section *sections)
 	remote.fetch = "+refs/heads/*:refs/remotes/origin/*";
 
 	branch.type = BRANCH;
+	branch.repo_name = "master";
 	branch.remote = "origin";
 	branch.merge = "refs/heads/master";
 
