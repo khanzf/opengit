@@ -43,6 +43,17 @@
 #include "common.h"
 #include "ini.h"
 
+const char *object_name[] = {
+	NULL,
+	"commit",
+	"tree",
+	"blob",
+	"tag",
+	NULL,
+	"obj_ofs_delta",
+	"obj_ref_delta"
+};
+
 /*
  * This function is a wrapper for write(1) and also updates
  * a SHA context the data

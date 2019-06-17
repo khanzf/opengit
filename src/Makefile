@@ -1,7 +1,7 @@
 
 MAN=
 .if defined(DEBUG)
-CFLAGS+=	-Wunreachable-code -Werror -O0 -g
+CFLAGS+=	-Wall -Wunreachable-code -Werror -O0 -g
 .endif
 CFLAGS+=	-Wall -I${.CURDIR}/..
 LDFLAGS+=	-lmd -lz -lfetch

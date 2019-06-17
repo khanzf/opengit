@@ -39,8 +39,8 @@ Header source Documentation/technical/multi-pack-index.txt
 */
 
 /*
-    GPL git has at least 2 things called "index" in Git.
-    These are for files located in .git/objects/pack/[*].idx
+ * GPL git has at least 2 things called "index" in Git.
+ * These are for files located in .git/objects/pack/[*].idx
 */
 
 /* From Documentation/technical/pack-format.txt */
@@ -53,16 +53,7 @@ Header source Documentation/technical/multi-pack-index.txt
 #define OBJ_OFS_DELTA		6
 #define OBJ_REF_DELTA		7
 
-static const char *object_name[] = {
-	NULL,
-	"commit",
-	"tree",
-	"blob",
-	"tag",
-	NULL,
-	"obj_ofs_delta",
-	"obj_ref_delta"
-};
+extern const char *object_name[];
 
 // idx file headers
 struct offset {
