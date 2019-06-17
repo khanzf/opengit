@@ -199,7 +199,7 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 	struct index_generate_arg index_generate_arg;
 	char hdr[32];
 	int hdrlen;
-	Bytef tmpref[2];
+//	Bytef tmpref[2];
 	struct two_darg two_darg;
 
 	for (x = 0; x < packfileinfo->nobjects; x++) {
@@ -211,14 +211,14 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 		case OBJ_REF_DELTA:
 			fprintf(stderr, "OBJ_REF_DELTA: currently not implemented. Exiting.\n");
 			exit(0);
-			offset += objectinfo.used;
-			lseek(packfd, offset, SEEK_SET);
-			buf_read(packfd, tmpref, 2, read_sha_update, packctx);
-			objectinfo.crc = crc32(objectinfo.crc, tmpref, 2);
-			buf_read(packfd, index_entry[x].digest, 20,
-			    read_sha_update, packctx);
-			offset += 22; /* 20 bytes + 2 for the header */
-			break;
+//			offset += objectinfo.used;
+//			lseek(packfd, offset, SEEK_SET);
+//			buf_read(packfd, tmpref, 2, read_sha_update, packctx);
+//			objectinfo.crc = crc32(objectinfo.crc, tmpref, 2);
+//			buf_read(packfd, index_entry[x].digest, 20,
+//			    read_sha_update, packctx);
+//			offset += 22; /* 20 bytes + 2 for the header */
+//			break;
 		case OBJ_OFS_DELTA:
 			SHA1_Init(&index_generate_arg.shactx);
 			pack_delta_content(packfd, &objectinfo, packctx);
