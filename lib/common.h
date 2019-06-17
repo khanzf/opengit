@@ -44,6 +44,16 @@
 #error "Unsure what to do for inclusion of sha1 bits in this environment"
 #endif
 
+/* From Documentation/technical/pack-format.txt */
+#define OBJ_NONE		0
+#define OBJ_COMMIT		1
+#define OBJ_TREE		2
+#define OBJ_BLOB		3
+#define OBJ_TAG			4
+// Reserved			5
+#define OBJ_OFS_DELTA		6
+#define OBJ_REF_DELTA		7
+
 #define HASH_SIZE	40
 
 #define CONTENT_HANDLER(sha, loose_handler, pack_handler, args) {	\
