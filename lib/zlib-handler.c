@@ -109,7 +109,7 @@ deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg,
 	int ret;
 	int input_len;
 	int use;
-	int burn = 0;
+	int burn;
 	
 	strm.zalloc = Z_NULL;
 	strm.zfree = Z_NULL;
@@ -121,6 +121,7 @@ deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg,
 		return (ret);
 
 	do {
+		burn = 0;
 		strm.avail_in = input_len = read(sourcefd, in, CHUNK);
 		if (strm.avail_in == -1) {
 			(void)inflateEnd(&strm);
