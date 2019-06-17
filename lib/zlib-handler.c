@@ -59,7 +59,7 @@ zlib_update_sha(unsigned char *data, int use, void *darg)
 int
 zlib_update_crc(unsigned char *data, int use, void *darg)
 {
-	uint32_t *crcv = darg;
+	uLong *crcv = darg;
 	if (crcv)
 		*crcv = crc32(*crcv, data, use);
 	return (0);

@@ -30,6 +30,7 @@
 
 #include <sys/types.h>
 #include <stdint.h>
+#include <zlib.h>
 #include "common.h"
 
 
@@ -90,7 +91,7 @@ struct packfileinfo {
 
 struct objectinfo {
 	unsigned long	offset;		// The object header from the file's start
-	uint32_t	crc;
+	uLong		crc;
 
 	unsigned long	psize;		// Size of the object content
 	unsigned long	isize;		// Inflated size
@@ -113,7 +114,7 @@ struct objectinfo {
 struct index_entry {
 	int		offset;
 	int		type;
-	uint32_t	crc;
+	uLong		crc;
 	unsigned char	digest[20];
 };
 
