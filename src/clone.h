@@ -64,12 +64,12 @@ struct symref {
 };
 
 struct ref {
-	char		sha[41];
+	char		sha[40];
 	char		*path;
 };
 
 struct smart_head {
-	char		sha[41];
+	char		sha[HASH_SIZE];
 	uint32_t	cap;
 	int		refcount;
 	struct ref	*refs;

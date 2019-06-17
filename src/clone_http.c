@@ -177,8 +177,7 @@ clone_http_get_head(char *url, struct smart_head *smart_head)
 	while(strncmp(position, "0000", 4)) {
 		smart_head->refs = realloc(smart_head->refs, sizeof(struct smart_head) * (count+1));
 		sscanf(position, "%04lx", &offset);
-		strlcpy(smart_head->refs[count].sha, position+4, HASH_SIZE);
-		smart_head->refs[count].sha[40] = '\0';
+		memcpy(smart_head->refs[count].sha, position+4, HASH_SIZE);
 
 		smart_head->refs[count].path = strndup(position+4+41,
 		    offset-(4+42));

@@ -240,10 +240,10 @@ populate_packed_refs(char *repodir, struct smart_head *smart_head)
 		    path);
 	}
 
-	for(int x=0;x<smart_head->refcount;x++)
-		fprintf(refs, "%s %s\n",
-		    smart_head->refs[x].sha,
-		    smart_head->refs[x].path);
+	for(int x=0;x<smart_head->refcount;x++) {
+		fwrite(smart_head->refs[x].sha, 40, 1, refs);
+		fprintf(refs, " %s\n", smart_head->refs[x].path);
+	}
 
 	fclose(refs);
 }
