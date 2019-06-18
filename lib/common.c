@@ -169,3 +169,25 @@ sha_bin_to_str(uint8_t *bin, char *str)
 		else
 			str[x] = str[x] + 87;
 }
+
+/*
+ * Description: Convert a binary format to a string
+ * Arguments: 1) char[HASH_SIZE] source, 2) Pointer to SHA output
+ * which stores the output binary hash
+ */
+void
+sha_str_to_bin(char *str, uint8_t *bin)
+{
+	printf("Comes here\n");
+	for(int x=0;x<HASH_SIZE;x=x+2) {
+		if (str[x] >= '0' && str[x] <= '9')
+			bin[x/2] = (str[x] - '0') & 0x0f;
+		else if (str[x] >= 'a' && str[x] <= 'f')
+			bin[x/2] = (str[x] - 'a' + 10) & 0x0f;
+
+		if (str[x+1] >= '0' && str[x+1] <= '9')
+			bin[x/2] |= (str[x+1] - '0') << 4;
+		else if (str[x+1] >= 'a' && str[x+1] <= 'f')
+			bin[x/2] |= (str[x+1] - 'a' + 10) << 4;
+	}
+}
