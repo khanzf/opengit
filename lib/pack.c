@@ -722,14 +722,6 @@ pack_content_handler(char *sha, packhandler packhandler, void *parg)
 	struct objectinfo objectinfo;
 
 	offset = pack_get_packfile_offset(sha, filename);
-/*	if (flags == CAT_FILE_EXIT) {
-		if (offset == -1)
-			exit(1);
-		else
-			exit(0);
-	}
-*/
-
 	if (offset == -1) {
 		fprintf(stderr, "fatal: git cat-file: could not get object info 1\n");
 		exit(128);
@@ -738,7 +730,7 @@ pack_content_handler(char *sha, packhandler packhandler, void *parg)
 	strlcpy(filename+strlen(filename)-4, ".pack", 6);
 	packfd = open(filename, O_RDONLY);
 	if (packfd == -1) {
-		fprintf(stderr, "fatal: git cat-file: could not get object info\n");
+		fprintf(stderr, "fatal: ogit: could not get object info\n");
 		fprintf(stderr, "This The git repository may be corrupt.\n");
 		exit(128);
 	}

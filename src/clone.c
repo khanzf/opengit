@@ -36,6 +36,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "lib/pack.h"
+#include "lib/index.h"
 #include "lib/ini.h"
 #include "lib/loose.h"
 #include "lib/zlib-handler.h"
@@ -377,6 +378,8 @@ clone_main(int argc, char *argv[])
 	char *repopath;
 	char treesha[HASH_SIZE];
 	struct clone_handler *chandler;
+	struct indextree indextree;
+	struct indexpath indexpath;
 	int nch, ret = 0;
 	int ch;
 	int q = 0;
@@ -445,6 +448,32 @@ clone_main(int argc, char *argv[])
 	strlcpy(inodepath, repodir, PATH_MAX);
 
 	iterate_tree(treesha, generate_tree_item, inodepath);
+
+	int e;
+	indextree.version = 0x2;
+	indextree.entries = 0;
+	indexpath.indextree = &indextree;
+	e = snprintf(inodepath, PATH_MAX, "%s/", repodir);
+	indexpath.fullpath = inodepath;
+	indexpath.path = (char *)inodepath + e;
+
+	indextree.dircleaf = NULL;
+	indextree.treeleaf = NULL;
+
+	/* Terminate the string */
+	indexpath.path[0] = '\0';
+
+	iterate_tree(treesha, index_generate_indextree, &indexpath);
+
+	strlcpy(inodepath, dotgitpath, PATH_MAX);
+	strlcat(inodepath, "/index", PATH_MAX);
+	printf("The filepath: %s\n", inodepath);
+	int packfd = open(inodepath, O_CREAT|O_RDWR, 0666);
+	if (packfd == -1) {
+		printf("Error with /tmp/mypack");
+		exit(0);
+	}
+	index_write(&indextree, packfd);
 
 out:
 	free(repodir);

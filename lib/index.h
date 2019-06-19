@@ -119,7 +119,18 @@ struct indextree {
 	struct treeleaf		*treeleaf;
 };
 
+/*
+ * This is used to facilitate converting
+ * a tree object to an indextree
+ */
+struct indexpath {
+	struct indextree *indextree;
+	char *fullpath;
+	char *path;
+};
+
 void		index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsize);
 void		index_write(struct indextree *indextree, int indexfd);
+void		index_generate_indextree(char *mode, uint8_t type, char *sha, char *filename, void *arg);
 
 #endif

@@ -26,6 +26,7 @@
  */
 
 #include <netinet/in.h>
+#include <sys/stat.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -138,7 +139,6 @@ dirc_entry(unsigned char *indexmap, off_t *offset, int entries)
 			strlcpy(dircleaf[i].name, dircentry->name, strlen(dircentry->name)+1);
 			*offset += (DIRCENTRYSIZE + strlen(dircentry->name)) & ~0x7;
 		}
-
 		dircleaf[i].ctime_sec = dircentry->ctime_sec;
 		dircleaf[i].ctime_nsec = dircentry->ctime_nsec;
 		dircleaf[i].mtime_sec = dircentry->mtime_sec;
@@ -176,11 +176,11 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 		fprintf(stderr, "Does not match???\n");
 		exit(0);
 	}
-	indextree->version = indexhdr->version;
-	indextree->entries = indexhdr->entries;
+	indextree->version = htonl(indexhdr->version);
+	indextree->entries = htonl(indexhdr->entries);
 
 	offset += sizeof(struct indexhdr);
-	indextree->dircleaf = dirc_entry(indexmap, &offset, ntohl(indexhdr->entries));
+	indextree->dircleaf = dirc_entry(indexmap, &offset, indextree->entries);
 
 	while (offset <= indexsize - HASH_SIZE/2 - 8) {
 		indexhdr = (struct indexhdr *)((char *)indexmap + offset);
@@ -252,16 +252,20 @@ index_write(struct indextree *indextree, int indexfd)
 	struct dircleaf *dircleaf = indextree->dircleaf;
 	SHA1_CTX indexctx;
 	uint8_t sha[20];
-	SHA1_Init(&indexctx);
-
-	write_sha(&indexctx, indexfd, "DIRC", 4);
-	write_sha(&indexctx, indexfd, &indextree->version, 4);
-	write_sha(&indexctx, indexfd, &indextree->entries, 4);
-
+	uint32_t convert;
 	char null = 0x00;
 	int padding;
 
-	for(int i=0;i<ntohl(indextree->entries);i++) {
+	SHA1_Init(&indexctx);
+
+	write_sha(&indexctx, indexfd, "DIRC", 4);
+	convert = htonl(indextree->version);
+	write_sha(&indexctx, indexfd, &convert, 4);
+	convert = htonl(indextree->entries);
+	write_sha(&indexctx, indexfd, &convert, 4);
+
+
+	for(int i=0;i<indextree->entries;i++) {
 		write_sha(&indexctx, indexfd, &dircleaf[i].ctime_sec, 4);
 		write_sha(&indexctx, indexfd, &dircleaf[i].ctime_nsec, 4);
 		write_sha(&indexctx, indexfd, &dircleaf[i].mtime_sec, 4);
@@ -272,7 +276,7 @@ index_write(struct indextree *indextree, int indexfd)
 		write_sha(&indexctx, indexfd, &dircleaf[i].uid, 4);
 		write_sha(&indexctx, indexfd, &dircleaf[i].gid, 4);
 		write_sha(&indexctx, indexfd, &dircleaf[i].size, 4);
-		write_sha(&indexctx, indexfd, &dircleaf[i].sha, 20);
+		write_sha(&indexctx, indexfd, &dircleaf[i].sha, HASH_SIZE/2);
 		write_sha(&indexctx, indexfd, &dircleaf[i].flags, 2);
 		if (dircleaf[i].isextended == true)
 			write_sha(&indexctx, indexfd, &dircleaf[i].flags2, 2);
@@ -296,4 +300,53 @@ index_write(struct indextree *indextree, int indexfd)
 	/* Write the trailing SHA */
 	SHA1_Final((unsigned char *)sha, &indexctx);
 	write(indexfd, sha, 20);
+}
+
+void
+index_generate_indextree(char *mode, uint8_t type, char *sha, char *filename, void *arg)
+{
+	struct indexpath *indexpath = arg;
+	struct indextree *indextree = indexpath->indextree;
+	char *path = indexpath->path;
+	char *fn = path + strlen(path);
+
+	if (type == OBJ_TREE) {
+		strlcat(path, filename, PATH_MAX);
+		strlcat(path, "/", PATH_MAX);
+		iterate_tree(sha, index_generate_indextree, indexpath);
+	}
+	else {
+		struct dircleaf *curleaf;
+		struct stat sb;
+		int ret;
+		strlcat(path, filename, PATH_MAX);
+		ret = stat(indexpath->fullpath, &sb);
+		if (ret == -1) {
+			fprintf(stderr, "Unable to generate index file, exiting.\n");
+			exit(ret);
+		}
+		indextree->dircleaf = realloc(indextree->dircleaf, sizeof(struct dircleaf) * (indextree->entries+1));
+		curleaf = &indextree->dircleaf[indextree->entries];
+		curleaf->isextended = 0;
+		curleaf->ctime_sec	= htonl(sb.st_ctime);
+		curleaf->ctime_nsec 	= htonl(sb.st_ctim.tv_nsec);
+		curleaf->mtime_sec	= htonl(sb.st_mtime);
+		curleaf->mtime_nsec	= htonl(sb.st_mtim.tv_nsec);
+		curleaf->dev		= htonl(sb.st_dev);
+		curleaf->ino		= htonl(sb.st_ino);
+		curleaf->mode		= htonl(sb.st_mode);
+		curleaf->uid		= htonl(sb.st_uid);
+		curleaf->gid		= htonl(sb.st_gid);
+		curleaf->size		= htonl(sb.st_size);
+		// SHA assigner would go here
+
+		curleaf->flags		= 0x0000;
+		curleaf->flags2		= 0x0000;
+
+		sha_str_to_bin(sha, curleaf->sha);
+		strlcpy(curleaf->name, filename, PATH_MAX);
+
+		indextree->entries++;
+	}
+	*fn = '\0';
 }
