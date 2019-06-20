@@ -115,7 +115,7 @@ tree_entry(unsigned char *indexmap, off_t *offset, int ext_size)
  * Must free: dircleaf
  */
 static struct dircleaf *
-dirc_entry(unsigned char *indexmap, off_t *offset, int entries)
+read_dirc(unsigned char *indexmap, off_t *offset, int entries)
 {
 	struct dircleaf *dircleaf;
 	struct dircentry *dircentry;
@@ -150,7 +150,12 @@ dirc_entry(unsigned char *indexmap, off_t *offset, int entries)
 		dircleaf[i].gid = dircentry->gid;
 		dircleaf[i].size = dircentry->size;
 		memcpy(dircleaf[i].sha, dircentry->sha, 20);
-		dircleaf[i].flags = dircentry->flags;
+		/*
+		 * This line of code is commented out but left in. This is because git's
+		 * documentation erroneously has a 2-byte flag. However in practice this
+		 * is not used in git version 2.0
+		 */
+		// dircleaf[i].flags = dircentry->flags;
 	}
 
 	return dircleaf;
@@ -180,7 +185,7 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 	indextree->entries = htonl(indexhdr->entries);
 
 	offset += sizeof(struct indexhdr);
-	indextree->dircleaf = dirc_entry(indexmap, &offset, indextree->entries);
+	indextree->dircleaf = read_dirc(indexmap, &offset, indextree->entries);
 
 	while (offset <= indexsize - HASH_SIZE/2 - 8) {
 		indexhdr = (struct indexhdr *)((char *)indexmap + offset);
@@ -264,22 +269,48 @@ index_write(struct indextree *indextree, int indexfd)
 	convert = htonl(indextree->entries);
 	write_sha(&indexctx, indexfd, &convert, 4);
 
+	uint32_t fourbyte;
+	uint16_t twobyte;
+	uint8_t onebyte;
 
 	for(int i=0;i<indextree->entries;i++) {
-		write_sha(&indexctx, indexfd, &dircleaf[i].ctime_sec, 4);
-		write_sha(&indexctx, indexfd, &dircleaf[i].ctime_nsec, 4);
-		write_sha(&indexctx, indexfd, &dircleaf[i].mtime_sec, 4);
-		write_sha(&indexctx, indexfd, &dircleaf[i].mtime_nsec, 4);
-		write_sha(&indexctx, indexfd, &dircleaf[i].dev, 4);
-		write_sha(&indexctx, indexfd, &dircleaf[i].ino, 4);
-		write_sha(&indexctx, indexfd, &dircleaf[i].mode, 4);
-		write_sha(&indexctx, indexfd, &dircleaf[i].uid, 4);
+		fourbyte = htonl(dircleaf[i].ctime_sec);
+		write_sha(&indexctx, indexfd, &fourbyte, 4);
+
+		fourbyte = htonl(dircleaf[i].ctime_nsec);
+		write_sha(&indexctx, indexfd, &fourbyte, 4);
+
+		fourbyte = htonl(dircleaf[i].mtime_sec);
+		write_sha(&indexctx, indexfd, &fourbyte, 4);
+
+		fourbyte = htonl(dircleaf[i].mtime_nsec);
+		write_sha(&indexctx, indexfd, &fourbyte, 4);
+
+		fourbyte = htonl(dircleaf[i].dev);
+		write_sha(&indexctx, indexfd, &fourbyte, 4);
+
+		fourbyte = htonl(dircleaf[i].ino);
+		write_sha(&indexctx, indexfd, &fourbyte, 4);
+
+		fourbyte = htonl(dircleaf[i].mode);
+		write_sha(&indexctx, indexfd, &fourbyte, 4);
+
+		fourbyte = htonl(dircleaf[i].uid);
+		write_sha(&indexctx, indexfd, &fourbyte, 4);
+
+		fourbyte = htonl(dircleaf[i].gid);
 		write_sha(&indexctx, indexfd, &dircleaf[i].gid, 4);
-		write_sha(&indexctx, indexfd, &dircleaf[i].size, 4);
-		write_sha(&indexctx, indexfd, &dircleaf[i].sha, HASH_SIZE/2);
-		write_sha(&indexctx, indexfd, &dircleaf[i].flags, 2);
-		if (dircleaf[i].isextended == true)
-			write_sha(&indexctx, indexfd, &dircleaf[i].flags2, 2);
+
+		fourbyte = htonl(dircleaf[i].size);
+		write_sha(&indexctx, indexfd, &fourbyte, 4);
+
+		for(int v=0;v<HASH_SIZE/2;v++){
+			onebyte = (dircleaf[i].sha[v] << 4) | (dircleaf[i].sha[v] >> 4);
+			write_sha(&indexctx, indexfd, &onebyte, 1);
+		}
+		twobyte = strlen(dircleaf[i].name);
+		twobyte = htons(twobyte);
+		write_sha(&indexctx, indexfd, &twobyte, 2);
 
 		write_sha(&indexctx, indexfd, &dircleaf[i].name, strlen(dircleaf[i].name));
 
@@ -294,12 +325,12 @@ index_write(struct indextree *indextree, int indexfd)
 			write_sha(&indexctx, indexfd, &null, 1);
 	}
 
-	if (indextree->treeleaf)
-		write_tree(&indexctx, indextree, indexfd);
+//	if (indextree->treeleaf)
+//		write_tree(&indexctx, indextree, indexfd);
 
 	/* Write the trailing SHA */
 	SHA1_Final((unsigned char *)sha, &indexctx);
-	write(indexfd, sha, 20);
+//	write(indexfd, sha, 20);
 }
 
 void
@@ -328,16 +359,16 @@ index_generate_indextree(char *mode, uint8_t type, char *sha, char *filename, vo
 		indextree->dircleaf = realloc(indextree->dircleaf, sizeof(struct dircleaf) * (indextree->entries+1));
 		curleaf = &indextree->dircleaf[indextree->entries];
 		curleaf->isextended = 0;
-		curleaf->ctime_sec	= htonl(sb.st_ctime);
-		curleaf->ctime_nsec 	= htonl(sb.st_ctim.tv_nsec);
-		curleaf->mtime_sec	= htonl(sb.st_mtime);
-		curleaf->mtime_nsec	= htonl(sb.st_mtim.tv_nsec);
-		curleaf->dev		= htonl(sb.st_dev);
-		curleaf->ino		= htonl(sb.st_ino);
-		curleaf->mode		= htonl(sb.st_mode);
-		curleaf->uid		= htonl(sb.st_uid);
-		curleaf->gid		= htonl(sb.st_gid);
-		curleaf->size		= htonl(sb.st_size);
+		curleaf->ctime_sec	= sb.st_ctime;
+		curleaf->ctime_nsec 	= sb.st_ctim.tv_nsec;
+		curleaf->mtime_sec	= sb.st_mtime;
+		curleaf->mtime_nsec	= sb.st_mtim.tv_nsec;
+		curleaf->dev		= sb.st_dev;
+		curleaf->ino		= sb.st_ino;
+		curleaf->mode		= sb.st_mode;
+		curleaf->uid		= sb.st_uid;
+		curleaf->gid		= sb.st_gid;
+		curleaf->size		= sb.st_size;
 		// SHA assigner would go here
 
 		curleaf->flags		= 0x0000;

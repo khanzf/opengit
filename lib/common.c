@@ -178,7 +178,6 @@ sha_bin_to_str(uint8_t *bin, char *str)
 void
 sha_str_to_bin(char *str, uint8_t *bin)
 {
-	printf("Comes here\n");
 	for(int x=0;x<HASH_SIZE;x=x+2) {
 		if (str[x] >= '0' && str[x] <= '9')
 			bin[x/2] = (str[x] - '0') & 0x0f;
