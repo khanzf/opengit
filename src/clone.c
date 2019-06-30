@@ -380,6 +380,7 @@ clone_main(int argc, char *argv[])
 	struct clone_handler *chandler;
 	struct indextree indextree;
 	struct indexpath indexpath;
+	struct treeleaf treeleaf;
 	int nch, ret = 0;
 	int ch;
 	int q = 0;
@@ -458,12 +459,21 @@ clone_main(int argc, char *argv[])
 	indexpath.path = (char *)inodepath + e;
 
 	indextree.dircleaf = NULL;
-	indextree.treeleaf = NULL;
+	indextree.treeleaf = &treeleaf;
 
 	/* Terminate the string */
 	indexpath.path[0] = '\0';
 
 	iterate_tree(treesha, index_generate_indextree, &indexpath);
+
+	treeleaf.ext_size = 0;
+	treeleaf.entry_count = 0;
+	treeleaf.local_tree_count = 0;
+	treeleaf.total_tree_count = 0;
+	treeleaf.subtree = NULL;
+	indexpath.current_position = 0;
+
+	iterate_tree(treesha, index_generate_treedata, &indexpath);
 
 	strlcpy(inodepath, dotgitpath, PATH_MAX);
 	strlcat(inodepath, "/index", PATH_MAX);
@@ -477,6 +487,7 @@ clone_main(int argc, char *argv[])
 
 out:
 	free(repodir);
+	free(treeleaf.subtree); /* Allocated by index_generate_treedata */
 
 	return (ret);
 }

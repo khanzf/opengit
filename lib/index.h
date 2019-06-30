@@ -127,10 +127,13 @@ struct indexpath {
 	struct indextree *indextree;
 	char *fullpath;
 	char *path;
+
+	int current_position;
 };
 
 void		index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsize);
 void		index_write(struct indextree *indextree, int indexfd);
 void		index_generate_indextree(char *mode, uint8_t type, char *sha, char *filename, void *arg);
+void		index_generate_treedata(char *mode, uint8_t type, char *sha, char *filename, void *arg);
 
 #endif

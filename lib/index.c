@@ -381,3 +381,47 @@ index_generate_indextree(char *mode, uint8_t type, char *sha, char *filename, vo
 	}
 	*fn = '\0';
 }
+
+/*
+ * This function recursively iterates through a TREE to produce the data
+ * necessary to write the index.
+ * ToFree after function: treeleaf->subtree
+ */
+void
+index_generate_treedata(char *mode, uint8_t type, char *sha, char *filename, void *arg)
+{
+	struct indexpath *indexpath = arg;
+	struct indextree *indextree = indexpath->indextree;
+	struct treeleaf *treeleaf = indextree->treeleaf;
+	struct subtree *next_tree;
+
+	if (type == OBJ_TREE) {
+		int local_position, next_position;
+
+		local_position = indexpath->current_position;
+		treeleaf->total_tree_count++;
+		treeleaf->subtree = realloc(treeleaf->subtree,
+		    sizeof(struct subtree)*(treeleaf->total_tree_count));
+		next_tree=&treeleaf->subtree[treeleaf->total_tree_count-1];
+		next_tree->entries=0;
+		next_tree->sub_count=0;
+		strlcpy(next_tree->path, filename, PATH_MAX);
+
+		indexpath->current_position = next_position = treeleaf->total_tree_count;
+		treeleaf->subtree[local_position-1].sub_count++;
+		iterate_tree(sha, index_generate_treedata, indexpath);
+		indexpath->current_position = local_position;
+
+		if (local_position > 0)
+			treeleaf->subtree[local_position-1].entries += treeleaf->subtree[next_position-1].entries;
+		else
+			treeleaf->local_tree_count++;
+	}
+	else {
+		treeleaf->entry_count++;
+		if (indexpath->current_position > 0) {
+			next_tree = &treeleaf->subtree[indexpath->current_position-1];
+			next_tree->entries++;
+		}
+	}
+}
