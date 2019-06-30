@@ -180,13 +180,13 @@ sha_str_to_bin(char *str, uint8_t *bin)
 {
 	for(int x=0;x<HASH_SIZE;x=x+2) {
 		if (str[x] >= '0' && str[x] <= '9')
-			bin[x/2] = (str[x] - '0') & 0x0f;
+			bin[x/2] = ((str[x] - '0') << 4) & 0xf0;
 		else if (str[x] >= 'a' && str[x] <= 'f')
-			bin[x/2] = (str[x] - 'a' + 10) & 0x0f;
+			bin[x/2] = ((str[x] - 'a' + 10) << 4) & 0xf0;
 
 		if (str[x+1] >= '0' && str[x+1] <= '9')
-			bin[x/2] |= (str[x+1] - '0') << 4;
+			bin[x/2] |= (str[x+1] - '0') & 0x0f;
 		else if (str[x+1] >= 'a' && str[x+1] <= 'f')
-			bin[x/2] |= (str[x+1] - 'a' + 10) << 4;
+			bin[x/2] |= (str[x+1] - 'a' + 10) & 0x0f;
 	}
 }
