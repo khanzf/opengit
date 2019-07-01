@@ -723,7 +723,7 @@ pack_content_handler(char *sha, packhandler packhandler, void *parg)
 
 	offset = pack_get_packfile_offset(sha, filename);
 	if (offset == -1) {
-		fprintf(stderr, "fatal: git cat-file: could not get object info 1\n");
+		fprintf(stderr, "fatal: ogit: Cannot retrieve %s\n", sha);
 		exit(128);
 	}
 

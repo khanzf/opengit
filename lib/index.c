@@ -158,7 +158,7 @@ read_dirc(unsigned char *indexmap, off_t *offset, int entries)
 		// dircleaf[i].flags = dircentry->flags;
 	}
 
-	return dircleaf;
+	return (dircleaf);
 }
 
 /*
@@ -243,7 +243,6 @@ write_tree(SHA1_CTX *indexctx, struct indextree *indextree, int indexfd)
 		write_sha(indexctx, indexfd, tmp, x);
 		write_sha(indexctx, indexfd, treeleaf->subtree[s].sha, HASH_SIZE/2);
 	}
-
 }
 
 /*
@@ -263,9 +262,12 @@ index_write(struct indextree *indextree, int indexfd)
 
 	SHA1_Init(&indexctx);
 
+	/* DIRC signature */
 	write_sha(&indexctx, indexfd, "DIRC", 4);
+	/* Write version */
 	convert = htonl(indextree->version);
 	write_sha(&indexctx, indexfd, &convert, 4);
+	/* Write version */
 	convert = htonl(indextree->entries);
 	write_sha(&indexctx, indexfd, &convert, 4);
 
@@ -325,12 +327,12 @@ index_write(struct indextree *indextree, int indexfd)
 			write_sha(&indexctx, indexfd, &null, 1);
 	}
 
-//	if (indextree->treeleaf)
-//		write_tree(&indexctx, indextree, indexfd);
+	if (indextree->treeleaf)
+		write_tree(&indexctx, indextree, indexfd);
 
 	/* Write the trailing SHA */
 	SHA1_Final((unsigned char *)sha, &indexctx);
-//	write(indexfd, sha, 20);
+	write(indexfd, sha, HASH_SIZE/2);
 }
 
 void
@@ -405,6 +407,7 @@ index_generate_treedata(char *mode, uint8_t type, char *sha, char *filename, voi
 		next_tree=&treeleaf->subtree[treeleaf->total_tree_count-1];
 		next_tree->entries=0;
 		next_tree->sub_count=0;
+		sha_str_to_bin_network(sha, next_tree->sha);
 		strlcpy(next_tree->path, filename, PATH_MAX);
 
 		indexpath->current_position = next_position = treeleaf->total_tree_count;
@@ -423,5 +426,43 @@ index_generate_treedata(char *mode, uint8_t type, char *sha, char *filename, voi
 			next_tree = &treeleaf->subtree[indexpath->current_position-1];
 			next_tree->entries++;
 		}
+	}
+}
+
+/*
+ * Calculate the size of the tree extension
+ * The TREE header size is calculated with two parts.
+ * 1. The main tree part:
+ *    - The initial NULL char (1 byte)
+ *    - The length of the entry_count in ASCII (variable size)
+ *    - The space character (1 byte)
+ *    - The length of the total_tree_count in ASCII (variable size)
+ *    - The newline char (1 byte)
+ *    - The SHA in bin format (20 bytes)
+ * 2. The subtree sections:
+ *    - The size of the tree name (variable size)
+ *    - The closing NULL character (1 byte)
+ *    - The size of the entries in ASCII (variable size)
+ *    - The space character (1 byte)
+ *    - The size of the subtrees in ASCII (variable size)
+ *    - The newline char (1 byte)
+ *    - The SHA in bin format (20 bytes)
+ * I slightly rearranged these additions out of order, but the sum is the same
+ * */
+void
+index_calculate_tree_ext_size(struct treeleaf *treeleaf)
+{
+#define NULCHAR 1
+#define SPACE 1
+#define NEWLINE 1
+	/* Calculate part 1 */
+	treeleaf->ext_size += count_digits(treeleaf->entry_count) + count_digits(treeleaf->total_tree_count);
+	treeleaf->ext_size += NULCHAR + SPACE + NEWLINE + HASH_SIZE/2;
+
+	for(int r=0;r<treeleaf->total_tree_count;r++) {
+		treeleaf->ext_size += strlen(treeleaf->subtree[r].path);
+		treeleaf->ext_size += count_digits(treeleaf->subtree[r].entries);
+		treeleaf->ext_size += count_digits(treeleaf->subtree[r].sub_count);
+		treeleaf->ext_size += NULCHAR + SPACE + NEWLINE + HASH_SIZE/2;
 	}
 }

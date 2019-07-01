@@ -76,5 +76,7 @@ int			git_repository_path();
 void			iterate_tree(char *treesha, tree_handler tree_handler, void *args);
 void			sha_bin_to_str(uint8_t *bin, char *str);
 void			sha_str_to_bin(char *str, uint8_t *bin);
+void			sha_str_to_bin_network(char *str, uint8_t *bin);
+int			count_digits(int check);
 
 #endif

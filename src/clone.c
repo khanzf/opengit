@@ -466,18 +466,21 @@ clone_main(int argc, char *argv[])
 
 	iterate_tree(treesha, index_generate_indextree, &indexpath);
 
-	treeleaf.ext_size = 0;
 	treeleaf.entry_count = 0;
 	treeleaf.local_tree_count = 0;
 	treeleaf.total_tree_count = 0;
 	treeleaf.subtree = NULL;
+	sha_str_to_bin(treesha, treeleaf.sha);
+
 	indexpath.current_position = 0;
 
+	treeleaf.ext_size = 0;
 	iterate_tree(treesha, index_generate_treedata, &indexpath);
+
+	index_calculate_tree_ext_size(&treeleaf);
 
 	strlcpy(inodepath, dotgitpath, PATH_MAX);
 	strlcat(inodepath, "/index", PATH_MAX);
-	printf("The filepath: %s\n", inodepath);
 	int packfd = open(inodepath, O_CREAT|O_RDWR, 0666);
 	if (packfd == -1) {
 		printf("Error with /tmp/mypack");
