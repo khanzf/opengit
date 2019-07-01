@@ -35,6 +35,11 @@
 
 /* Header source Documentation/technical/index-format.txt */
 
+#define	NULLCHAR	1
+#define SPACECHAR	1
+#define NEWLINE		1
+#define EXT_SIZE_FIXED	NULLCHAR + SPACECHAR + NEWLINE + HASH_SIZE/2
+
 struct indexhdr {
 	char			sig[4];		/* Cache type */
 	uint32_t		version;	/* Version Number */

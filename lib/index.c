@@ -187,6 +187,11 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 	offset += sizeof(struct indexhdr);
 	indextree->dircleaf = read_dirc(indexmap, &offset, indextree->entries);
 
+	/*
+	 * This calculation is derived from GPL git
+	 * The 'HASH_SIZE/2 - 8' is based on the trailing hash length
+	 * and adding the padding of up to 8 characters.
+	 */
 	while (offset <= indexsize - HASH_SIZE/2 - 8) {
 		indexhdr = (struct indexhdr *)((char *)indexmap + offset);
 
@@ -259,6 +264,9 @@ index_write(struct indextree *indextree, int indexfd)
 	uint32_t convert;
 	char null = 0x00;
 	int padding;
+	uint32_t fourbyte;
+	uint16_t twobyte;
+	uint8_t onebyte;
 
 	SHA1_Init(&indexctx);
 
@@ -270,10 +278,6 @@ index_write(struct indextree *indextree, int indexfd)
 	/* Write version */
 	convert = htonl(indextree->entries);
 	write_sha(&indexctx, indexfd, &convert, 4);
-
-	uint32_t fourbyte;
-	uint16_t twobyte;
-	uint8_t onebyte;
 
 	for(int i=0;i<indextree->entries;i++) {
 		fourbyte = htonl(dircleaf[i].ctime_sec);
@@ -371,8 +375,7 @@ index_generate_indextree(char *mode, uint8_t type, char *sha, char *filename, vo
 		curleaf->uid		= sb.st_uid;
 		curleaf->gid		= sb.st_gid;
 		curleaf->size		= sb.st_size;
-		// SHA assigner would go here
-
+		/* SHA assigner would go here */
 		curleaf->flags		= 0x0000;
 		curleaf->flags2		= 0x0000;
 
@@ -452,17 +455,13 @@ index_generate_treedata(char *mode, uint8_t type, char *sha, char *filename, voi
 void
 index_calculate_tree_ext_size(struct treeleaf *treeleaf)
 {
-#define NULCHAR 1
-#define SPACE 1
-#define NEWLINE 1
-	/* Calculate part 1 */
 	treeleaf->ext_size += count_digits(treeleaf->entry_count) + count_digits(treeleaf->total_tree_count);
-	treeleaf->ext_size += NULCHAR + SPACE + NEWLINE + HASH_SIZE/2;
+	treeleaf->ext_size += EXT_SIZE_FIXED;
 
 	for(int r=0;r<treeleaf->total_tree_count;r++) {
 		treeleaf->ext_size += strlen(treeleaf->subtree[r].path);
 		treeleaf->ext_size += count_digits(treeleaf->subtree[r].entries);
 		treeleaf->ext_size += count_digits(treeleaf->subtree[r].sub_count);
-		treeleaf->ext_size += NULCHAR + SPACE + NEWLINE + HASH_SIZE/2;
+		treeleaf->ext_size += EXT_SIZE_FIXED;
 	}
 }
