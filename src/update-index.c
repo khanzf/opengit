@@ -51,7 +51,7 @@ int
 update_index_usage(int type)
 {
 	fprintf(stderr, "usage: git update-index [<options>] [--] [<file>...]\n");
-	return 0;
+	return (0);
 }
 
 int
@@ -64,7 +64,7 @@ update_index_open_index(FILE **indexptr)
 
 	*indexptr = fopen(indexpath, "rw");
 
-	return 0;
+	return (0);
 }
 
 int
@@ -83,7 +83,7 @@ update_index_parse(FILE **indexptr)
 	}
 
 	index_parse(&indextree, indexmap, sb.st_size);
-	return 0;
+	return (0);
 }
 
 int
@@ -105,7 +105,7 @@ update_index_main(int argc, char *argv[])
 			break;
 		default:
 			printf("Currently not implemented\n");
-			return -1;
+			return (-1);
 		}
 	argc = argc - q;
 	argv = argv + q;

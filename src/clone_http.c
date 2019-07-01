@@ -194,7 +194,7 @@ clone_http_build_done(char **content, int content_length)
 {
 	*content = realloc(*content, content_length + 14);
 	strlcpy(*content+content_length, "00000009done\n\0", 14);
-	return 13; // Always the same length
+	return (13); // Always the same length
 }
 
 static int
@@ -210,7 +210,7 @@ clone_http_build_want(char **content, int content_length, char *capabilities, co
 	*content = realloc(*content, content_length + len + 1);
 	strlcpy(*content+content_length, line, len+1);
 
-	return len;
+	return (len);
 }
 
 static int
@@ -225,7 +225,7 @@ clone_build_post_content(const char *sha, char **content)
 	    capabilities, sha);
 	content_length += clone_http_build_done(content, content_length);
 
-	return content_length;
+	return (content_length);
 }
 
 static void

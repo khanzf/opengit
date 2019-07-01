@@ -52,11 +52,11 @@ int loose_content_handler(char *sha, inflated_handler inflated_handler, void *ia
 	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c/%s", dotgitpath, sha[0], sha[1], sha+2);
 	objectfd = open(objectpath, O_RDONLY);
 	if (objectfd == -1)
-		return 1;
+		return (1);
 
 	deflate_caller(objectfd, NULL, NULL, inflated_handler, iarg);
 
-	return 0;
+	return (0);
 }
 
 /*
@@ -98,7 +98,7 @@ loose_get_headers(unsigned char *buf, int size, void *arg)
 		hdr_offset = 15;
 	}
 
-	return hdr_offset;
+	return (hdr_offset);
 }
 
 
@@ -116,5 +116,5 @@ get_type_loose_cb(unsigned char *buf, int size, int __unused deflated_bytes, voi
 
 	loose_get_headers(buf, size, &loosearg);
 	*type = loosearg.type;
-	return buf;
+	return (buf);
 }

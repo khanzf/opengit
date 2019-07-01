@@ -64,7 +64,7 @@ char *init_dirs[] = {
 int
 init_usage(int type)
 {
-	return 0;
+	return (0);
 }
 
 /*
@@ -124,7 +124,7 @@ init_dirinit(char *repodir)
 	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
 	if (fd == -1 || fstat(fd, &sb)) {
 		fprintf(stderr, "Cannot create description file\n");
-		return -1;
+		return (-1);
 	}
 	close(fd);
 
@@ -135,7 +135,7 @@ init_dirinit(char *repodir)
 	}
 	close(fd);
 
-	return 0;
+	return (0);
 }
 
 int

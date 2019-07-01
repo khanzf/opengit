@@ -195,7 +195,7 @@ clone_pack_protocol_process(void *buffer, size_t size, size_t nmemb, void *userp
 		free(reply);
 	parseread->cremnant = nmemb - offset;
 
-	return offset + parseread->cremnant;
+	return (offset + parseread->cremnant);
 
 }
 
@@ -225,7 +225,7 @@ get_repo_dir(char *path)
 	}
 
 	reponame = strndup(path+x, end-x);
-	return reponame;
+	return (reponame);
 }
 
 static void
@@ -396,7 +396,7 @@ clone_main(int argc, char *argv[])
 			break;
 		default:
 			printf("Currently not implemented\n");
-			return -1;
+			return (-1);
 		}
 	argc = argc - q;
 	argv = argv + q;

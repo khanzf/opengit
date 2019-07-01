@@ -85,10 +85,10 @@ cat_loose_object_cb(unsigned char *buf, int size, int __unused deflated_bytes, v
 		case CAT_FILE_TYPE:
 			loose_get_headers(buf, size, loosearg);
 			cat_file_print_type_by_id(loosearg->type);
-			return NULL;
+			return (NULL);
 		case CAT_FILE_SIZE:
 			printf("%lu\n", loosearg->size);
-			return NULL;
+			return (NULL);
 		case CAT_FILE_PRINT:
 			size -= hdr_offset;
 			buf += hdr_offset;
@@ -97,7 +97,7 @@ cat_loose_object_cb(unsigned char *buf, int size, int __unused deflated_bytes, v
 	}
 
 	write(loosearg->fd, buf, size);
-	return buf;
+	return (buf);
 }
 
 /* Print out content of pack objects */

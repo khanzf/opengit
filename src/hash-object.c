@@ -65,7 +65,7 @@ hash_object_usage(int type)
 	fprintf(stderr, "    --literally\t\tjust hash any random garbage to create corrupt objects for debugging Git\n");
 	fprintf(stderr, "    --path <file>\tprocess file as it were from this path\n");
 	fprintf(stderr, "\n");
-	return 0;
+	return (0);
 }
 
 int
@@ -86,7 +86,7 @@ hash_object_compute_checksum(FILE *source, char *checksum, char *header)
 	/* Reset the stream */
 	fseek(source, 0, SEEK_SET);
 
-	return 0;
+	return (0);
 }
 
 int
@@ -98,7 +98,7 @@ hash_object_create_header(char *filepath, char *header)
 
 	l = sprintf(header, "blob %ld", sb.st_size);
 
-	return l;
+	return (l);
 }
 
 int
@@ -119,7 +119,7 @@ hash_object_create_zlib(FILE *source, FILE *dest, unsigned char *header, unsigne
 	strm.opaque = Z_NULL;
 	ret = deflateInit(&strm, Z_BEST_SPEED);
 	if (ret != Z_OK)
-		return ret;
+		return (ret);
 
 	/* Beginning of writing the header */
 	strm.next_in = (Bytef *)header;
@@ -141,7 +141,7 @@ hash_object_create_zlib(FILE *source, FILE *dest, unsigned char *header, unsigne
 		strm.avail_in = fread(in, 1, CHUNK, source);
 		if (ferror(source)) {
 			(void)deflateEnd(&strm);
-			return Z_ERRNO;
+			return (Z_ERRNO);
 		}
 
 		flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
@@ -154,13 +154,13 @@ hash_object_create_zlib(FILE *source, FILE *dest, unsigned char *header, unsigne
 			have = CHUNK - strm.avail_out;
 			if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
 				(void)deflateEnd(&strm);
-				return Z_ERRNO;
+				return (Z_ERRNO);
 			}
 		} while(strm.avail_out == 0);
 
 	} while (flush != Z_FINISH);
 
-	return 0;
+	return (0);
 }
 
 int
@@ -180,7 +180,7 @@ hash_object_create_file(FILE **objectfileptr, char *checksum)
 
 	*objectfileptr = fopen(objectpath, "w");
 
-	return 0;
+	return (0);
 }
 
 int
@@ -226,7 +226,7 @@ hash_object_main(int argc, char *argv[])
 		default:
 			printf("Currently not implemented\n");
 			hash_object_usage(0);
-			return -1;
+			return (-1);
 		}
 	argc = argc - q;
 	argv = argv + q;
@@ -234,7 +234,7 @@ hash_object_main(int argc, char *argv[])
 	if (argv[1])
 		ret = hash_object_write(argv[1], flags);
 	else
-		return hash_object_usage(0);
+		return (hash_object_usage(0));
 
 	return (ret);
 }

@@ -214,5 +214,5 @@ count_digits(int check)
 	int digits = 1;
 	while(check /= 10)
 		digits++;
-	return digits;
+	return (digits);
 }

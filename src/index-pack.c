@@ -85,7 +85,7 @@ index_pack_main(int argc, char *argv[])
 			break;
 		default:
 			printf("Currently not implemented\n");
-			return -1;
+			return (-1);
 		}
 	argc = argc - q;
 	argv = argv + q;
@@ -135,7 +135,6 @@ index_pack_main(int argc, char *argv[])
 	/* Output the SHA to the terminal */
 	for(x=0;x<20;x++)
 		printf("%02x", packfileinfo.sha[x]);
-	printf("\n");
 
 	return (ret);
 }

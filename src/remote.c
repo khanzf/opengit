@@ -128,7 +128,7 @@ remote_list(int argc, char *argv[], uint8_t flags)
 		cur_section = cur_section->next;
 	}
 
-	return 0;
+	return (0);
 }
 
 int

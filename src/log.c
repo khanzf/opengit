@@ -159,7 +159,7 @@ log_display_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *
 	else
 		printf("%.*s", size, buf);
 
-	return NULL;
+	return (NULL);
 }
 
 void
@@ -215,12 +215,12 @@ log_get_loose_object(struct logarg *logarg)
 	    logarg->sha+2);
 	objectfd = open(objectpath, O_RDONLY);
 	if (objectfd == -1) {
-		return 0;
+		return (0);
 	}
 	deflate_caller(objectfd, NULL, NULL, log_display_cb, logarg);
 	close(objectfd);
 
-	return 1;
+	return (1);
 }
 
 int
@@ -234,7 +234,7 @@ log_get_pack_object(struct logarg *logarg)
 	/* filename to be filled in by pack_get_packfile_offset */
 	offset = pack_get_packfile_offset(logarg->sha, filename);
 	if (offset == -1)
-		return 0;
+		return (0);
 
 	strlcpy(filename+strlen(filename)-4, ".pack", 6);
 	packfd = open(filename, O_RDONLY);
@@ -249,7 +249,7 @@ log_get_pack_object(struct logarg *logarg)
 	deflate_caller(packfd, NULL, NULL, log_display_cb, logarg);
 	close(packfd);
 
-	return 1;
+	return (1);
 }
 
 void
@@ -310,7 +310,7 @@ log_main(int argc, char *argv[])
 			break;
 		default:
 			printf("Currently not implemented\n");
-			return -1;
+			return (-1);
 		}
 
 		prevch = ch;
