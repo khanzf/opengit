@@ -377,7 +377,7 @@ index_generate_indextree(char *mode, uint8_t type, char *sha, char *filename, vo
 		curleaf->flags2		= 0x0000;
 
 		sha_str_to_bin(sha, curleaf->sha);
-		strlcpy(curleaf->name, filename, PATH_MAX);
+		strlcpy(curleaf->name, path, PATH_MAX);
 
 		indextree->entries++;
 	}
