@@ -355,7 +355,7 @@ generate_tree_item(char *mode, uint8_t type, char *sha, char *filename, void *ar
 	snprintf(fn, PATH_MAX, "/%s", filename);
 	if (type == OBJ_TREE) {
 		mkdir(buildpath, 0777);
-		iterate_tree(sha, generate_tree_item, prefix);
+		ITERATE_TREE(sha, generate_tree_item, prefix);
 	}
 	else {
 		struct writer_args writer_args;
@@ -448,7 +448,7 @@ clone_main(int argc, char *argv[])
 	char inodepath[PATH_MAX];
 	strlcpy(inodepath, repodir, PATH_MAX);
 
-	iterate_tree(treesha, generate_tree_item, inodepath);
+	ITERATE_TREE(treesha, generate_tree_item, inodepath);
 
 	int e;
 	indextree.version = 0x2;
@@ -464,7 +464,7 @@ clone_main(int argc, char *argv[])
 	/* Terminate the string */
 	indexpath.path[0] = '\0';
 
-	iterate_tree(treesha, index_generate_indextree, &indexpath);
+	ITERATE_TREE(treesha, index_generate_indextree, &indexpath);
 
 	treeleaf.entry_count = 0;
 	treeleaf.local_tree_count = 0;
@@ -475,7 +475,7 @@ clone_main(int argc, char *argv[])
 	indexpath.current_position = 0;
 
 	treeleaf.ext_size = 0;
-	iterate_tree(treesha, index_generate_treedata, &indexpath);
+	ITERATE_TREE(treesha, index_generate_treedata, &indexpath);
 
 	index_calculate_tree_ext_size(&treeleaf);
 

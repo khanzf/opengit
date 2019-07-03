@@ -49,6 +49,17 @@
 
 char dotgitpath[PATH_MAX];
 
+const char *object_name[] = {
+	NULL,
+	"commit",
+	"tree",
+	"blob",
+	"tag",
+	NULL,
+	"obj_ofs_delta",
+	"obj_ref_delta"
+};
+
 /*
  * Description: Recovers a tree object and iterates through it. It will also
  * identify the object type.
@@ -56,9 +67,8 @@ char dotgitpath[PATH_MAX];
  * 2) tree_handler is what the function should do with the resultant data
  */
 void
-iterate_tree(char *treesha, tree_handler tree_handler, void *args)
+iterate_tree(struct decompressed_object *decompressed_object, tree_handler tree_handler, void *args)
 {
-	struct decompressed_object decompressed_object;
 	long offset = 0;
 	long space;
 	uint8_t *shabin;
@@ -66,11 +76,9 @@ iterate_tree(char *treesha, tree_handler tree_handler, void *args)
 	char *filename;
 	uint8_t type;
 
-	CONTENT_HANDLER(treesha, buffer_cb, pack_buffer_cb, &decompressed_object);
-
-	while(offset<decompressed_object.size) {
+	while(offset<decompressed_object->size) {
 		/* Get the file mode */
-		strlcpy(mode, (char *)decompressed_object.data+offset, 7);
+		strlcpy(mode, (char *)decompressed_object->data+offset, 7);
 		if (mode[5] != ' ')
 			space = 6;
 		else
@@ -78,11 +86,11 @@ iterate_tree(char *treesha, tree_handler tree_handler, void *args)
 		offset = offset + space;
 		mode[space] = '\0';
 
-		filename = (char *)decompressed_object.data+offset+1;
-		offset = offset + strlen((char *)decompressed_object.data+offset) + 1;
+		filename = (char *)decompressed_object->data+offset+1;
+		offset = offset + strlen((char *)decompressed_object->data+offset) + 1;
 
 		/* Get the SHA, convert it to a string */
-		shabin = decompressed_object.data + offset;
+		shabin = decompressed_object->data + offset;
 		sha_bin_to_str(shabin, shastr);
 		shastr[HASH_SIZE] = '\0';
 
@@ -96,7 +104,7 @@ iterate_tree(char *treesha, tree_handler tree_handler, void *args)
 		offset = offset + 20;
 	}
 
-	free(decompressed_object.data);
+	free(decompressed_object->data);
 }
 
 int

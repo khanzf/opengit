@@ -34,16 +34,6 @@ struct two_darg {
 	void		*sha;
 };
 
-/*
- * Used to recover a full object in a single buffer
- * not processed incrementally
- */
-struct decompressed_object {
-	unsigned char	*data;
-	unsigned long	size;
-	unsigned long	deflated_size;
-};
-
 struct writer_args {
 	int		fd;
 	long		sent;

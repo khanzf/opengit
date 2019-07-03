@@ -54,11 +54,32 @@
 #define OBJ_OFS_DELTA		6
 #define OBJ_REF_DELTA		7
 
+/*
+ * Used to recover a full object in a single buffer
+ * not processed incrementally
+ */
+struct decompressed_object {
+	unsigned char	*data;
+	unsigned long	size;
+	unsigned long	deflated_size;
+};
+
+extern const char *object_name[];
+
 #define HASH_SIZE	40
 
 #define CONTENT_HANDLER(sha, loose_handler, pack_handler, args) {	\
 	if (loose_content_handler(sha, loose_handler, args))		\
 		pack_content_handler(sha, pack_handler, args);		\
+} while(0)
+
+// XXX This may need to be migrated to a generic "object.h" or the like
+#include "loose.h"
+#include "pack.h"
+#define ITERATE_TREE(treesha, tree_handler, args) {					\
+	struct decompressed_object decompressed_object;					\
+	CONTENT_HANDLER(treesha, buffer_cb, pack_buffer_cb, &decompressed_object);	\
+	iterate_tree(&decompressed_object, tree_handler, args);				\
 } while(0)
 
 
@@ -73,7 +94,7 @@ typedef void		tree_handler(char *, uint8_t, char *, char *, void *);
 extern char		dotgitpath[PATH_MAX];
 int			git_repository_path();
 
-void			iterate_tree(char *treesha, tree_handler tree_handler, void *args);
+void			iterate_tree(struct decompressed_object *decompressed_object, tree_handler tree_handler, void *args);
 void			sha_bin_to_str(uint8_t *bin, char *str);
 void			sha_str_to_bin(char *str, uint8_t *bin);
 void			sha_str_to_bin_network(char *str, uint8_t *bin);

@@ -73,7 +73,7 @@ cat_file_print_type_by_id(int object_type)
 
 /* Handles loose object the callback, used by cat_file_get_content */
 unsigned char *
-cat_loose_object_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *arg)
+cat_loose_object_cb(unsigned char *buf, int size, int deflated_bytes, void *arg)
 {
 	struct loosearg *loosearg = arg;
 	int hdr_offset;
@@ -92,19 +92,40 @@ cat_loose_object_cb(unsigned char *buf, int size, int __unused deflated_bytes, v
 		case CAT_FILE_PRINT:
 			size -= hdr_offset;
 			buf += hdr_offset;
+
+			loosearg->decompressed_object.size = 0;
+			loosearg->decompressed_object.data = NULL;
+			loosearg->decompressed_object.deflated_size = 0;
+
 			break;
 		}
 	}
 
-	write(loosearg->fd, buf, size);
+	/*
+	 * If the object is a OBJ_TREE, the data is stored in a buffer, not printed
+	 * Further explanation is in the comment of cat_file_get_content.
+	 */
+	if (loosearg->type == OBJ_TREE)
+		buffer_cb(buf, size, deflated_bytes, &loosearg->decompressed_object);
+	else
+		write(loosearg->fd, buf, size);
 	return (buf);
 }
 
-/* Print out content of pack objects */
-void
-print_content(int packfd, struct objectinfo *objectinfo)
+static void
+print_tree(char *mode, uint8_t type, char *sha, char *filename, void *args)
 {
-	if (objectinfo->ptype != OBJ_OFS_DELTA) {
+	printf("%s %s %s\t%s\n", mode, object_name[type], sha, filename);
+}
+
+/* Print out content of pack objects */
+static void
+print_content(int packfd, struct objectinfo *objectinfo, char *sha)
+{
+	if (objectinfo->ftype == OBJ_TREE) {
+		ITERATE_TREE(sha, print_tree, NULL);
+	}
+	else if (objectinfo->ptype != OBJ_OFS_DELTA) {
 		struct writer_args writer_args;
 		writer_args.fd = STDOUT_FILENO;
 		writer_args.sent = 0;
@@ -147,7 +168,7 @@ cat_file_pack_handler(int packfd, struct objectinfo *objectinfo, void *pargs)
 
 	switch(loosearg->cmd) {
 		case CAT_FILE_PRINT:
-			print_content(packfd, objectinfo);
+			print_content(packfd, objectinfo, loosearg->sha);
 			break;
 		case CAT_FILE_SIZE:
 			print_size(packfd, objectinfo);
@@ -159,8 +180,11 @@ cat_file_pack_handler(int packfd, struct objectinfo *objectinfo, void *pargs)
 }
 
 /*
- * This will first attempt to locate a loose object.
- * If not found, it will search through the pack files.
+ * This function will print out the object in the intended format.
+ * While the CONTENT_HANDLER callback ordinarily is sufficient to process the content
+ * here the cat_loose_object_cb handler only stores the object in its decompressed_object
+ * member. Afterwards, the object is printed using iterate_tree (not ITERATE_TREE). This
+ * is a special case to prevent unnecessarily double-reading a loose object's header.
  */
 void
 cat_file_get_content(char *sha_str, uint8_t flags)
@@ -171,8 +195,12 @@ cat_file_get_content(char *sha_str, uint8_t flags)
 	loosearg.cmd = flags;
 	loosearg.step = 0;
 	loosearg.sent = 0;
+	loosearg.sha = sha_str;
 
 	CONTENT_HANDLER(sha_str, cat_loose_object_cb, cat_file_pack_handler, &loosearg);
+	if (loosearg.type == OBJ_TREE) {
+		iterate_tree(&loosearg.decompressed_object, print_tree, NULL);
+	}
 }
 
 int

@@ -43,8 +43,6 @@ Header source Documentation/technical/multi-pack-index.txt
  * These are for files located in .git/objects/pack/[*].idx
 */
 
-extern const char *object_name[];
-
 // idx file headers
 struct offset {
 	unsigned int	addr;

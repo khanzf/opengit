@@ -350,7 +350,7 @@ index_generate_indextree(char *mode, uint8_t type, char *sha, char *filename, vo
 	if (type == OBJ_TREE) {
 		strlcat(path, filename, PATH_MAX);
 		strlcat(path, "/", PATH_MAX);
-		iterate_tree(sha, index_generate_indextree, indexpath);
+		ITERATE_TREE(sha, index_generate_indextree, indexpath);
 	}
 	else {
 		struct dircleaf *curleaf;
@@ -415,7 +415,7 @@ index_generate_treedata(char *mode, uint8_t type, char *sha, char *filename, voi
 
 		indexpath->current_position = next_position = treeleaf->total_tree_count;
 		treeleaf->subtree[local_position-1].sub_count++;
-		iterate_tree(sha, index_generate_treedata, indexpath);
+		ITERATE_TREE(sha, index_generate_treedata, indexpath);
 		indexpath->current_position = local_position;
 
 		if (local_position > 0)

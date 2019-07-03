@@ -32,13 +32,16 @@
 #include "zlib-handler.h"
 
 struct loosearg {
-	int	fd;
-	uint8_t	cmd;
-	int	step;
-	long	sent;
+	int	 fd;
+	uint8_t	 cmd;
+	int	 step;
+	long	 sent;
 
-	int	type;
-	long	size;
+	int	 type;
+	long	 size;
+
+	char 	*sha;
+	struct decompressed_object decompressed_object;
 };
 
 int		 loose_get_headers(unsigned char *buf, int size, void *arg);
