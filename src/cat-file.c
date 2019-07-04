@@ -115,7 +115,7 @@ cat_loose_object_cb(unsigned char *buf, int size, int deflated_bytes, void *arg)
 static void
 print_tree(char *mode, uint8_t type, char *sha, char *filename, void *args)
 {
-	printf("%s %s %s\t%s\n", mode, object_name[type], sha, filename);
+	printf("%06d %s %s\t%s\n", atoi(mode), object_name[type], sha, filename);
 }
 
 /* Print out content of pack objects */
