@@ -61,10 +61,19 @@ char *init_dirs[] = {
 	".git/hooks",
 };
 
-int
-init_usage(int type)
+void
+init_usage()
 {
-	return (0);
+	printf("usage: ogit init [-q | --quiet] [--bare] [--template=<template-directory>] [--shared[=<permissions>]] [<directory>]\n\n");
+	printf("\t--template <template-directory>\n");
+	printf("\t\t\tdirectory from which templates will be used\n");
+	printf("\t--bare\t\tcreate a bare repository\n");
+	printf("\t--shared[=<permissions>]\n");
+	printf("\t\t\tspecify that the git repository is to be shared amongst several users\n");
+	printf("\t-q, --quiet\tbe quiet\n");
+	printf("\t--separate-git-dir <gitdir>\n");
+	printf("\t\t\tseparate git dir from working tree\n\n");
+	exit(129);
 }
 
 /*
@@ -157,7 +166,7 @@ init_main(int argc, char *argv[])
 		switch(ch) {
 		default:
 			flags = 0;
-			init_usage(-1);
+			init_usage();
 		}
 	}
 
