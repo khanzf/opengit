@@ -73,7 +73,7 @@ init_usage()
 	printf("\t-q, --quiet\tbe quiet\n");
 	printf("\t--separate-git-dir <gitdir>\n");
 	printf("\t\t\tseparate git dir from working tree\n\n");
-	exit(129);
+	exit(EXIT_INVALID_COMMAND);
 }
 
 /*

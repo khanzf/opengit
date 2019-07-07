@@ -30,6 +30,9 @@
 #include <limits.h>
 #include <stdint.h>
 
+#define EXIT_SUCCESS		0	/* Success */
+#define EXIT_INVALID_COMMAND	129	/* Invalid command */
+
 /* Portability */
 #if defined(__FreeBSD__)
 #include <sha.h>
