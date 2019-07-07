@@ -98,8 +98,6 @@ init_dirinit(char *path)
 	else
 		suffix = path;
 
-	//subpath = path + dirlen;
-
 	for(x = 0; x < nitems(init_dirs); x++) {
 		strlcpy(suffix, init_dirs[x], PATH_MAX);
 		fd = open(path, O_WRONLY | O_CREAT);
@@ -154,19 +152,24 @@ init_main(int argc, char *argv[])
 	char *repodir = NULL;
 	uint8_t flags = 0;
 	char path[PATH_MAX];
+	char *suffix;
 
 	argc--; argv++;
 
-	if (argc >= 2)
-		repodir = argv[1];
-
-	while((ch = getopt_long(argc, argv, "", long_options, NULL)) != -1) {
+	while((ch = getopt_long(argc, argv, "q", long_options, NULL)) != -1) {
 		switch(ch) {
+		case 'q':
+			flags |= INIT_QUIET;
+			argc--; argv++;
+			break;
 		default:
-			flags = 0;
 			init_usage();
+			break;
 		}
 	}
+
+	if (argc >= 2)
+		repodir = argv[1];
 
 	if (repodir)
 		ret = strlcpy(path, repodir, PATH_MAX);
@@ -174,14 +177,16 @@ init_main(int argc, char *argv[])
 		path[0] = '\0';
 		ret = 0;
 	}
+	suffix = path + ret;
 
 	ret = init_dirinit(path);
-	strlcpy(path, ".git/config", 12);
+	strlcat(path, ".git/config", 12);
 	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
 	if (fd == -1) {
 		fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
 		exit(errno);
 	}
+
 	core.type = CORE;
 	core.repositoryformatversion = 0;
 	core.filemode = TRUE;
@@ -192,10 +197,12 @@ init_main(int argc, char *argv[])
 
 	getcwd((char *)&path, PATH_MAX);
 
-	if (repodir)
-		printf("Initialized empty git repository in %s/%s/.git/\n", path, repodir);
-	else
-		printf("Initialized empty git repository in %s/.git/\n", path);
+	if (!(flags & INIT_QUIET)) {
+		if (repodir)
+			printf("Initialized empty git repository in %s/%s/.git/\n", path, repodir);
+		else
+			printf("Initialized empty git repository in %s/.git/\n", path);
+	}
 
 	return (EXIT_SUCCESS);
 }

@@ -28,6 +28,7 @@
 #ifndef _REMOTE_H_
 #define _REMOTE_H_
 
+#define INIT_QUIET	0x1
 
 int	init_dirinit(char *project_directory);
 int	init_main(int argc, char *argv[]);
