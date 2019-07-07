@@ -428,7 +428,7 @@ clone_main(int argc, char *argv[])
 		chandler = default_handler;
 	}
 
-	init_dirinit(repodir);
+	init_dirinit(repodir, 0);
 
 	smart_head.refs = NULL;
 	STAILQ_INIT(&smart_head.symrefs);
