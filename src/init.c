@@ -107,11 +107,10 @@ init_dirinit(char *repodir)
 		}
 	}
 
-
 	strlcpy(subpath, ".git", PATH_MAX-dirlen);
 	mkdir(path, 0755);
 
-	for(x = 0; x < 7; x++) {
+	for(x = 0; x < nitems(init_dirs); x++) {
 		strlcpy(subpath, init_dirs[x], PATH_MAX-dirlen);
 		ret = mkdir(path, 0755);
 		if (ret == -1) {
@@ -131,7 +130,7 @@ init_dirinit(char *repodir)
 	strlcpy(subpath, ".git/HEAD", PATH_MAX-dirlen);
 	fd = open(path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (fd != -1 && fstat(fd, &sb) == 0) {
-		write(fd, "ref: refs/heads/master\x0a", 23); 
+		write(fd, "ref: refs/heads/master\n", 23);
 	}
 	close(fd);
 

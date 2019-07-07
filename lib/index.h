@@ -117,6 +117,8 @@ struct treeleaf {
 	struct			subtree *subtree;
 };
 
+#define INDEX_VERSION_2		0x2
+
 struct indextree {
 	int			 version;
 	int			 entries;

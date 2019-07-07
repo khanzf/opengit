@@ -377,12 +377,15 @@ clone_main(int argc, char *argv[])
 	char *repodir;
 	char *repopath;
 	char treesha[HASH_SIZE];
+	char inodepath[PATH_MAX];
 	struct clone_handler *chandler;
 	struct indextree indextree;
 	struct indexpath indexpath;
 	struct treeleaf treeleaf;
 	int nch, ret = 0;
+	int packfd;
 	int ch;
+	int e;
 	int q = 0;
 	bool found;
 
@@ -420,7 +423,7 @@ clone_main(int argc, char *argv[])
 	/* This will become stale when we setup the default handler... (ssh?) */
 	if (!found && default_handler != NULL) {
 		fprintf(stderr, "URI Scheme not recognized for '%s'\n", repopath);
-		return (128);
+		exit(128);
 	} else if (!found) {
 		chandler = default_handler;
 	}
@@ -445,13 +448,11 @@ clone_main(int argc, char *argv[])
 	strlcat(dotgitpath, "/.git", PATH_MAX);
 
 	get_tree_hash(&smart_head, treesha);
-	char inodepath[PATH_MAX];
 	strlcpy(inodepath, repodir, PATH_MAX);
 
 	ITERATE_TREE(treesha, generate_tree_item, inodepath);
 
-	int e;
-	indextree.version = 0x2;
+	indextree.version = INDEX_VERSION_2;
 	indextree.entries = 0;
 	indexpath.indextree = &indextree;
 	e = snprintf(inodepath, PATH_MAX, "%s/", repodir);
@@ -481,7 +482,7 @@ clone_main(int argc, char *argv[])
 
 	strlcpy(inodepath, dotgitpath, PATH_MAX);
 	strlcat(inodepath, "/index", PATH_MAX);
-	int packfd = open(inodepath, O_CREAT|O_RDWR, 0666);
+	packfd = open(inodepath, O_CREAT|O_RDWR, 0666);
 	if (packfd == -1) {
 		printf("Error with /tmp/mypack");
 		exit(0);
