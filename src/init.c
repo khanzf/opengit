@@ -81,62 +81,60 @@ init_usage()
  * Does not initialize the .git/config file
  */
 int
-init_dirinit(char *repodir)
+init_dirinit(char *path)
 {
 	struct stat sb;
-	char path[PATH_MAX];
-	char *subpath;
+	char *suffix;
 	int fd;
 	int ret;
 	int x;
-	int dirlen;
 
 	/* Construct the "base" directory path */
-	if (repodir) {
-		mkdir(repodir, 0755);
-		dirlen = strlen(repodir);
-		strlcpy(path, repodir, PATH_MAX);
-		subpath = path + dirlen;
-		if (repodir[dirlen-1] != '/' && dirlen < PATH_MAX) {
-			dirlen++;
-			strlcat(path, "/", PATH_MAX);
-			subpath++;
-		}
+	mkdir(path, 0755);
+	if (path[0] != '\0') {
+		x = strlcat(path, "/", PATH_MAX);
+		suffix = path + x;
 	}
 	else
-		dirlen = 0;
-	subpath = path + dirlen;
+		suffix = path;
+
+	//subpath = path + dirlen;
 
 	for(x = 0; x < nitems(init_dirs); x++) {
-		strlcpy(subpath, init_dirs[x], PATH_MAX-dirlen);
+		strlcpy(suffix, init_dirs[x], PATH_MAX);
 		fd = open(path, O_WRONLY | O_CREAT);
 		if (fd != -1) {
 			fprintf(stderr, "File or directory %s already exists\n", path);
 			return (-1);
 		}
+		suffix[0] = '\0';
 	}
 
-	strlcpy(subpath, ".git", PATH_MAX-dirlen);
+	strlcat(path, ".git", PATH_MAX);
 	mkdir(path, 0755);
 
+	suffix[0] = '\0';
+
 	for(x = 0; x < nitems(init_dirs); x++) {
-		strlcpy(subpath, init_dirs[x], PATH_MAX-dirlen);
+		strlcat(path, init_dirs[x], PATH_MAX);
 		ret = mkdir(path, 0755);
 		if (ret == -1) {
 			fprintf(stderr, "Cannot create %s\n", path);
 			return(ret);
 		}
+		suffix[0] = '\0';
 	}
 
-	strlcpy(subpath, ".git/description", PATH_MAX-dirlen);
+	strlcat(path, ".git/description", PATH_MAX);
 	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
 	if (fd == -1 || fstat(fd, &sb)) {
 		fprintf(stderr, "Cannot create description file\n");
 		return (-1);
 	}
+	suffix[0] = '\0';
 	close(fd);
 
-	strlcpy(subpath, ".git/HEAD", PATH_MAX-dirlen);
+	strlcat(path, ".git/HEAD", PATH_MAX);
 	fd = open(path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 	if (fd != -1 && fstat(fd, &sb) == 0) {
 		write(fd, "ref: refs/heads/master\n", 23);
@@ -170,7 +168,14 @@ init_main(int argc, char *argv[])
 		}
 	}
 
-	ret = init_dirinit(repodir);
+	if (repodir)
+		ret = strlcpy(path, repodir, PATH_MAX);
+	else {
+		path[0] = '\0';
+		ret = 0;
+	}
+
+	ret = init_dirinit(path);
 	strlcpy(path, ".git/config", 12);
 	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
 	if (fd == -1) {
@@ -185,19 +190,12 @@ init_main(int argc, char *argv[])
 	core.next = NULL;
 	ini_write_config(fd, &core);
 
+	getcwd((char *)&path, PATH_MAX);
 
-	if (!ret) {
-		if (repodir) {
-			strlcpy(path, repodir, PATH_MAX);
-			if (repodir[strlen(repodir)-1] == '/')
-				path[strlen(repodir)-1] = '\0';
-		}
-		else {
-			getcwd((char *)&path, PATH_MAX);
-		}
-		printf("Initialized empty Git repository in %s/.git/\n", path);
-	}
+	if (repodir)
+		printf("Initialized empty git repository in %s/%s/.git/\n", path, repodir);
+	else
+		printf("Initialized empty git repository in %s/.git/\n", path);
 
-
-	return (ret);
+	return (EXIT_SUCCESS);
 }
