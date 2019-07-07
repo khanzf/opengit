@@ -40,10 +40,12 @@
 #include "lib/ini.h"
 #include "init.h"
 
+int longopt;
+
 static struct option long_options[] =
 {
-	{"quiet",no_argument, NULL, 'q'},
-	{"bare", no_argument, NULL, 0},
+	{"quiet", no_argument, NULL, 'q'},
+	{"bare", no_argument, &longopt, INIT_BARE},
 	{"template", required_argument, NULL, 0},
 	{"separate-git-dir", required_argument, NULL, 0},
 	{"shared", required_argument, NULL, 0},
@@ -51,15 +53,14 @@ static struct option long_options[] =
 };
 
 char *init_dirs[] = {
-	".git/",
-	".git/objects",
-	".git/objects/pack",
-	".git/objects/info",
-	".git/refs",
-	".git/refs/tags",
-	".git/refs/heads",
-	".git/branches",
-	".git/hooks",
+	"objects",
+	"objects/pack",
+	"objects/info",
+	"refs",
+	"refs/tags",
+	"refs/heads",
+	"branches",
+	"hooks",
 };
 
 void
@@ -82,7 +83,7 @@ init_usage()
  * Does not initialize the .git/config file
  */
 int
-init_dirinit(char *path)
+init_dirinit(char *path, int flags)
 {
 	struct stat sb;
 	char *suffix;
@@ -91,24 +92,17 @@ init_dirinit(char *path)
 	int ret;
 	int x;
 
-	/* Construct the "base" directory path */
-	mkdir(path, 0755);
-	if (path[0] != '\0') {
-		x = strlcat(path, "/", PATH_MAX);
-		suffix = path + x;
-	}
-	else
-		suffix = path;
+	suffix = path + strlen(path);
 
 	/* This block checks if the file already exists. If so, sets reinit */
 	for(x = 0; x < nitems(init_dirs); x++) {
-		strlcpy(suffix, init_dirs[x], PATH_MAX);
+		strlcat(path, init_dirs[x], PATH_MAX);
 		if (!stat(path, &sb))
 			reinit = 1;
 		else {
 			ret = mkdir(path, 0755);
 			if (ret == -1) {
-				fprintf(stderr, "Cannot create %s\n", path);
+				fprintf(stderr, "1 Cannot create %s\n", path);
 				exit(ret);
 			}
 		}
@@ -116,7 +110,7 @@ init_dirinit(char *path)
 	}
 
 	/* Create an empty 'description' file */
-	strlcat(path, ".git/description", PATH_MAX);
+	strlcat(path, "description", PATH_MAX);
 	if (!stat(path, &sb))
 		reinit = 1;
 	else {
@@ -125,19 +119,17 @@ init_dirinit(char *path)
 			fprintf(stderr, "Cannot create description file\n");
 			return (-1);
 		}
-		suffix[0] = '\0';
 		close(fd);
 	}
+	suffix[0] = '\0';
 
-	strlcat(path, ".git/HEAD", PATH_MAX);
-	if (!stat(path, &sb)) {
+	strlcat(path, "HEAD", PATH_MAX);
+	if (!stat(path, &sb))
 		reinit = 1;
-	}
 	else {
 		fd = open(path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-		if (fd != -1) {
+		if (fd != -1)
 			write(fd, "ref: refs/heads/master\n", 23);
-		}
 		close(fd);
 	}
 
@@ -148,9 +140,9 @@ int
 init_main(int argc, char *argv[])
 {
 	struct section core;
-	int ret;
 	int reinit;
 	int fd;
+	int q = 0;
 	int ch;
 	struct stat sb;
 	char *repodir = NULL;
@@ -164,29 +156,57 @@ init_main(int argc, char *argv[])
 		switch(ch) {
 		case 'q':
 			flags |= INIT_QUIET;
-			argc--; argv++;
+			break;
+		case 0:
+			flags |= INIT_BARE;
 			break;
 		default:
 			init_usage();
 			break;
 		}
+		q++;
 	}
+
+	argc = argc - q;
+	argv = argv + q;
 
 	if (argc >= 2)
 		repodir = argv[1];
 
-	if (repodir)
-		ret = strlcpy(path, repodir, PATH_MAX);
-	else {
-		path[0] = '\0';
-		ret = 0;
+	if (repodir) {
+		strlcpy(path, repodir, PATH_MAX);
+		strlcat(path, "/", PATH_MAX);
+		if (stat(path, &sb)) {
+			if (mkdir(path, 0755)) {
+				fprintf(stderr, "Unable to create %s\n", path);
+				exit(EXIT_FAILURE);
+			}
+		}
 	}
-	suffix = path + ret;
+	else
+		path[0] = '\0';
 
-	reinit = init_dirinit(path);
+	if (!(flags & INIT_BARE)) {
+		strlcat(path, ".git/", PATH_MAX);
+		if (stat(path, &sb)) {
+			if (mkdir(path, 0755)) {
+				fprintf(stderr, "Unable to create %s\n", path);
+				exit(EXIT_FAILURE);
+			}
+		}
+		else
+			reinit = 1;
+	}
+	else {
+		strlcat(path, "./", PATH_MAX);
+	}
+
+	suffix = path + strlen(path);
+
+	reinit = init_dirinit(path, flags);
 	suffix[0] = '\0';
 
-	strlcat(path, ".git/config", PATH_MAX);
+	strlcat(path, "config", PATH_MAX);
 	if (!stat(path, &sb))
 		reinit = 1;
 	else {
@@ -199,7 +219,10 @@ init_main(int argc, char *argv[])
 		core.type = CORE;
 		core.repositoryformatversion = 0;
 		core.filemode = TRUE;
-		core.bare = FALSE;
+		if (flags & INIT_BARE)
+			core.bare = TRUE;
+		else
+			core.bare = FALSE;
 		core.logallrefupdates = TRUE;
 		core.next = NULL;
 		ini_write_config(fd, &core);
@@ -207,15 +230,20 @@ init_main(int argc, char *argv[])
 
 	getcwd((char *)&path, PATH_MAX);
 
+	/* Construct the trailing message */
 	if (!(flags & INIT_QUIET)) {
 		if (reinit)
 			printf("Reinitialized existing ");
 		else
 			printf("Initialized empty ");
 		if (repodir)
-			printf("Git repository in %s/%s/.git/\n", path, repodir);
+			printf("Git repository in %s/%s/", path, repodir);
 		else
-			printf("Git repository in %s/.git/\n", path);
+			printf("Git repository in %s/", path);
+		if (!(flags & INIT_BARE))
+			printf(".git/\n");
+		else
+			printf("\n");
 	}
 
 	return (EXIT_SUCCESS);
