@@ -51,6 +51,7 @@ static struct option long_options[] =
 };
 
 char *init_dirs[] = {
+	".git/",
 	".git/objects",
 	".git/objects/pack",
 	".git/objects/info",
@@ -85,6 +86,7 @@ init_dirinit(char *path)
 {
 	struct stat sb;
 	char *suffix;
+	int reinit = 0;
 	int fd;
 	int ret;
 	int x;
@@ -98,57 +100,59 @@ init_dirinit(char *path)
 	else
 		suffix = path;
 
+	/* This block checks if the file already exists. If so, sets reinit */
 	for(x = 0; x < nitems(init_dirs); x++) {
 		strlcpy(suffix, init_dirs[x], PATH_MAX);
-		fd = open(path, O_WRONLY | O_CREAT);
-		if (fd != -1) {
-			fprintf(stderr, "File or directory %s already exists\n", path);
+		if (!stat(path, &sb))
+			reinit = 1;
+		else {
+			ret = mkdir(path, 0755);
+			if (ret == -1) {
+				fprintf(stderr, "Cannot create %s\n", path);
+				exit(ret);
+			}
+		}
+		suffix[0] = '\0';
+	}
+
+	/* Create an empty 'description' file */
+	strlcat(path, ".git/description", PATH_MAX);
+	if (!stat(path, &sb))
+		reinit = 1;
+	else {
+		fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
+		if (fd == -1) {
+			fprintf(stderr, "Cannot create description file\n");
 			return (-1);
 		}
 		suffix[0] = '\0';
+		close(fd);
 	}
-
-	strlcat(path, ".git", PATH_MAX);
-	mkdir(path, 0755);
-
-	suffix[0] = '\0';
-
-	for(x = 0; x < nitems(init_dirs); x++) {
-		strlcat(path, init_dirs[x], PATH_MAX);
-		ret = mkdir(path, 0755);
-		if (ret == -1) {
-			fprintf(stderr, "Cannot create %s\n", path);
-			return(ret);
-		}
-		suffix[0] = '\0';
-	}
-
-	strlcat(path, ".git/description", PATH_MAX);
-	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
-	if (fd == -1 || fstat(fd, &sb)) {
-		fprintf(stderr, "Cannot create description file\n");
-		return (-1);
-	}
-	suffix[0] = '\0';
-	close(fd);
 
 	strlcat(path, ".git/HEAD", PATH_MAX);
-	fd = open(path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-	if (fd != -1 && fstat(fd, &sb) == 0) {
-		write(fd, "ref: refs/heads/master\n", 23);
+	if (!stat(path, &sb)) {
+		reinit = 1;
 	}
-	close(fd);
+	else {
+		fd = open(path, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+		if (fd != -1) {
+			write(fd, "ref: refs/heads/master\n", 23);
+		}
+		close(fd);
+	}
 
-	return (0);
+	return (reinit);
 }
 
 int
 init_main(int argc, char *argv[])
 {
 	struct section core;
-	int ret = 0;
+	int ret;
+	int reinit;
 	int fd;
 	int ch;
+	struct stat sb;
 	char *repodir = NULL;
 	uint8_t flags = 0;
 	char path[PATH_MAX];
@@ -179,29 +183,39 @@ init_main(int argc, char *argv[])
 	}
 	suffix = path + ret;
 
-	ret = init_dirinit(path);
-	strlcat(path, ".git/config", 12);
-	fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
-	if (fd == -1) {
-		fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
-		exit(errno);
-	}
+	reinit = init_dirinit(path);
+	suffix[0] = '\0';
 
-	core.type = CORE;
-	core.repositoryformatversion = 0;
-	core.filemode = TRUE;
-	core.bare = FALSE;
-	core.logallrefupdates = TRUE;
-	core.next = NULL;
-	ini_write_config(fd, &core);
+	strlcat(path, ".git/config", PATH_MAX);
+	if (!stat(path, &sb))
+		reinit = 1;
+	else {
+		fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
+		if (fd == -1) {
+			fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
+			exit(errno);
+		}
+
+		core.type = CORE;
+		core.repositoryformatversion = 0;
+		core.filemode = TRUE;
+		core.bare = FALSE;
+		core.logallrefupdates = TRUE;
+		core.next = NULL;
+		ini_write_config(fd, &core);
+	}
 
 	getcwd((char *)&path, PATH_MAX);
 
 	if (!(flags & INIT_QUIET)) {
-		if (repodir)
-			printf("Initialized empty git repository in %s/%s/.git/\n", path, repodir);
+		if (reinit)
+			printf("Reinitialized existing ");
 		else
-			printf("Initialized empty git repository in %s/.git/\n", path);
+			printf("Initialized empty ");
+		if (repodir)
+			printf("Git repository in %s/%s/.git/\n", path, repodir);
+		else
+			printf("Git repository in %s/.git/\n", path);
 	}
 
 	return (EXIT_SUCCESS);
