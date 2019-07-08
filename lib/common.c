@@ -47,6 +47,7 @@
 	If errors, returns -1
 */
 
+char repodir[PATH_MAX];
 char dotgitpath[PATH_MAX];
 
 const char *object_name[] = {

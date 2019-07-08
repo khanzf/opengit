@@ -272,7 +272,7 @@ populate_symrefs(char *repodir, struct smart_head *smart_head)
 }
 
 static void
-clone_initial_config(char *repopath, char *repodir, struct section *sections)
+clone_initial_config(char *uri, char *repodir, struct section *sections)
 {
 	struct section core;
 	struct section remote;
@@ -291,7 +291,7 @@ clone_initial_config(char *repopath, char *repodir, struct section *sections)
 
 	remote.type = REMOTE;
 	remote.repo_name = "origin";
-	remote.url = repopath;
+	remote.url = uri;
 	remote.fetch = "+refs/heads/*:refs/remotes/origin/*";
 
 	branch.type = BRANCH;
@@ -307,7 +307,7 @@ clone_initial_config(char *repopath, char *repodir, struct section *sections)
 	strlcat(path, "/.git/config", PATH_MAX);
 	fd = open(path, O_WRONLY | O_CREAT, 0660);
 	if (fd == -1) {
-		fprintf(stderr, "Unable to open file %s: %s\n", path, strerror(errno));
+		fprintf(stderr, "1 Unable to open file %s: %s\n", path, strerror(errno));
 		exit(errno);
 	}
 
@@ -376,6 +376,7 @@ clone_main(int argc, char *argv[])
 	struct smart_head smart_head;
 	char *repodir;
 	char *repopath;
+	char *uri;
 	char treesha[HASH_SIZE];
 	char inodepath[PATH_MAX];
 	struct clone_handler *chandler;
@@ -403,8 +404,13 @@ clone_main(int argc, char *argv[])
 		}
 	argc = argc - q;
 	argv = argv + q;
-	repopath = argv[1];
+
+	uri = repopath = argv[1];
 	repodir = get_repo_dir(argv[1]);
+
+	/* Set dotgitpath */
+	strlcpy(dotgitpath, repodir, PATH_MAX);
+	strlcat(dotgitpath, "/.git/", PATH_MAX);
 
 	found = false;
 	chandler = NULL;
@@ -413,7 +419,7 @@ clone_main(int argc, char *argv[])
 		assert(chandler->uri_scheme != NULL);
 		assert(chandler->handler != NULL);
 
-		if (strncmp(repopath, chandler->uri_scheme,
+		if (strncmp(uri, chandler->uri_scheme,
 		    strlen(chandler->uri_scheme)) == 0) {
 			found = true;
 			break;
@@ -422,17 +428,27 @@ clone_main(int argc, char *argv[])
 
 	/* This will become stale when we setup the default handler... (ssh?) */
 	if (!found && default_handler != NULL) {
-		fprintf(stderr, "URI Scheme not recognized for '%s'\n", repopath);
+		fprintf(stderr, "URI Scheme not recognized for '%s'\n", uri);
 		exit(128);
 	} else if (!found) {
 		chandler = default_handler;
 	}
+	/* Make directories */
+	if (mkdir(repodir, 0755)) {
+		fprintf(stderr, "Unable to create repodir: %s\n", repodir);
+		exit(0);
+	}
+	if (mkdir(dotgitpath, 0755)) {
+		fprintf(stderr, "Unable to make dotgitpath: %s\n", dotgitpath);
+		exit(0);
+	}
 
-	init_dirinit(repodir, 0);
+	/* Make initial directories */
+	init_dirinit(0);
 
 	smart_head.refs = NULL;
 	STAILQ_INIT(&smart_head.symrefs);
-	ret = chandler->handler(repopath, repodir, &smart_head);
+	ret = chandler->handler(uri, repodir, &smart_head);
 	if (ret != 0)
 		goto out;
 
@@ -442,10 +458,7 @@ clone_main(int argc, char *argv[])
 	if (!STAILQ_EMPTY(&smart_head.symrefs))
 		populate_symrefs(repodir, &smart_head);
 	/* Write the initial config file */
-	clone_initial_config(repopath, repodir, NULL);
-	/* Set dotgitpath */
-	strlcpy(dotgitpath, repodir, PATH_MAX);
-	strlcat(dotgitpath, "/.git", PATH_MAX);
+	clone_initial_config(uri, repodir, NULL);
 
 	get_tree_hash(&smart_head, treesha);
 	strlcpy(inodepath, repodir, PATH_MAX);

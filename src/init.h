@@ -31,7 +31,7 @@
 #define INIT_QUIET	0x1
 #define INIT_BARE	0x2
 
-int	init_dirinit(char *project_directory, int flags);
+int	init_dirinit(int flags);
 int	init_main(int argc, char *argv[]);
 
 #endif

@@ -284,20 +284,17 @@ clone_http(char *uri, char *repodir, struct smart_head *smart_head)
 	struct index_entry *index_entry;
 	char path[PATH_MAX];
 	char srcpath[PATH_MAX];
-	int pathlen, ret;
-	char *fetch_uri, *suffix;
+	int ret;
+	char *fetch_uri;
 	SHA1_CTX packctx;
 	SHA1_CTX idxctx;
 
-	pathlen = strlen(repodir)+1;
-	strlcpy(path, repodir, pathlen);
-	strlcpy(srcpath, repodir, pathlen);
-	suffix = path + strlen(repodir);
+	strlcpy(path, dotgitpath, PATH_MAX);
 
-	strlcat(suffix, "/.git/objects/pack/_tmp.pack", PATH_MAX-pathlen);
+	strlcat(path, "objects/pack/_tmp.pack", PATH_MAX);
 	packfd = open(path, O_RDWR | O_CREAT, 0660);
 	if (packfd == -1) {
-		fprintf(stderr, "Unable to open file %s.\n", path);
+		fprintf(stderr, "1 Unable to open file %s.\n", path);
 		exit(-1);
 	}
 
@@ -344,7 +341,8 @@ again:
 	qsort(index_entry, packfileinfo.nobjects, sizeof(struct index_entry),
 	    sortindexentry);
 
-	strlcpy(suffix, "/.git/objects/pack/_tmp.idx", PATH_MAX-pathlen);
+	strncpy(path, dotgitpath, PATH_MAX);
+	strncat(path, "objects/pack/_tmp.idx", PATH_MAX);
 	idxfd = open(path, O_RDWR | O_CREAT, 0660);
 	if (idxfd == -1) {
 		fprintf(stderr, "Unable to open packout.idx for writing.\n");
@@ -356,13 +354,17 @@ again:
 	free(index_entry);
 	close(idxfd);
 
-	strlcpy(suffix, "/.git/objects/pack/pack-", PATH_MAX-pathlen);
+	char *suffix = path;
+	strncpy(path, dotgitpath, PATH_MAX);
+	suffix += strlcat(path, "objects/pack/pack-", PATH_MAX);
 	for(int x=0;x<20;x++)
-		snprintf(suffix+24+(x*2), 3, "%02x", packfileinfo.sha[x]);
+		snprintf(suffix+(x*2), 3, "%02x", packfileinfo.sha[x]);
 
 	/* Rename pack and index files */
-	strlcat(suffix, ".pack", PATH_MAX-strlen(repodir));
-	strlcat(srcpath, "/.git/objects/pack/_tmp.pack", PATH_MAX);
+	strlcat(suffix, ".pack", PATH_MAX);
+
+	strncpy(srcpath, dotgitpath, PATH_MAX);
+	strlcat(srcpath, "objects/pack/_tmp.pack", PATH_MAX);
 	rename(srcpath, path);
 
 	strlcpy(srcpath+strlen(srcpath)-4, "idx", 4);

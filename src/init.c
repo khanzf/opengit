@@ -81,18 +81,22 @@ init_usage()
 /*
  * Initializes the directory
  * Does not initialize the .git/config file
+ * The 'path' variable must end in a trailing '/'
  */
 int
-init_dirinit(char *path, int flags)
+init_dirinit(int flags)
 {
 	struct stat sb;
 	char *suffix;
+	char path[PATH_MAX];
 	int reinit = 0;
 	int fd;
 	int ret;
 	int x;
 
-	suffix = path + strlen(path);
+	x = strlcpy(path, dotgitpath, PATH_MAX);
+
+	suffix = path + x;
 
 	/* This block checks if the file already exists. If so, sets reinit */
 	for(x = 0; x < nitems(init_dirs); x++) {
@@ -132,6 +136,7 @@ init_dirinit(char *path, int flags)
 			write(fd, "ref: refs/heads/master\n", 23);
 		close(fd);
 	}
+	suffix[0] = '\0';
 
 	return (reinit);
 }
@@ -145,10 +150,9 @@ init_main(int argc, char *argv[])
 	int q = 0;
 	int ch;
 	struct stat sb;
-	char *repodir = NULL;
+	char *directory = NULL;
 	uint8_t flags = 0;
 	char path[PATH_MAX];
-	char *suffix;
 
 	argc--; argv++;
 
@@ -171,48 +175,48 @@ init_main(int argc, char *argv[])
 	argv = argv + q;
 
 	if (argc >= 2)
-		repodir = argv[1];
+		directory = argv[1];
 
-	if (repodir) {
-		strlcpy(path, repodir, PATH_MAX);
-		strlcat(path, "/", PATH_MAX);
-		if (stat(path, &sb)) {
-			if (mkdir(path, 0755)) {
-				fprintf(stderr, "Unable to create %s\n", path);
+	if (directory) {
+		strlcpy(repodir, directory, PATH_MAX);
+		strlcat(repodir, "/", PATH_MAX);
+		if (stat(repodir, &sb)) {
+			if (mkdir(repodir, 0755)) {
+				fprintf(stderr, "1 Unable to create %s\n", repodir);
 				exit(EXIT_FAILURE);
 			}
 		}
 	}
 	else
-		path[0] = '\0';
+		repodir[0] = '\0';
 
+	/* Create .git or a bare repo directory */
 	if (!(flags & INIT_BARE)) {
-		strlcat(path, ".git/", PATH_MAX);
-		if (stat(path, &sb)) {
-			if (mkdir(path, 0755)) {
-				fprintf(stderr, "Unable to create %s\n", path);
+		strncpy(dotgitpath, repodir, PATH_MAX);
+		strncat(dotgitpath, ".git/", PATH_MAX);
+		if (stat(dotgitpath, &sb)) {
+			if (mkdir(dotgitpath, 0755)) {
+				fprintf(stderr, "2 Unable to create %s\n", dotgitpath);
 				exit(EXIT_FAILURE);
 			}
 		}
 		else
 			reinit = 1;
 	}
-	else {
-		strlcat(path, "./", PATH_MAX);
-	}
+	else
+		strlcat(dotgitpath, repodir, PATH_MAX);
 
-	suffix = path + strlen(path);
 
-	reinit = init_dirinit(path, flags);
-	suffix[0] = '\0';
+	reinit = init_dirinit(flags);
 
+	strlcpy(path, dotgitpath, PATH_MAX);
 	strlcat(path, "config", PATH_MAX);
 	if (!stat(path, &sb))
 		reinit = 1;
 	else {
 		fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH );
 		if (fd == -1) {
-			fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
+			fprintf(stderr, "Unable to open %s: %s\n", repodir, strerror(errno));
 			exit(errno);
 		}
 
@@ -236,14 +240,11 @@ init_main(int argc, char *argv[])
 			printf("Reinitialized existing ");
 		else
 			printf("Initialized empty ");
-		if (repodir)
-			printf("Git repository in %s/%s/", path, repodir);
-		else
-			printf("Git repository in %s/", path);
+		printf("Git repository in %s", path);
 		if (!(flags & INIT_BARE))
-			printf(".git/\n");
+			printf("/.git/\n");
 		else
-			printf("\n");
+			printf("/\n");
 	}
 
 	return (EXIT_SUCCESS);

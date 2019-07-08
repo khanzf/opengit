@@ -94,6 +94,7 @@ extern const char *object_name[];
 
 typedef void		tree_handler(char *, uint8_t, char *, char *, void *);
 
+extern char		repodir[PATH_MAX];
 extern char		dotgitpath[PATH_MAX];
 int			git_repository_path();
 
