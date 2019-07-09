@@ -34,6 +34,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
+#include <regex.h>
 
 #include "common.h"
 #include "pack.h"
@@ -224,4 +225,97 @@ count_digits(int check)
 	while(check /= 10)
 		digits++;
 	return (digits);
+}
+
+void
+populate_commitheader(struct commitheader *commitheader, char *header, long len)
+{
+	char *token, *tofree, *string;
+	int type = 0;
+	int size;
+	regex_t re;
+	regmatch_t m[5];
+
+	regcomp(&re, "[author|committer] (.*) <(.*)> ([0-9]*) (-?[0-9]*)", REG_EXTENDED);
+
+	commitheader->numparent = 0;
+	commitheader->parent = NULL;
+
+	tofree = string = strndup(header, len);
+
+	while((token = strsep(&string, "\n")) != NULL) {
+		if (type == 0 || token[0] != ' ') {
+			if (!strncmp(token, "tree ", 5)) {
+				printf("TREE\n");
+				strlcpy(commitheader->treesha, token + 5, HASH_SIZE+1);
+			}
+			else if (!strncmp(token, "parent ", 7)) {
+				printf("PARENT\n");
+				commitheader->parent = realloc(commitheader->parent,
+				    sizeof(char *) * (commitheader->numparent+1));
+				commitheader->parent[commitheader->numparent] = malloc(HASH_SIZE+1);
+				strlcpy(commitheader->parent[commitheader->numparent], token+7, HASH_SIZE+1);
+				commitheader->numparent++;
+			}
+			else if (!strncmp(token, "author ", 7)) {
+				printf("AUTHOR\n");
+				if (regexec(&re, token, 5, m, 0) == REG_NOMATCH) {
+					fprintf(stderr, "Author not matched\n");
+					exit(0);
+				}
+				commitheader->author_name = strndup(token + m[1].rm_so, m[1].rm_eo - m[1].rm_so);
+				printf("Author Name: %s\n", commitheader->author_name);
+				commitheader->author_email = strndup(token + m[2].rm_so, m[2].rm_eo - m[2].rm_so);
+				printf("Author Email: %s\n", commitheader->author_email);
+				commitheader->author_time = atol(token + m[3].rm_so);
+				printf("Author Time: %lu\n", commitheader->author_time);
+				commitheader->author_tz = strndup(token + m[4].rm_so, m[4].rm_eo - m[4].rm_so);
+				printf("Author Tz: %s\n", commitheader->author_tz);
+			}
+			else if (!strncmp(token, "committer ", 10)) {
+				printf("COMMITTER\n");
+				if (regexec(&re, token, 5, m, 0) == REG_NOMATCH) {
+					fprintf(stderr, "Committer not matched\n");
+					exit(0);
+				}
+				commitheader->committer_name = strndup(token + m[1].rm_so, m[1].rm_eo - m[1].rm_so);
+				commitheader->committer_email = strndup(token + m[2].rm_so, m[2].rm_eo - m[2].rm_so);
+				commitheader->committer_time = atol(token + m[3].rm_so);
+				commitheader->committer_tz = strndup(token + m[4].rm_so, m[4].rm_eo - m[4].rm_so);
+			}
+			else if (!strncmp(token, "gpgsig ", 7)) {
+				printf("GPGSIG\n");
+				type = HEADER_GPGSIG;
+				commitheader->gpgsig = strdup(token + 7);
+				size = strlen(token + 7);
+			}
+		}
+		else if (type == HEADER_GPGSIG) {
+			commitheader->gpgsig = realloc(commitheader->gpgsig, strlen(token) + size);
+			commitheader->gpgsig[size] = '\n';
+			strncpy(commitheader->gpgsig + size + 1, token + 1, strlen(token));
+			size += strlen(token) + 1;
+		}
+	}
+
+	regfree(&re);
+	free(tofree);
+}
+
+void
+free_commitheader(struct commitheader *commitheader)
+{
+	free(commitheader->author_name);
+	free(commitheader->author_email);
+	free(commitheader->author_tz);
+
+	free(commitheader->committer_name);
+	free(commitheader->committer_email);
+	free(commitheader->committer_tz);
+
+	for(int x=0;x>commitheader->numparent;x++)
+		free(commitheader->parent[x]);
+	free(commitheader->parent);
+
+	free(commitheader->gpgsig);
 }
