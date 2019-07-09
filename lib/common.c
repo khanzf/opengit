@@ -227,6 +227,10 @@ count_digits(int check)
 	return (digits);
 }
 
+/*
+ * Parse a commit message header
+ * ToFree: Use free_commithead()
+ */
 void
 populate_commitheader(struct commitheader *commitheader, char *header, long len)
 {
@@ -302,6 +306,7 @@ populate_commitheader(struct commitheader *commitheader, char *header, long len)
 	free(tofree);
 }
 
+/* Frees a commitheader structure */
 void
 free_commitheader(struct commitheader *commitheader)
 {
