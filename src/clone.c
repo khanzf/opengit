@@ -315,6 +315,30 @@ clone_initial_config(char *uri, char *repodir, struct section *sections)
 }
 
 /*
+ * Description: Recover a commit's tree SHA
+ * Going forward, this function may be replaced by a function that simply parses an object's
+ * header, rather than specifically recovering the tree sha.
+ * Arguments: 1) populated smart_head value, 2) treesha, a char[HASH_SIZE], stores the sha value.
+ */
+void
+get_tree_hash(struct smart_head *smart_head, char *treesha)
+{
+	struct decompressed_object decompressed_object;
+	char *token, *tofree, *string;
+
+	CONTENT_HANDLER(smart_head->sha, buffer_cb, pack_buffer_cb, &decompressed_object);
+
+	tofree = string = strndup((char *)decompressed_object.data, decompressed_object.size);
+
+	while((token = strsep(&string, "\n")) != NULL)
+		if (!strncmp(token, "tree ", 5))
+			memcpy(treesha, token+5, HASH_SIZE);
+
+	free(decompressed_object.data);
+	free(tofree);
+}
+
+/*
  * Description: Used to loop through each tree object and iteratively
  * through each sub-tree object.
  * Handler for iterate_tree
@@ -353,7 +377,7 @@ clone_main(int argc, char *argv[])
 	char *repodir;
 	char *repopath;
 	char *uri;
-	//char treesha[HASH_SIZE];
+	char treesha[HASH_SIZE];
 	char inodepath[PATH_MAX];
 	struct clone_handler *chandler;
 	struct indextree indextree;
@@ -436,15 +460,10 @@ clone_main(int argc, char *argv[])
 	/* Write the initial config file */
 	clone_initial_config(uri, repodir, NULL);
 
-	struct decompressed_object decompressed_object;
-	struct commitheader commitheader;
-
-	CONTENT_HANDLER(smart_head.sha, buffer_cb, pack_buffer_cb, &decompressed_object);
-	populate_commitheader(&commitheader, (char *)decompressed_object.data, decompressed_object.size);
-//	get_tree_hash(&smart_head, treesha);
+	get_tree_hash(&smart_head, treesha);
 	strlcpy(inodepath, repodir, PATH_MAX);
 
-	ITERATE_TREE(commitheader.treesha, generate_tree_item, inodepath);
+	ITERATE_TREE(treesha, generate_tree_item, inodepath);
 
 	indextree.version = INDEX_VERSION_2;
 	indextree.entries = 0;
@@ -459,18 +478,18 @@ clone_main(int argc, char *argv[])
 	/* Terminate the string */
 	indexpath.path[0] = '\0';
 
-	ITERATE_TREE(commitheader.treesha, index_generate_indextree, &indexpath);
+	ITERATE_TREE(treesha, index_generate_indextree, &indexpath);
 
 	treeleaf.entry_count = 0;
 	treeleaf.local_tree_count = 0;
 	treeleaf.total_tree_count = 0;
 	treeleaf.subtree = NULL;
-	sha_str_to_bin(commitheader.treesha, treeleaf.sha);
+	sha_str_to_bin(treesha, treeleaf.sha);
 
 	indexpath.current_position = 0;
 
 	treeleaf.ext_size = 0;
-	ITERATE_TREE(commitheader.treesha, index_generate_treedata, &indexpath);
+	ITERATE_TREE(treesha, index_generate_treedata, &indexpath);
 
 	index_calculate_tree_ext_size(&treeleaf);
 

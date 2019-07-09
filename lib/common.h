@@ -57,8 +57,6 @@
 #define OBJ_OFS_DELTA		6
 #define OBJ_REF_DELTA		7
 
-#define HASH_SIZE		40
-
 /*
  * Used to recover a full object in a single buffer
  * not processed incrementally
@@ -69,28 +67,9 @@ struct decompressed_object {
 	unsigned long	deflated_size;
 };
 
-#define HEADER_GPGSIG		1
-
-/* Data structure used to parse commit messages */
-struct commitheader {
-	char		  treesha[HASH_SIZE+1];
-
-	char		 *author_name;
-	char		 *author_email;
-	time_t		  author_time;
-	char		 *author_tz;
-
-	char		 *committer_name;
-	char		 *committer_email;
-	time_t		  committer_time;
-	char		 *committer_tz;
-
-	char		**parent;
-	int		  numparent;
-	char		 *gpgsig;
-};
-
 extern const char *object_name[];
+
+#define HASH_SIZE	40
 
 #define CONTENT_HANDLER(sha, loose_handler, pack_handler, args) {	\
 	if (loose_content_handler(sha, loose_handler, args))		\
@@ -124,8 +103,5 @@ void			sha_bin_to_str(uint8_t *bin, char *str);
 void			sha_str_to_bin(char *str, uint8_t *bin);
 void			sha_str_to_bin_network(char *str, uint8_t *bin);
 int			count_digits(int check);
-void			populate_commitheader(struct commitheader *commitheader, char *header,
-			    long len);
-void			free_commitheader(struct commitheader *commitheader);
 
 #endif
