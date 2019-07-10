@@ -253,11 +253,9 @@ parse_commitcontent(struct commitcontent *commitcontent, char *header, long len)
 		/* Single line */
 		if (type == COMMITCONTENT_BLANK && token[0] != ' ') {
 			if (!strncmp(token, "tree ", 5)) {
-				printf("TREE\n");
 				strlcpy(commitcontent->treesha, token + 5, HASH_SIZE+1);
 			}
 			else if (!strncmp(token, "parent ", 7)) {
-				printf("PARENT\n");
 				commitcontent->parent = realloc(commitcontent->parent,
 				    sizeof(char *) * (commitcontent->numparent+1));
 				commitcontent->parent[commitcontent->numparent] = malloc(HASH_SIZE+1);
@@ -265,22 +263,16 @@ parse_commitcontent(struct commitcontent *commitcontent, char *header, long len)
 				commitcontent->numparent++;
 			}
 			else if (!strncmp(token, "author ", 7)) {
-				printf("AUTHOR\n");
 				if (regexec(&re, token, 5, m, 0) == REG_NOMATCH) {
 					fprintf(stderr, "Author not matched\n");
 					exit(0);
 				}
 				commitcontent->author_name = strndup(token + m[1].rm_so, m[1].rm_eo - m[1].rm_so);
-				printf("Author Name: %s\n", commitcontent->author_name);
 				commitcontent->author_email = strndup(token + m[2].rm_so, m[2].rm_eo - m[2].rm_so);
-				printf("Author Email: %s\n", commitcontent->author_email);
 				commitcontent->author_time = atol(token + m[3].rm_so);
-				printf("Author Time: %lu\n", commitcontent->author_time);
 				commitcontent->author_tz = strndup(token + m[4].rm_so, m[4].rm_eo - m[4].rm_so);
-				printf("Author Tz: %s\n", commitcontent->author_tz);
 			}
 			else if (!strncmp(token, "committer ", 10)) {
-				printf("COMMITTER\n");
 				if (regexec(&re, token, 5, m, 0) == REG_NOMATCH) {
 					fprintf(stderr, "Committer not matched\n");
 					exit(0);
@@ -291,7 +283,6 @@ parse_commitcontent(struct commitcontent *commitcontent, char *header, long len)
 				commitcontent->committer_tz = strndup(token + m[4].rm_so, m[4].rm_eo - m[4].rm_so);
 			}
 			else if (!strncmp(token, "gpgsig ", 7)) {
-				printf("GPGSIG\n");
 				type = COMMITCONTENT_GPGSIG;
 				commitcontent->gpgsig = strdup(token + 7);
 				size = strlen(token + 7);
