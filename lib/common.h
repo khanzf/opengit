@@ -133,7 +133,7 @@ void			sha_bin_to_str(uint8_t *bin, char *str);
 void			sha_str_to_bin(char *str, uint8_t *bin);
 void			sha_str_to_bin_network(char *str, uint8_t *bin);
 int			count_digits(int check);
-void			populate_commitcontent(struct commitcontent *commitcontent, char *header,
+void			parse_commitcontent(struct commitcontent *commitcontent, char *header,
 			    long len);
 void			free_commitcontent(struct commitcontent *commitcontent);
 
