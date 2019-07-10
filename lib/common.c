@@ -34,6 +34,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdio.h>
+#include <regex.h>
 
 #include "common.h"
 #include "pack.h"
@@ -224,4 +225,119 @@ count_digits(int check)
 	while(check /= 10)
 		digits++;
 	return (digits);
+}
+
+/*
+ * Parse a commit header and content
+ * ToFree: Run the free_commitcontent() function
+ */
+void
+parse_commitcontent(struct commitcontent *commitcontent, char *header, long len)
+{
+	char *token, *tofree, *string;
+	int type = COMMITCONTENT_BLANK;
+	int size;
+	regex_t re;
+	regmatch_t m[5];
+
+	regcomp(&re, "[author|committer] (.*) <(.*)> ([0-9]*) (-?[0-9]*)", REG_EXTENDED);
+
+	commitcontent->numparent = 0;
+	commitcontent->parent = NULL;
+	commitcontent->message = NULL;
+	commitcontent->lines = 0;
+
+	tofree = string = strndup(header, len);
+
+	while((token = strsep(&string, "\n")) != NULL) {
+		/* Single line */
+		if (type == COMMITCONTENT_BLANK && token[0] != ' ') {
+			if (!strncmp(token, "tree ", 5)) {
+				printf("TREE\n");
+				strlcpy(commitcontent->treesha, token + 5, HASH_SIZE+1);
+			}
+			else if (!strncmp(token, "parent ", 7)) {
+				printf("PARENT\n");
+				commitcontent->parent = realloc(commitcontent->parent,
+				    sizeof(char *) * (commitcontent->numparent+1));
+				commitcontent->parent[commitcontent->numparent] = malloc(HASH_SIZE+1);
+				strlcpy(commitcontent->parent[commitcontent->numparent], token+7, HASH_SIZE+1);
+				commitcontent->numparent++;
+			}
+			else if (!strncmp(token, "author ", 7)) {
+				printf("AUTHOR\n");
+				if (regexec(&re, token, 5, m, 0) == REG_NOMATCH) {
+					fprintf(stderr, "Author not matched\n");
+					exit(0);
+				}
+				commitcontent->author_name = strndup(token + m[1].rm_so, m[1].rm_eo - m[1].rm_so);
+				printf("Author Name: %s\n", commitcontent->author_name);
+				commitcontent->author_email = strndup(token + m[2].rm_so, m[2].rm_eo - m[2].rm_so);
+				printf("Author Email: %s\n", commitcontent->author_email);
+				commitcontent->author_time = atol(token + m[3].rm_so);
+				printf("Author Time: %lu\n", commitcontent->author_time);
+				commitcontent->author_tz = strndup(token + m[4].rm_so, m[4].rm_eo - m[4].rm_so);
+				printf("Author Tz: %s\n", commitcontent->author_tz);
+			}
+			else if (!strncmp(token, "committer ", 10)) {
+				printf("COMMITTER\n");
+				if (regexec(&re, token, 5, m, 0) == REG_NOMATCH) {
+					fprintf(stderr, "Committer not matched\n");
+					exit(0);
+				}
+				commitcontent->committer_name = strndup(token + m[1].rm_so, m[1].rm_eo - m[1].rm_so);
+				commitcontent->committer_email = strndup(token + m[2].rm_so, m[2].rm_eo - m[2].rm_so);
+				commitcontent->committer_time = atol(token + m[3].rm_so);
+				commitcontent->committer_tz = strndup(token + m[4].rm_so, m[4].rm_eo - m[4].rm_so);
+			}
+			else if (!strncmp(token, "gpgsig ", 7)) {
+				printf("GPGSIG\n");
+				type = COMMITCONTENT_GPGSIG;
+				commitcontent->gpgsig = strdup(token + 7);
+				size = strlen(token + 7);
+			}
+			else if (token[0] == '\0')
+				type = COMMITCONTENT_MESSAGE;
+		}
+		else if (type == COMMITCONTENT_GPGSIG) {
+			commitcontent->gpgsig = realloc(commitcontent->gpgsig, size + strlen(token) + 1);
+			commitcontent->gpgsig[size] = '\n';
+			strncpy(commitcontent->gpgsig + size + 1, token + 1, strlen(token));
+			size += strlen(token) + 1;
+			if (!strncmp(token, " -----END PGP SIGNATURE-----", 28))
+				type = COMMITCONTENT_BLANK;
+		}
+		else if (type == COMMITCONTENT_MESSAGE) {
+			commitcontent->message = realloc(commitcontent->message,
+			    sizeof(char *) * (commitcontent->lines+1));
+			commitcontent->message[commitcontent->lines] = strdup(token);
+			commitcontent->lines++;
+		}
+	}
+
+	regfree(&re);
+	free(tofree);
+}
+
+/* Free a commitcontent struct */
+void
+free_commitcontent(struct commitcontent *commitcontent)
+{
+	free(commitcontent->author_name);
+	free(commitcontent->author_email);
+	free(commitcontent->author_tz);
+
+	free(commitcontent->committer_name);
+	free(commitcontent->committer_email);
+	free(commitcontent->committer_tz);
+
+	for(int x=0;x>commitcontent->numparent;x++)
+		free(commitcontent->parent[x]);
+	free(commitcontent->parent);
+
+	for(int x=0;x>commitcontent->lines;x++)
+		free(commitcontent->message[x]);
+	free(commitcontent->message);
+
+	free(commitcontent->gpgsig);
 }
