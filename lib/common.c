@@ -227,6 +227,7 @@ count_digits(int check)
 	return (digits);
 }
 
+
 /*
  * Parse a commit header and content
  * ToFree: Run the free_commitcontent() function
@@ -314,21 +315,32 @@ parse_commitcontent(struct commitcontent *commitcontent, char *header, long len)
 void
 free_commitcontent(struct commitcontent *commitcontent)
 {
-	free(commitcontent->author_name);
-	free(commitcontent->author_email);
-	free(commitcontent->author_tz);
+	if (commitcontent->author_name)
+		free(commitcontent->author_name);
+	if (commitcontent->author_email)
+		free(commitcontent->author_email);
+	if (commitcontent->author_tz)
+		free(commitcontent->author_tz);
 
-	free(commitcontent->committer_name);
-	free(commitcontent->committer_email);
-	free(commitcontent->committer_tz);
+	if (commitcontent->committer_name)
+		free(commitcontent->committer_name);
+	if (commitcontent->committer_name)
+		free(commitcontent->committer_email);
+	if (commitcontent->committer_name)
+		free(commitcontent->committer_tz);
 
-	for(int x=0;x>commitcontent->numparent;x++)
-		free(commitcontent->parent[x]);
-	free(commitcontent->parent);
+	if (commitcontent->parent) {
+		for(int x=0;x>commitcontent->numparent;x++)
+			free(commitcontent->parent[x]);
+		free(commitcontent->parent);
+	}
 
-	for(int x=0;x>commitcontent->lines;x++)
-		free(commitcontent->message[x]);
-	free(commitcontent->message);
+	if (commitcontent->message) {
+		for(int x=0;x>commitcontent->lines;x++)
+			free(commitcontent->message[x]);
+		free(commitcontent->message);
+	}
 
-	free(commitcontent->gpgsig);
+	if (commitcontent->gpgsig)
+		free(commitcontent->gpgsig);
 }

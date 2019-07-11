@@ -70,96 +70,25 @@ log_usage(int type)
 }
 
 void
-log_print_commit_headers(struct logarg *logarg)
+log_print_commit_headers(struct commitcontent *commitcontent)
 {
-	char *token, *tmp, *toff, *walker;
-	char *tofree;
-	char *datestr;
-	time_t t;
+	char datestr[50];
 
-	tofree = tmp = strdup(logarg->headers);
+	ctime_r(&commitcontent->author_time, datestr);
+	datestr[strlen(datestr)-1] = '\0';
 
-	printf("%scommit %s%s\n", color ? "\e[0;33m" : "", logarg->sha,
+	printf("%scommit %s%s\n", color ? "\e[0;33m" : "", commitcontent->commitsha,
 	    color ? "\e[0m" : "");
 
-	while((token = strsep(&tmp, "\n")) != NULL) {
-		if (strncmp(token, "parent ", 7) == 0) {
-			token += 7;
-			if (strlen(token) < sizeof(logarg->sha) - 1)
-				continue;
-			strlcpy(logarg->sha, token, sizeof(logarg->sha));
-			logarg->status |= LOG_STATUS_PARENT;
-		}
-		else if (strncmp(token, "author ", 7) == 0) {
-			/* Chop off the author */
-			token += 7;
-
-			/* Hop to the end; backtrack two spaces, that's the timestamp */
-			datestr = NULL;
-			toff = strrchr(token, ' ');
-			if (toff != NULL) {
-				*toff = '\0';
-				walker = strrchr(token, ' ');
-				if (walker != NULL) {
-					*walker = '\0';
-
-					t = strtol(walker + 1, NULL, 10);
-					datestr = ctime(&t);
-					/* Chop off the newline */
-					datestr[24] = '\0';
-				}
-			}
-
-			/*
-			 * Date parsing bits should have null terminated us back to the end
-			 * of the author string. Just print it off.
-			 */
-			printf("Author:\t%s\n", token);
-
-			if (datestr != NULL)
-				printf("Date:\t%s %s\n", datestr, toff + 1);
-			logarg->status |= LOG_STATUS_AUTHOR;
-		}
-	}
-
-	free(tofree);
-
+	printf("Author:\t%s <%s>\n", commitcontent->author_name, commitcontent->author_email);
+	printf("Date:\t%s %s\n\n", datestr, commitcontent->author_tz);
 }
 
-unsigned char *
-log_display_cb(unsigned char *buf, int size, int __unused deflated_bytes, void *arg)
+void
+log_print_message(struct commitcontent *commitcontent)
 {
-	char *bstart, *content;
-	struct logarg *logarg = arg;
-	int offset = 0, oldsize;
-
-	if (logarg->status == LOG_STATUS_COMMIT) {
-		logarg->status = 1;
-		offset = 11;
-	}
-
-	if (logarg->status == LOG_STATUS_HEADERS) {
-		// Added content to headers
-		oldsize = logarg->size;
-		logarg->headers = realloc(logarg->headers, logarg->size + size - offset + 1);
-		strlcpy(logarg->headers + logarg->size, (char *)buf + offset, size - offset + 1);
-
-		bstart = logarg->headers + logarg->size;
-		content = strstr(logarg->headers, "\n\n");
-		if (content != NULL) {
-			logarg->status = 2; // Found
-			/* Skip double newlines */
-			content += 2;
-
-			log_print_commit_headers(logarg);
-			putchar('\n');
-			printf("%.*s", (size - offset) - (int)(content - bstart), content);
-		}
-	}
-	else
-		printf("%.*s", size, buf);
-
-	return (NULL);
+	for(int x=0;x<commitcontent->lines;x++)
+		printf("    %s\n", commitcontent->message[x]);
 }
 
 void
@@ -204,76 +133,65 @@ log_get_start_sha(struct logarg *logarg)
 	close(headfd);
 }
 
-int
-log_get_loose_object(struct logarg *logarg)
-{
-	int objectfd;
-	char objectpath[PATH_MAX];
-
-	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c/%s",
-	    dotgitpath, logarg->sha[0], logarg->sha[1],
-	    logarg->sha+2);
-	objectfd = open(objectpath, O_RDONLY);
-	if (objectfd == -1) {
-		return (0);
-	}
-	deflate_caller(objectfd, NULL, NULL, log_display_cb, logarg);
-	close(objectfd);
-
-	return (1);
-}
-
-int
-log_get_pack_object(struct logarg *logarg)
-{
-	char filename[PATH_MAX];
-	int offset;
-	int packfd;
-	struct objectinfo objectinfo;
-
-	/* filename to be filled in by pack_get_packfile_offset */
-	offset = pack_get_packfile_offset(logarg->sha, filename);
-	if (offset == -1)
-		return (0);
-
-	strlcpy(filename+strlen(filename)-4, ".pack", 6);
-	packfd = open(filename, O_RDONLY);
-	if (packfd == -1) {
-		fprintf(stderr, "fatal: git log: could not get object info\n");
-		exit(128);
-	}
-
-	pack_object_header(packfd, offset, &objectinfo, NULL);
-
-	lseek(packfd, offset + objectinfo.used, SEEK_SET);
-	deflate_caller(packfd, NULL, NULL, log_display_cb, logarg);
-	close(packfd);
-
-	return (1);
-}
-
 void
 log_display_commits()
 {
+	struct decompressed_object decompressed_object;
+	struct commitcontent commitcontent;
 	struct logarg logarg;
+	int source;
 	int read;
+	int hdr_offset = 0;
 
 	bzero(&logarg, sizeof(struct logarg));
 	log_get_start_sha(&logarg);
 
 	logarg.status = LOG_STATUS_PARENT;
 	read = 0;
+
+	bzero(&commitcontent, sizeof(struct commitcontent));
+
 	while(logarg.status & LOG_STATUS_PARENT) {
-		if (limit >= 0 && ++read > limit)
-			break;
-		logarg.status = 0;
-		if (!log_get_loose_object(&logarg) && !log_get_pack_object(&logarg)) {
-			fprintf(stderr, "The object %s not found, git repository may be corrupt.\n", logarg.sha);
-			exit(128);
+		decompressed_object.size = 0;
+		decompressed_object.data = NULL;
+
+		commitcontent.commitsha = logarg.sha;
+		/*
+		 * Expansion of the CONTENT_HANDLER macro to capture the source.
+		 * This will be added to the macro if additional use-cases arise.
+		 */
+		if (loose_content_handler(commitcontent.commitsha, buffer_cb, &decompressed_object)) {
+			source = SOURCE_PACK;
+			pack_content_handler(commitcontent.commitsha, pack_buffer_cb, &decompressed_object);
 		}
-		if (logarg.status & LOG_STATUS_PARENT)
-			putchar('\n');
+		else
+			source = SOURCE_LOOSE;
+
+		if (source == SOURCE_LOOSE) {
+			// XXX This is an unnecessary variable, loose_get_headers's does two things
+			// Better approach would be to calculate the hdr_offset from the type and size
+			struct loosearg loosearg;
+			hdr_offset = loose_get_headers(decompressed_object.data,
+			    decompressed_object.size, &loosearg);
+		}
+		else
+			hdr_offset = 0;
+		parse_commitcontent(&commitcontent,
+		    (char *)decompressed_object.data + hdr_offset,
+		    decompressed_object.size - hdr_offset);
+
+		log_print_commit_headers(&commitcontent);
+		log_print_message(&commitcontent);
+		if (commitcontent.numparent == 0) {
+			logarg.status &= ~LOG_STATUS_PARENT;
+			break;
+		}
+
+		strlcpy(commitcontent.commitsha, commitcontent.parent[0], HASH_SIZE+1);
+		free_commitcontent(&commitcontent);
+		free(decompressed_object.data);
 	}
+	exit(0);
 }
 
 int

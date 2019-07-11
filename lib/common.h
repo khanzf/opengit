@@ -79,6 +79,7 @@ struct decompressed_object {
 
 /* Data structure used to parse commit messages */
 struct commitcontent {
+	char		 *commitsha;
 	char		  treesha[HASH_SIZE+1];
 
 	char		 *author_name;
@@ -100,6 +101,9 @@ struct commitcontent {
 };
 
 extern const char *object_name[];
+
+#define SOURCE_PACK		0
+#define SOURCE_LOOSE		1
 
 #define CONTENT_HANDLER(sha, loose_handler, pack_handler, args) {	\
 	if (loose_content_handler(sha, loose_handler, args))		\
