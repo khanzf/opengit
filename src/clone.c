@@ -45,19 +45,12 @@
 #include "init.h"
 
 
-/* uri, destdir, smart_head */
-typedef int (*clone_handle_func)(char *, char *, struct smart_head *);
-
 static struct clone_handler {
-	const char *uri_scheme;
+	clone_uri_scheme matcher;
 	clone_handle_func handler;
 } clone_handlers[] = {
 	{
-		.uri_scheme = "http://",
-		.handler = clone_http,
-	},
-	{
-		.uri_scheme = "https://",
+		.matcher = match_http,
 		.handler = clone_http,
 	},
 };
@@ -264,11 +257,10 @@ clone_main(int argc, char *argv[])
 	chandler = NULL;
 	for (nch = 0; nch < nitems(clone_handlers); ++nch) {
 		chandler = &clone_handlers[nch];
-		assert(chandler->uri_scheme != NULL);
+		assert(chandler->matcher != NULL);
 		assert(chandler->handler != NULL);
 
-		if (strncmp(uri, chandler->uri_scheme,
-		    strlen(chandler->uri_scheme)) == 0) {
+		if (chandler->matcher(uri)) {
 			found = true;
 			break;
 		}

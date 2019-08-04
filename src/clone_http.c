@@ -38,6 +38,17 @@
 #include "lib/protocol.h"
 #include "clone.h"
 
+/* Match the http(s)? scheme */
+int
+match_http(char *uri)
+{
+	if (strncmp(uri, "http://", 7) == 0)
+		return 1;
+	else if (strncmp(uri, "https://", 8) == 0)
+		return 1;
+	return 0;
+}
+
 static int
 clone_http_build_done(char **content, int content_length)
 {
