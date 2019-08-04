@@ -111,7 +111,7 @@ clone_http_get_sha(int packfd, char *url, struct smart_head *smart_head)
 	int ret;
 	char buf[1024];
 	while((sz = fread(buf, 1, 1024, packptr)) > 0) {
-		ret = clone_pack_protocol_process(buf, 1, sz, &parseread);
+		ret = proto_process_pack(buf, 1, sz, &parseread);
 		if (ret != sz) {
 			fprintf(stderr, "Error parsing http response. Exiting.\n");
 			exit(128);

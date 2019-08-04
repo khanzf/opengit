@@ -30,29 +30,46 @@
 
 #include <sys/queue.h>
 
-#define PACKPROTO_MULTI_ACK                         BIT(0)
-#define PACKPROTO_MULTI_ACK_DETAILED                BIT(1)
-#define PACKPROTO_MULTI_NO_DONE                     BIT(2)
-#define PACKPROTO_THIN_PACK                         BIT(3)
-#define PACKPROTO_SIDE_BAND                         BIT(4)
-#define PACKPROTO_SIDE_BAND_64K                     BIT(5)
-#define PACKPROTO_OFS_DELTA                         BIT(6)
-#define PACKPROTO_AGENT                             BIT(7)
-#define PACKPROTO_SHALLOW                           BIT(8)
-#define PACKPROTO_DEEPEN_SINCE                      BIT(9)
-#define PACKPROTO_DEEPEN_NOT                        BIT(10)
-#define PACKPROTO_DEEPEN_RELATIVE                   BIT(11)
-#define PACKPROTO_NO_PROGRESS                       BIT(12)
-#define PACKPROTO_INCLUDE_TAG                       BIT(13)
-#define PACKPROTO_REPORT_STATUS                     BIT(14)
-#define PACKPROTO_DELETE_REFS                       BIT(15)
-#define PACKPROTO_QUIET                             BIT(16)
-#define PACKPROTO_ATOMIC                            BIT(17)
-#define PACKPROTO_PUSH_OPTIONS                      BIT(18)
-#define PACKPROTO_ALLOW_TIP_SHA1_IN_WANT            BIT(19)
-#define PACKPROTO_ALLOW_REACHABLE_SHA1_IN_WANT      BIT(20)
-#define PACKPROTO_PUSH_CERT                         BIT(21)
-#define PACKPROTO_FILTER                            BIT(22)
+/* Specifies the pack protocol capabilities */
+#define PACKPROTO_MULTI_ACK				BIT(0)
+#define PACKPROTO_MULTI_ACK_DETAILED			BIT(1)
+#define PACKPROTO_MULTI_NO_DONE				BIT(2)
+#define PACKPROTO_THIN_PACK				BIT(3)
+#define PACKPROTO_SIDE_BAND				BIT(4)
+#define PACKPROTO_SIDE_BAND_64K				BIT(5)
+#define PACKPROTO_OFS_DELTA				BIT(6)
+#define PACKPROTO_AGENT					BIT(7)
+#define PACKPROTO_SHALLOW				BIT(8)
+#define PACKPROTO_DEEPEN_SINCE				BIT(9)
+#define PACKPROTO_DEEPEN_NOT				BIT(10)
+#define PACKPROTO_DEEPEN_RELATIVE			BIT(11)
+#define PACKPROTO_NO_PROGRESS				BIT(12)
+#define PACKPROTO_INCLUDE_TAG				BIT(13)
+#define PACKPROTO_REPORT_STATUS				BIT(14)
+#define PACKPROTO_DELETE_REFS				BIT(15)
+#define PACKPROTO_QUIET					BIT(16)
+#define PACKPROTO_ATOMIC				BIT(17)
+#define PACKPROTO_PUSH_OPTIONS				BIT(18)
+#define PACKPROTO_ALLOW_TIP_SHA1_IN_WANT		BIT(19)
+#define PACKPROTO_ALLOW_REACHABLE_SHA1_IN_WANT		BIT(20)
+#define PACKPROTO_PUSH_CERT				BIT(21)
+#define PACKPROTO_FILTER				BIT(22)
+
+/* Protocol state */
+#define STATE_NEWLINE					0
+#define STATE_NAK					1
+#define STATE_REMOTE					2
+#define STATE_PACK					3
+#define STATE_UNKNOWN					999
+
+struct parseread {
+	int		state;		// current state
+	int		osize;		// object size
+	int		psize;		// processed size
+	int		cremnant;	// Remnant count
+	char		bremnant[4];	// Remnant bytes
+	int		fd;
+};
 
 struct symref {
 	char			*symbol;
@@ -78,9 +95,8 @@ struct smart_head {
 	STAILQ_HEAD(, symref)	 symrefs;
 };
 
-//void	proto_parse_request_response(struct smart_head *sh, char *response);
-//int     proto_parse_request_response(char *response, struct smart_head *smart_head);
 int	proto_parse_response(char *response, struct smart_head *smart_head);
+size_t	proto_process_pack(void *buffer, size_t size, size_t nmemb, void *userp);
 
 
 #endif
