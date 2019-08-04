@@ -31,6 +31,7 @@
 
 #include <sys/queue.h>
 #include "lib/common.h"
+#include "lib/protocol.h"
 
 #define CLONE_MULTI_ACK				BIT(0)
 #define CLONE_MULTI_ACK_DETAILED		BIT(1)
@@ -55,27 +56,6 @@
 #define CLONE_ALLOW_REACHABLE_SHA1_IN_WANT	BIT(20)
 #define CLONE_PUSH_CERT				BIT(21)
 #define CLONE_FILTER				BIT(22)
-
-struct symref {
-	char		*symbol;
-	char		*path;
-
-	STAILQ_ENTRY(symref)	link;
-};
-
-struct ref {
-	char		sha[40];
-	char		*path;
-};
-
-struct smart_head {
-	char		sha[HASH_SIZE];
-	uint32_t	cap;
-	int		refcount;
-	struct ref	*refs;
-
-	STAILQ_HEAD(, symref) symrefs;
-};
 
 struct branch {
 	char 		sha[41];
