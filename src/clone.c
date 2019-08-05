@@ -44,14 +44,11 @@
 #include "clone.h"
 #include "init.h"
 
-
-static struct clone_handler {
-	clone_uri_scheme matcher;
-	clone_handle_func handler;
-} clone_handlers[] = {
+static struct clone_handler clone_handlers[] = {
 	{
 		.matcher = match_http,
-		.handler = clone_http,
+		.get_repo_state = http_get_repo_state,
+		.get_pack_fptr = http_get_pack_fptr,
 	},
 };
 
@@ -258,7 +255,6 @@ clone_main(int argc, char *argv[])
 	for (nch = 0; nch < nitems(clone_handlers); ++nch) {
 		chandler = &clone_handlers[nch];
 		assert(chandler->matcher != NULL);
-		assert(chandler->handler != NULL);
 
 		if (chandler->matcher(uri)) {
 			found = true;
@@ -288,7 +284,7 @@ clone_main(int argc, char *argv[])
 
 	smart_head.refs = NULL;
 	STAILQ_INIT(&smart_head.symrefs);
-	ret = chandler->handler(uri, repodir, &smart_head);
+	ret = clone_generic(uri, repodir, &smart_head, chandler);
 	if (ret != 0)
 		goto out;
 

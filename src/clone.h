@@ -35,16 +35,26 @@
 
 /* uri, destdir, smart_head */
 typedef int (*clone_uri_scheme)(char *);
-typedef int (*clone_handle_func)(char *, char *, struct smart_head *);
+typedef int (*clone_get_repo_state)(char *, char **);
+typedef FILE *(*clone_get_pack_fptr)(char *, char *);
+
+struct clone_handler {
+	clone_uri_scheme	matcher;
+	clone_get_repo_state	get_repo_state;
+	clone_get_pack_fptr	get_pack_fptr;
+};
 
 struct branch {
 	char 		sha[41];
 	char 		*name;
 };
 
-int	clone_main(int argc, char *argv[]);
+/* HTTP and HTTPS handler functions */
+int	 match_http(char *uri);
+int	 clone_http(char *url, char *repodir, struct smart_head *smart_head);
+int	 http_get_repo_state(char *uri, char **response);
+FILE	*http_get_pack_fptr(char *url, char *content);
 
-int match_http(char *uri);
-int clone_http(char *url, char *repodir, struct smart_head *smart_head);
+int	 clone_main(int argc, char *argv[]);
 
 #endif

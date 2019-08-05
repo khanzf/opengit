@@ -88,39 +88,53 @@ clone_build_post_content(const char *sha, char **content)
 	return (content_length);
 }
 
-static void
-clone_http_get_sha(int packfd, char *url, struct smart_head *smart_head)
+FILE *
+http_get_pack_fptr(char *url, char *content)
 {
 	char git_upload_pack[1000];
-	char *content = NULL;
-	int content_length;
-	struct parseread parseread;
 	struct url *fetchurl;
 	FILE *packptr;
 
-	sprintf(git_upload_pack, "%s/git-upload-pack", url);
+	snprintf(git_upload_pack, 1000, "%s/git-upload-pack", url);
 
+	setenv("HTTP_ACCEPT", "application/x-git-upload-pack-result", 1);
 	fetchurl = fetchParseURL(git_upload_pack);
 	if (fetchurl == NULL) {
 		fprintf(stderr, "Unable to parse url: %s\n", url);
 		exit(128);
 	}
-	parseread.state = STATE_NEWLINE;
-	parseread.cremnant = 0;
-	parseread.fd = packfd;
 
-	content_length = clone_build_post_content(smart_head->sha, &content);
-
-	setenv("HTTP_ACCEPT", "application/x-git-upload-pack-result", 1);
 	packptr = fetchReqHTTP(fetchurl, "POST", NULL, "application/x-git-upload-pack-request", content);
 	if (packptr == NULL) {
 		fprintf(stderr, "Unable to contact url: %s\n", url);
 		exit(128);
 	}
 
+	return packptr;
+}
+
+
+static void
+clone_generic_get_pack(int packfd, char *url, struct smart_head *smart_head,
+    struct clone_handler *chandler)
+{
+	char *content = NULL;
+	int content_length;
+	struct parseread parseread;
+	FILE *packptr;
+
+	content_length = clone_build_post_content(smart_head->sha, &content);
+
+	packptr = chandler->get_pack_fptr(url, content);
+
 	size_t sz;
 	int ret;
 	char buf[1024];
+
+	parseread.state = STATE_NEWLINE;
+	parseread.cremnant = 0;
+	parseread.fd = packfd;
+
 	while((sz = fread(buf, 1, 1024, packptr)) > 0) {
 		ret = proto_process_pack(buf, 1, sz, &parseread);
 		if (ret != sz) {
@@ -134,8 +148,8 @@ clone_http_get_sha(int packfd, char *url, struct smart_head *smart_head)
 
 }
 
-static int
-http_get_head(char *uri, char **response)
+int
+http_get_repo_state(char *uri, char **response)
 {
 	FILE *web;
 	long offset = 0;
@@ -160,7 +174,8 @@ http_get_head(char *uri, char **response)
 }
 
 int
-clone_http(char *uri, char *repodir, struct smart_head *smart_head)
+clone_generic(char *uri, char *repodir, struct smart_head *smart_head,
+    struct clone_handler *chandler)
 {
 	int packfd;
 	int offset;
@@ -187,7 +202,8 @@ clone_http(char *uri, char *repodir, struct smart_head *smart_head)
 	fetch_uri = uri;
 again:
 	response = NULL;
-	ret = http_get_head(fetch_uri, &response);
+	//ret = http_get_head(fetch_uri, &response);
+	ret = chandler->get_repo_state(fetch_uri, &response);
 	if (ret != 0) {
 		switch (ret) {
 		case ENOENT:
@@ -209,7 +225,7 @@ again:
 		goto out;
 	}
 	ret = proto_parse_response(response, smart_head);
-	clone_http_get_sha(packfd, fetch_uri, smart_head);
+	clone_generic_get_pack(packfd, fetch_uri, smart_head, chandler);
 
 	/* Jump to the beginning of the file */
 	lseek(packfd, 0, SEEK_SET);
