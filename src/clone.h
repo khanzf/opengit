@@ -49,6 +49,8 @@ struct branch {
 	char 		*name;
 };
 
+extern struct clone_handler http_handler;
+
 /* HTTP and HTTPS handler functions */
 int	 match_http(char *uri);
 int	 clone_http(char *url, char *repodir, struct smart_head *smart_head);
