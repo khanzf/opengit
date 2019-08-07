@@ -247,8 +247,7 @@ clone_build_post_content(const char *sha, char **content)
 }
 
 static void
-clone_generic_get_pack(int packfd, char *url, struct smart_head *smart_head,
-    struct clone_handler *chandler)
+clone_generic_get_pack(struct clone_handler *chandler, int packfd, struct smart_head *smart_head)
 {
 	char *content = NULL;
 	int content_length;
@@ -257,7 +256,7 @@ clone_generic_get_pack(int packfd, char *url, struct smart_head *smart_head,
 
 	content_length = clone_build_post_content(smart_head->sha, &content);
 
-	packptr = chandler->get_pack_fptr(url, content);
+	packptr = chandler->get_pack_fptr(chandler, content);
 
 	size_t sz;
 	int ret;
@@ -281,8 +280,7 @@ clone_generic_get_pack(int packfd, char *url, struct smart_head *smart_head,
 }
 
 int
-clone_generic(char *uri, char *repodir, struct smart_head *smart_head,
-    struct clone_handler *chandler)
+clone_generic(struct clone_handler *chandler, char *repodir, struct smart_head *smart_head)
 {
 	int packfd;
 	int offset;
@@ -292,8 +290,8 @@ clone_generic(char *uri, char *repodir, struct smart_head *smart_head,
 	char path[PATH_MAX];
 	char srcpath[PATH_MAX];
 	int ret;
-	char *fetch_uri;
 	char *response;
+	char *newpath;
 	SHA1_CTX packctx;
 	SHA1_CTX idxctx;
 
@@ -305,23 +303,23 @@ clone_generic(char *uri, char *repodir, struct smart_head *smart_head,
 		fprintf(stderr, "1 Unable to open file %s.\n", path);
 		exit(-1);
 	}
-
-	fetch_uri = uri;
 again:
 	response = NULL;
-	//ret = http_get_head(fetch_uri, &response);
-	ret = chandler->get_repo_state(fetch_uri, &response);
+	ret = chandler->get_repo_state(chandler, &response);
 	if (ret != 0) {
 		switch (ret) {
 		case ENOENT:
 			/* Fortunately, we can assume fetch_uri length will always be > 4 */
-			if (strcmp(fetch_uri + (strlen(fetch_uri) - 4), ".git") != 0) {
+			if (strcmp(*chandler->path + (strlen(*chandler->path) - 4), ".git") != 0) {
 				/* We'll try again with .git (+ null terminator) */
-				fetch_uri = malloc(strlen(uri) + 5);
-				snprintf(fetch_uri, strlen(uri) + 5, "%s.git", uri);
+				newpath  = malloc(strlen(*chandler->path) + 5);
+				strncpy(newpath, *chandler->path, strlen(*chandler->path));
+				strncat(newpath, ".git", strlen(*chandler->path) + 5);
+				free(*chandler->path);
+				*chandler->path = newpath;
 				goto again;
 			}
-			fprintf(stderr, "Unable to clone repository: %s\n", uri);
+			fprintf(stderr, "Unable to clone repository.\n");
 			break;
 		case EINVAL:
 			fprintf(stderr, "Protocol mismatch.\n");
@@ -332,7 +330,7 @@ again:
 		goto out;
 	}
 	ret = proto_parse_response(response, smart_head);
-	clone_generic_get_pack(packfd, fetch_uri, smart_head, chandler);
+	clone_generic_get_pack(chandler, packfd, smart_head);
 
 	/* Jump to the beginning of the file */
 	lseek(packfd, 0, SEEK_SET);
@@ -383,8 +381,6 @@ again:
 	rename(srcpath, path);
 	ret = 0;
 out:
-	if (fetch_uri != uri)
-		free(fetch_uri);
 	return (ret);
 }
 
@@ -438,7 +434,7 @@ clone_main(int argc, char *argv[])
 		chandler = &clone_handlers[nch];
 		assert(chandler->matcher != NULL);
 
-		if (chandler->matcher(uri)) {
+		if (chandler->matcher(chandler, uri)) {
 			found = true;
 			break;
 		}
@@ -466,7 +462,7 @@ clone_main(int argc, char *argv[])
 
 	smart_head.refs = NULL;
 	STAILQ_INIT(&smart_head.symrefs);
-	ret = clone_generic(uri, repodir, &smart_head, chandler);
+	ret = clone_generic(chandler, repodir, &smart_head);
 	if (ret != 0)
 		goto out;
 

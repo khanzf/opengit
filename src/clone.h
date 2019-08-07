@@ -33,15 +33,21 @@
 #include "lib/common.h"
 #include "lib/protocol.h"
 
+struct clone_handler;
+
 /* uri, destdir, smart_head */
-typedef int (*clone_uri_scheme)(char *);
-typedef int (*clone_get_repo_state)(char *, char **);
-typedef FILE *(*clone_get_pack_fptr)(char *, char *);
+typedef int (*clone_uri_scheme)(struct clone_handler *, char *);
+typedef int (*clone_get_repo_state)(struct clone_handler *, char **);
+typedef FILE *(*clone_get_pack_fptr)(struct clone_handler *, char *);
 
 struct clone_handler {
-	clone_uri_scheme	matcher;
-	clone_get_repo_state	get_repo_state;
-	clone_get_pack_fptr	get_pack_fptr;
+	clone_uri_scheme	  matcher;
+	clone_get_repo_state	  get_repo_state;
+	clone_get_pack_fptr	  get_pack_fptr;
+
+	void			 *conn_data;
+
+	char			**path;
 };
 
 struct branch {
@@ -52,10 +58,9 @@ struct branch {
 extern struct clone_handler http_handler;
 
 /* HTTP and HTTPS handler functions */
-int	 match_http(char *uri);
-int	 clone_http(char *url, char *repodir, struct smart_head *smart_head);
-int	 http_get_repo_state(char *uri, char **response);
-FILE	*http_get_pack_fptr(char *url, char *content);
+int	 match_http(struct clone_handler *chandler, char *uri);
+int	 http_get_repo_state(struct clone_handler *chandler, char **response);
+FILE	*http_get_pack_fptr(struct clone_handler *chandler, char *content);
 
 int	 clone_main(int argc, char *argv[]);
 

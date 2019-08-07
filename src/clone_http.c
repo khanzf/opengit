@@ -40,61 +40,75 @@
 
 /* Match the http(s)? scheme */
 int
-match_http(char *uri)
+match_http(struct clone_handler *chandler, char *uri)
 {
-	if (strncmp(uri, "http://", 7) == 0)
+	struct url *fetchurl = fetchParseURL(uri);
+
+	if (fetchurl != NULL) {
+		chandler->conn_data = fetchurl;
+		chandler->path = &fetchurl->doc;
 		return 1;
-	else if (strncmp(uri, "https://", 8) == 0)
-		return 1;
+	}
 	return 0;
 }
 
-FILE *
-http_get_pack_fptr(char *url, char *content)
-{
-	char git_upload_pack[1000];
-	struct url *fetchurl;
-	FILE *packptr;
-
-	snprintf(git_upload_pack, 1000, "%s/git-upload-pack", url);
-
-	setenv("HTTP_ACCEPT", "application/x-git-upload-pack-result", 1);
-	fetchurl = fetchParseURL(git_upload_pack);
-	if (fetchurl == NULL) {
-		fprintf(stderr, "Unable to parse url: %s\n", url);
-		exit(128);
-	}
-
-	packptr = fetchReqHTTP(fetchurl, "POST", NULL, "application/x-git-upload-pack-request", content);
-	if (packptr == NULL) {
-		fprintf(stderr, "Unable to contact url: %s\n", url);
-		exit(128);
-	}
-
-	return packptr;
-}
-
+/* Gets the current repository state */
 int
-http_get_repo_state(char *uri, char **response)
+http_get_repo_state(struct clone_handler *chandler, char **response)
 {
+	char *savedoc;
 	FILE *web;
 	long offset = 0;
 	long r;
-	char fetchurl[1024];
+	struct url *fetchurl = chandler->conn_data;
 	char out[1024];
+	char git_upload_pack[1000];
+	int ret;
 
-	snprintf(fetchurl, sizeof(fetchurl), "%s/info/refs?service=git-upload-pack", uri);
-	if ((web = fetchGetURL(fetchurl, NULL)) == NULL)
-		return (ENOENT);
 
-	do {
-		r = fread(out, 1, 1024, web);
-		*response = realloc(*response, offset+r);
-		memcpy(*response+offset, out, r);
-		offset += r;
-	} while(r >= 1024);
+	snprintf(git_upload_pack, 1000, "%s/info/refs?service=git-upload-pack", fetchurl->doc);
+	savedoc = fetchurl->doc;
+	fetchurl->doc = git_upload_pack;
+	web = fetchGet(fetchurl, NULL);
+	if (web == NULL)
+		ret = ENOENT;
+	else {
+		ret = 0;
+		do {
+			r = fread(out, 1, 1024, web);
+			*response = realloc(*response, offset+r);
+			memcpy(*response+offset, out, r);
+			offset += r;
+		} while(r >= 1024);
 
-	fclose(web);
+		fclose(web);
+	}
+	fetchurl->doc = savedoc;
 
-	return (0);
+	return (ret);
+}
+
+/* Returns a file pointer to the connection */
+FILE *
+http_get_pack_fptr(struct clone_handler *chandler, char *content)
+{
+	char *savedoc;
+	char git_upload_pack[1000];
+	struct url *fetchurl = chandler->conn_data;
+	FILE *packptr;
+
+	snprintf(git_upload_pack, 1000, "%s/git-upload-pack", fetchurl->doc);
+	savedoc = fetchurl->doc;
+	fetchurl->doc = git_upload_pack;
+
+	setenv("HTTP_ACCEPT", "application/x-git-upload-pack-result", 1);
+
+	packptr = fetchReqHTTP(fetchurl, "POST", NULL, "application/x-git-upload-pack-request", content);
+	if (packptr == NULL) {
+		fprintf(stderr, "Unable to contact url: %s\n", fetchurl->doc);
+		exit(128);
+	}
+	fetchurl->doc = savedoc;
+
+	return packptr;
 }
