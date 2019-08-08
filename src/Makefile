@@ -10,7 +10,7 @@ LDFLAGS+=	${.OBJDIR}/../lib/libogit.a
 PROG=	ogit
 
 SRCS=	ogit.c remote.c init.c hash-object.c update-index.c cat-file.c log.c \
-    clone.c clone_http.c index-pack.c
+    clone.c clone_http.c clone_ssh.c index-pack.c
 
 CLEANFILES+=	${PROG}.core
 

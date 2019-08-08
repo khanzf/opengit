@@ -50,6 +50,23 @@ struct clone_handler {
 	char			**path;
 };
 
+/* Holds ssh connection data */
+struct conn_ssh {
+	int		  fdout;
+	int		  fdin;
+	int		  fderr;
+
+	char		 *ssh_user;
+	char		 *ssh_host;
+	int		  port;
+	char		 *ssh_path;
+	int		  in;
+	int		  out;
+	int		  err;
+
+	char		**path;
+};
+
 struct branch {
 	char 		sha[41];
 	char 		*name;
@@ -61,6 +78,12 @@ extern struct clone_handler http_handler;
 int	 match_http(struct clone_handler *chandler, char *uri);
 int	 http_get_repo_state(struct clone_handler *chandler, char **response);
 FILE	*http_get_pack_fptr(struct clone_handler *chandler, char *content);
+
+
+/* ssh handler functions */
+int	 match_ssh(struct clone_handler *chandler, char *uri);
+int	 ssh_get_repo_state(struct clone_handler *chandler, char **response);
+FILE	*ssh_get_pack_fptr(struct clone_handler *chandler, char *content);
 
 int	 clone_main(int argc, char *argv[]);
 

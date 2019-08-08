@@ -50,6 +50,11 @@ static struct clone_handler clone_handlers[] = {
 		.get_repo_state = http_get_repo_state,
 		.get_pack_fptr = http_get_pack_fptr,
 	},
+	{
+		.matcher = match_ssh,
+		.get_repo_state = ssh_get_repo_state,
+		.get_pack_fptr = ssh_get_pack_fptr,
+	},
 };
 
 /* XXX Assume ssh by default? */
