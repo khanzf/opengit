@@ -215,17 +215,17 @@ proto_parse_response(char *response, struct smart_head *smart_head)
 
 	position = response;
 	sscanf(position, "%04lx", &offset);
-	position += offset;
-
-	/* The first four bytes are 0000, check and skip ahead */
-	if (strncmp(position, "0000", 4))
-		return (EINVAL);
-
+	if (strncmp(position+4, "# service=", 10)==0) {
+		// XXX Record service name
+		position += offset;
+		/* The first four bytes are 0000, check and skip ahead */
+		if (strncmp(position, "0000", 4))
+			return (EINVAL);
+		position += 4;
+		sscanf(position, "%04lx", &offset);
+	}
 	position += 4;
-
-	sscanf(position, "%04lx", &offset);
-	position += 4;
-	memcpy(smart_head->sha, position, HASH_SIZE);
+	strlcpy(smart_head->sha, position, HASH_SIZE+1);
 
 	tofree = string = strndup(position+41+strlen(position+41)+1,
 	    offset-(47+strlen(position+41)));
@@ -289,7 +289,7 @@ proto_parse_response(char *response, struct smart_head *smart_head)
 	while(strncmp(position, "0000", 4)) {
 		smart_head->refs = realloc(smart_head->refs, sizeof(struct smart_head) * (count+1));
 		sscanf(position, "%04lx", &offset);
-		memcpy(smart_head->refs[count].sha, position+4, HASH_SIZE);
+		strlcpy(smart_head->refs[count].sha, position+4, HASH_SIZE+1);
 
 		smart_head->refs[count].path = strndup(position+4+41,
 		    offset-(4+42));
