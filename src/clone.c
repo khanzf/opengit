@@ -248,6 +248,8 @@ clone_build_post_content(const char *sha, char **content)
 	    capabilities, sha);
 	content_length += clone_generic_build_done(content, content_length);
 
+	printf("%s", *content);
+
 	return (content_length);
 }
 
@@ -260,7 +262,6 @@ clone_generic_get_pack(struct clone_handler *chandler, int packfd, struct smart_
 	FILE *packptr;
 
 	content_length = clone_build_post_content(smart_head->sha, &content);
-
 	packptr = chandler->get_pack_fptr(chandler, content);
 
 	size_t sz;

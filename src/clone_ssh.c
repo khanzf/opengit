@@ -76,13 +76,10 @@ setup_connection(struct clone_handler *chandler)
 	}
 	else {
 		struct conn_ssh *conn_ssh = chandler->conn_data;
-		char buf[1000];
 		conn_ssh->in = filedes2[0];
 		conn_ssh->out = filedes1[1];
 		conn_ssh->err = filedes3[1];
-		read(filedes2[0], buf, 1000);
 
-		printf("|-- %s --|\n", buf);
 	}
 }
 
@@ -102,14 +99,13 @@ ssh_get_repo_state(struct clone_handler *chandler, char **response)
 		offset += r;
 	} while(r >= 1024);
 
-	printf("The state: \n\n%s\n", *response);
-
 	return (0);
 }
 
 FILE *
 ssh_get_pack_fptr(struct clone_handler *chandler, char *content)
 {
-	setup_connection(chandler);
-	return NULL;
+	struct conn_ssh *conn_ssh = chandler->conn_data;
+	write(conn_ssh->out, content, strlen(content));
+	return fdopen(conn_ssh->in, "r");
 }
