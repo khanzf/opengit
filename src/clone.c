@@ -248,8 +248,6 @@ clone_build_post_content(const char *sha, char **content)
 	    capabilities, sha);
 	content_length += clone_generic_build_done(content, content_length);
 
-	printf("%s", *content);
-
 	return (content_length);
 }
 
