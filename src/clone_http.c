@@ -58,40 +58,22 @@ match_http(struct clone_handler *chandler, char *uri)
 }
 
 /* Gets the current repository state */
-int
-http_get_repo_state(struct clone_handler *chandler, char **response)
+FILE *
+http_run_service(struct clone_handler *chandler, char *service)
 {
 	char *savedoc;
 	FILE *web;
-	long offset = 0;
-	long r;
 	struct conn_http *conn_http = chandler->conn_data;
 	struct url *fetchurl = conn_http->fetchurl;
-	char out[1024];
 	char git_upload_pack[1000];
-	int ret;
 
 
-	snprintf(git_upload_pack, 1000, "%s/info/refs?service=git-upload-pack", fetchurl->doc);
+	snprintf(git_upload_pack, 1000, "%s/info/refs?service=%s", fetchurl->doc, service);
 	savedoc = fetchurl->doc;
 	fetchurl->doc = git_upload_pack;
 	web = fetchReqHTTP(fetchurl, "POST", "NULL", "*/*", NULL);
-	if (web == NULL)
-		ret = ENOENT;
-	else {
-		ret = 0;
-		do {
-			r = fread(out, 1, 1024, web);
-			*response = realloc(*response, offset+r);
-			memcpy(*response+offset, out, r);
-			offset += r;
-		} while(r >= 1024);
-
-		fclose(web);
-	}
 	fetchurl->doc = savedoc;
-
-	return (ret);
+	return web;
 }
 
 /* Returns a file pointer to the connection */

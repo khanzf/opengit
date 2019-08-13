@@ -47,14 +47,16 @@
 static struct clone_handler clone_handlers[] = {
 	{
 		.matcher = match_http,
-		.get_repo_state = http_get_repo_state,
+		.run_service = http_run_service,
 		.get_pack_stream = http_get_pack_stream,
 	},
+	/*
 	{
 		.matcher = match_ssh,
-		.get_repo_state = ssh_get_repo_state,
+		.run_service = ssh_run_service,
 		.get_pack_stream = ssh_get_pack_stream,
 	},
+	*/
 };
 
 /* XXX Assume ssh by default? */
@@ -294,6 +296,7 @@ clone_generic(struct clone_handler *chandler, char *repodir, struct smart_head *
 	char path[PATH_MAX];
 	char srcpath[PATH_MAX];
 	int ret;
+	FILE *web;
 	char *response;
 	char *newpath;
 	SHA1_CTX packctx;
@@ -309,30 +312,37 @@ clone_generic(struct clone_handler *chandler, char *repodir, struct smart_head *
 	}
 again:
 	response = NULL;
-	ret = chandler->get_repo_state(chandler, &response);
-	if (ret != 0) {
-		switch (ret) {
-		case ENOENT:
-			/* Fortunately, we can assume fetch_uri length will always be > 4 */
-			if (strcmp(*chandler->path + (strlen(*chandler->path) - 4), ".git") != 0) {
-				/* We'll try again with .git (+ null terminator) */
-				newpath  = malloc(strlen(*chandler->path) + 5);
-				strncpy(newpath, *chandler->path, strlen(*chandler->path));
-				strncat(newpath, ".git", strlen(*chandler->path) + 5);
-				free(*chandler->path);
-				*chandler->path = newpath;
-				goto again;
-			}
-			fprintf(stderr, "Unable to clone repository.\n");
-			break;
-		case EINVAL:
-			fprintf(stderr, "Protocol mismatch.\n");
-			break;
+	web = chandler->run_service(chandler, "git-upload-pack");
+	if (web == NULL) {
+		/* Fortunately, we can assume fetch_uri length will always be > 4 */
+		if (strcmp(*chandler->path + (strlen(*chandler->path) - 4), ".git") != 0) {
+			/* We'll try again with .git (+ null terminator) */
+			newpath  = malloc(strlen(*chandler->path) + 5);
+			strncpy(newpath, *chandler->path, strlen(*chandler->path));
+			strncat(newpath, ".git", strlen(*chandler->path) + 5);
+			free(*chandler->path);
+			*chandler->path = newpath;
+			goto again;
 		}
 
+		fprintf(stderr, "Unable to clone repository.\n");
 		ret = 128;
 		goto out;
 	}
+
+	/////////////////////////////////////////////
+	long r;
+	long added = 0;
+	char out[1024];
+	do {
+		r = fread(out, 1, 1024, web);
+		response = realloc(response, added + r);
+		memcpy(response+added, out, r);
+		added += r;
+	} while (r >= 1024);
+	fclose(web);
+	/////////////////////////////////////////////
+
 	ret = proto_parse_response(response, smart_head);
 	clone_generic_get_pack(chandler, packfd, smart_head);
 

@@ -86,9 +86,10 @@ setup_connection(struct clone_handler *chandler)
 	}
 }
 
-int
-ssh_get_repo_state(struct clone_handler *chandler, char **response)
+FILE *
+ssh_run_service(struct clone_handler *chandler, char *service)
 {
+/*
 	long offset = 0;
 	long r;
 	char out[1024];
@@ -101,7 +102,7 @@ ssh_get_repo_state(struct clone_handler *chandler, char **response)
 		memcpy(*response+offset, out, r);
 		offset += r;
 	} while(r >= 1024);
-
+*/
 	return (0);
 }
 
