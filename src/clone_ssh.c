@@ -76,8 +76,11 @@ setup_connection(struct clone_handler *chandler)
 	}
 	else {
 		struct conn_ssh *conn_ssh = chandler->conn_data;
-		conn_ssh->in = filedes2[0];
+		close(filedes1[0]);
+		close(filedes2[1]);
+		close(filedes3[0]);
 		conn_ssh->out = filedes1[1];
+		conn_ssh->in = filedes2[0];
 		conn_ssh->err = filedes3[1];
 
 	}
