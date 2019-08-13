@@ -67,6 +67,11 @@ struct conn_ssh {
 	char		**path;
 };
 
+/* Holds http connection data */
+struct conn_http {
+	struct url	 *fetchurl;
+};
+
 struct branch {
 	char 		sha[41];
 	char 		*name;

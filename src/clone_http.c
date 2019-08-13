@@ -45,10 +45,15 @@ match_http(struct clone_handler *chandler, char *uri)
 	struct url *fetchurl = fetchParseURL(uri);
 
 	if (fetchurl != NULL) {
-		chandler->conn_data = fetchurl;
+		struct conn_http *conn_http = malloc(sizeof(struct conn_http));
+		conn_http->fetchurl = fetchurl;
 		chandler->path = &fetchurl->doc;
+		chandler->conn_data = conn_http;
 		return 1;
 	}
+
+	fetchFreeURL(fetchurl);
+
 	return 0;
 }
 
@@ -60,7 +65,8 @@ http_get_repo_state(struct clone_handler *chandler, char **response)
 	FILE *web;
 	long offset = 0;
 	long r;
-	struct url *fetchurl = chandler->conn_data;
+	struct conn_http *conn_http = chandler->conn_data;
+	struct url *fetchurl = conn_http->fetchurl;
 	char out[1024];
 	char git_upload_pack[1000];
 	int ret;
@@ -94,7 +100,8 @@ http_get_pack_fptr(struct clone_handler *chandler, char *content)
 {
 	char *savedoc;
 	char git_upload_pack[1000];
-	struct url *fetchurl = chandler->conn_data;
+	struct conn_http *conn_http = chandler->conn_data;
+	struct url *fetchurl = conn_http->fetchurl;
 	FILE *packptr;
 
 	snprintf(git_upload_pack, 1000, "%s/git-upload-pack", fetchurl->doc);
