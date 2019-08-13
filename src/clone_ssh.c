@@ -106,7 +106,7 @@ ssh_get_repo_state(struct clone_handler *chandler, char **response)
 }
 
 FILE *
-ssh_get_pack_fptr(struct clone_handler *chandler, char *content)
+ssh_get_pack_stream(struct clone_handler *chandler, char *content)
 {
 	struct conn_ssh *conn_ssh = chandler->conn_data;
 	write(conn_ssh->out, content, strlen(content));

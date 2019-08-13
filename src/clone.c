@@ -48,12 +48,12 @@ static struct clone_handler clone_handlers[] = {
 	{
 		.matcher = match_http,
 		.get_repo_state = http_get_repo_state,
-		.get_pack_fptr = http_get_pack_fptr,
+		.get_pack_stream = http_get_pack_stream,
 	},
 	{
 		.matcher = match_ssh,
 		.get_repo_state = ssh_get_repo_state,
-		.get_pack_fptr = ssh_get_pack_fptr,
+		.get_pack_stream = ssh_get_pack_stream,
 	},
 };
 
@@ -260,7 +260,7 @@ clone_generic_get_pack(struct clone_handler *chandler, int packfd, struct smart_
 	FILE *packptr;
 
 	content_length = clone_build_post_content(smart_head->sha, &content);
-	packptr = chandler->get_pack_fptr(chandler, content);
+	packptr = chandler->get_pack_stream(chandler, content);
 
 	size_t sz;
 	int ret;

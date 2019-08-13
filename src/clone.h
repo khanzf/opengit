@@ -38,12 +38,12 @@ struct clone_handler;
 /* uri, destdir, smart_head */
 typedef int (*clone_uri_scheme)(struct clone_handler *, char *);
 typedef int (*clone_get_repo_state)(struct clone_handler *, char **);
-typedef FILE *(*clone_get_pack_fptr)(struct clone_handler *, char *);
+typedef FILE *(*clone_get_pack_stream)(struct clone_handler *, char *);
 
 struct clone_handler {
 	clone_uri_scheme	  matcher;
 	clone_get_repo_state	  get_repo_state;
-	clone_get_pack_fptr	  get_pack_fptr;
+	clone_get_pack_stream	  get_pack_stream;
 
 	void			 *conn_data;
 
@@ -82,13 +82,13 @@ extern struct clone_handler http_handler;
 /* HTTP and HTTPS handler functions */
 int	 match_http(struct clone_handler *chandler, char *uri);
 int	 http_get_repo_state(struct clone_handler *chandler, char **response);
-FILE	*http_get_pack_fptr(struct clone_handler *chandler, char *content);
+FILE	*http_get_pack_stream(struct clone_handler *chandler, char *content);
 
 
 /* ssh handler functions */
 int	 match_ssh(struct clone_handler *chandler, char *uri);
 int	 ssh_get_repo_state(struct clone_handler *chandler, char **response);
-FILE	*ssh_get_pack_fptr(struct clone_handler *chandler, char *content);
+FILE	*ssh_get_pack_stream(struct clone_handler *chandler, char *content);
 
 int	 clone_main(int argc, char *argv[]);
 

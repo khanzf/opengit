@@ -75,7 +75,7 @@ http_get_repo_state(struct clone_handler *chandler, char **response)
 	snprintf(git_upload_pack, 1000, "%s/info/refs?service=git-upload-pack", fetchurl->doc);
 	savedoc = fetchurl->doc;
 	fetchurl->doc = git_upload_pack;
-	web = fetchGet(fetchurl, NULL);
+	web = fetchReqHTTP(fetchurl, "POST", "NULL", "*/*", NULL);
 	if (web == NULL)
 		ret = ENOENT;
 	else {
@@ -96,7 +96,7 @@ http_get_repo_state(struct clone_handler *chandler, char **response)
 
 /* Returns a file pointer to the connection */
 FILE *
-http_get_pack_fptr(struct clone_handler *chandler, char *content)
+http_get_pack_stream(struct clone_handler *chandler, char *content)
 {
 	char *savedoc;
 	char git_upload_pack[1000];
