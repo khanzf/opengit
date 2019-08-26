@@ -65,7 +65,6 @@ http_run_service(struct clone_handler *chandler, char *service)
 	struct url *fetchurl = conn_http->fetchurl;
 	char git_upload_pack[1000];
 
-
 	snprintf(git_upload_pack, 1000, "%s/info/refs?service=%s", fetchurl->doc, service);
 	savedoc = fetchurl->doc;
 	fetchurl->doc = git_upload_pack;

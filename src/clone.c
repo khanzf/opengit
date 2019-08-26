@@ -80,8 +80,8 @@ get_repo_dir(char *path)
 		x--;
 	end = x;
 	/* Check if the URL ends in .git or .git/ */
-	if (!strncmp(path+x-4, ".git", 4))
-		end = x - 4;
+	if (!strncmp(path+x-PKTSIZELEN, ".git", PKTSIZELEN))
+		end = x - PKTSIZELEN;
 
 	/* Find the first '/' */
 	for(;path[x-1]!='/' && x !=0;x--);
@@ -108,7 +108,7 @@ populate_packed_refs(char *repodir, struct smart_head *smart_head)
 	}
 
 	for(int x=0;x<smart_head->refcount;x++) {
-		fwrite(smart_head->refs[x].sha, 40, 1, refs);
+		fwrite(smart_head->refs[x].sha, HASH_SIZE, 1, refs);
 		fprintf(refs, " %s\n", smart_head->refs[x].path);
 	}
 
@@ -227,7 +227,7 @@ clone_generic_build_want(char **content, int content_length, char *capabilities,
 	int len;
 
 	/* size + want + space + SHA(40) + space + capabilities + newline */
-	len = 4 + 4 + 1 + 40 + 1 + strlen(capabilities) + 1;
+	len = PKTSIZELEN + 4 + 1 + HASH_SIZE + 1 + strlen(capabilities) + 1;
 
 	sprintf(line, "%04xwant %s %s\n", len, sha, capabilities);
 	*content = realloc(*content, content_length + len + 1);
@@ -280,7 +280,6 @@ clone_generic_get_pack(struct clone_handler *chandler, int packfd, struct smart_
 
 	fclose(packptr);
 	free(content);
-
 }
 
 int
@@ -313,7 +312,7 @@ again:
 	web = chandler->run_service(chandler, "git-upload-pack");
 	if (web == NULL) {
 		/* Fortunately, we can assume fetch_uri length will always be > 4 */
-		if (strncmp(*chandler->path + (strlen((*chandler->path) - 4)), ".git", 4) != 0) {
+		if (strncmp(*chandler->path + (strlen((*chandler->path) - PKTSIZELEN)), ".git", PKTSIZELEN) != 0) {
 			/* We'll try again with .git (+ null terminator) */
 			newpath  = malloc(strlen(*chandler->path) + 5);
 			strncpy(newpath, *chandler->path, strlen(*chandler->path));
