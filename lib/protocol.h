@@ -63,6 +63,7 @@
 #define STATE_UNKNOWN					999
 
 #define PKTSIZELEN					4
+#define PKTFLUSH					"0000"
 
 struct parseread {
 	int		state;		// current state

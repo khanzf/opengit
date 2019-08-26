@@ -365,7 +365,7 @@ again:
 	} while (r >= PKTSIZELEN);
 
 	response = realloc(response, added + r);
-	memcpy(response + added, "0000", PKTSIZELEN);
+	memcpy(response + added, PKTFLUSH, PKTSIZELEN);
 
 	fclose(web);
 

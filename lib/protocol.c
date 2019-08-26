@@ -108,22 +108,22 @@ proto_process_pack(void *buffer, size_t size, size_t nmemb, void *userp)
 	 * Iterate up to the pool size being 4 bytes, in the event that the last
 	 * four bytes are the beginning of a new object
 	 */
-	while(offset + 4 < pool) {
+	while(offset + PKTSIZELEN < pool) {
 		if (parseread->state == STATE_NEWLINE) {
 			bzero(tmp, 5);
-			memcpy(tmp, reply+offset, 4); tmp[4] = '\0';
+			memcpy(tmp, reply+offset, PKTSIZELEN); tmp[PKTSIZELEN] = '\0';
 			check = sscanf(tmp, "%04x", &parseread->osize);
 
 			if (parseread->osize == 0) {
-				offset += 4;
+				offset += PKTSIZELEN;
 				break;
 			}
 
 			parseread->psize = 0;
 
-			if ( strncmp((char *)reply+offset+4, "NAK\n", 4)==0)
+			if ( strncmp((char *)reply+offset+PKTSIZELEN, "NAK\n", PKTSIZELEN)==0)
 				parseread->state = STATE_NAK;
-			else if (reply[offset+4] == 0x02)
+			else if (reply[offset+PKTSIZELEN] == 0x02)
 				parseread->state = STATE_REMOTE;
 			else
 				parseread->state = STATE_UNKNOWN;
@@ -215,16 +215,16 @@ proto_parse_response(char *response, struct smart_head *smart_head)
 
 	position = response;
 	sscanf(position, "%04lx", &offset);
-	if (strncmp(position+4, "# service=", 10)==0) {
+	if (strncmp(position+PKTSIZELEN, "# service=", 10)==0) {
 		// XXX Record service name
 		position += offset;
 		/* The first four bytes are 0000, check and skip ahead */
-		if (strncmp(position, "0000", 4))
+		if (strncmp(position, PKTFLUSH, PKTSIZELEN))
 			return (EINVAL);
-		position += 4;
+		position += PKTSIZELEN;
 		sscanf(position, "%04lx", &offset);
 	}
-	position += 4;
+	position += PKTSIZELEN;
 	strlcpy(smart_head->sha, position, HASH_SIZE+1);
 
 	tofree = string = strndup(position+41+strlen(position+41)+1,
@@ -282,17 +282,17 @@ proto_parse_response(char *response, struct smart_head *smart_head)
 	}    
 	free(tofree);
 
-	position += offset - 4;
+	position += offset - PKTSIZELEN;
 
 	/* Iterate through the refs */
 	count = 0;
-	while(strncmp(position, "0000", 4)) {
+	while(strncmp(position, PKTFLUSH, PKTSIZELEN)) {
 		smart_head->refs = realloc(smart_head->refs, sizeof(struct smart_head) * (count+1));
 		sscanf(position, "%04lx", &offset);
-		strlcpy(smart_head->refs[count].sha, position+4, HASH_SIZE+1);
+		strlcpy(smart_head->refs[count].sha, position+PKTSIZELEN, HASH_SIZE+1);
 
-		smart_head->refs[count].path = strndup(position+4+41,
-		    offset-(4+42));
+		smart_head->refs[count].path = strndup(position+PKTSIZELEN+41,
+		    offset-(PKTSIZELEN+42));
 
 		position += offset;
 		count++;
