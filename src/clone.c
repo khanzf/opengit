@@ -80,8 +80,8 @@ get_repo_dir(char *path)
 		x--;
 	end = x;
 	/* Check if the URL ends in .git or .git/ */
-	if (!strncmp(path+x-PKTSIZELEN, ".git", PKTSIZELEN))
-		end = x - PKTSIZELEN;
+	if (!strncmp(path+x-PKTSIZELEN, ".git", 4))
+		end = x - 4;
 
 	/* Find the first '/' */
 	for(;path[x-1]!='/' && x !=0;x--);
@@ -312,7 +312,7 @@ again:
 	web = chandler->run_service(chandler, "git-upload-pack");
 	if (web == NULL) {
 		/* Fortunately, we can assume fetch_uri length will always be > 4 */
-		if (strncmp(*chandler->path + (strlen((*chandler->path) - PKTSIZELEN)), ".git", PKTSIZELEN) != 0) {
+		if (strncmp(*chandler->path + (strlen((*chandler->path) - 4)), ".git", 4) != 0) {
 			/* We'll try again with .git (+ null terminator) */
 			newpath  = malloc(strlen(*chandler->path) + 5);
 			strncpy(newpath, *chandler->path, strlen(*chandler->path));

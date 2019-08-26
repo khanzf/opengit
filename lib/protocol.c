@@ -121,7 +121,7 @@ proto_process_pack(void *buffer, size_t size, size_t nmemb, void *userp)
 
 			parseread->psize = 0;
 
-			if ( strncmp((char *)reply+offset+PKTSIZELEN, "NAK\n", PKTSIZELEN)==0)
+			if ( strncmp((char *)reply+offset+4, "NAK\n", PKTSIZELEN)==0)
 				parseread->state = STATE_NAK;
 			else if (reply[offset+PKTSIZELEN] == 0x02)
 				parseread->state = STATE_REMOTE;
