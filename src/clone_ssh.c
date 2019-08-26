@@ -38,7 +38,7 @@
 #include "lib/protocol.h"
 #include "clone.h"
 
-/* Match the http(s)? scheme */
+/* Match the ssh scheme */
 int
 match_ssh(struct clone_handler *chandler, char *uri)
 {
@@ -82,7 +82,6 @@ setup_connection(struct clone_handler *chandler)
 		conn_ssh->out = filedes1[1];
 		conn_ssh->in = filedes2[0];
 		conn_ssh->err = filedes3[1];
-
 	}
 }
 

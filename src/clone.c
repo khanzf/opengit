@@ -50,13 +50,11 @@ static struct clone_handler clone_handlers[] = {
 		.run_service = http_run_service,
 		.get_pack_stream = http_get_pack_stream,
 	},
-	/*
 	{
 		.matcher = match_ssh,
 		.run_service = ssh_run_service,
 		.get_pack_stream = ssh_get_pack_stream,
 	},
-	*/
 };
 
 /* XXX Assume ssh by default? */
@@ -315,7 +313,7 @@ again:
 	web = chandler->run_service(chandler, "git-upload-pack");
 	if (web == NULL) {
 		/* Fortunately, we can assume fetch_uri length will always be > 4 */
-		if (strcmp(*chandler->path + (strlen(*chandler->path) - 4), ".git") != 0) {
+		if (strncmp(*chandler->path + (strlen((*chandler->path) - 4)), ".git", 4) != 0) {
 			/* We'll try again with .git (+ null terminator) */
 			newpath  = malloc(strlen(*chandler->path) + 5);
 			strncpy(newpath, *chandler->path, strlen(*chandler->path));
@@ -330,18 +328,46 @@ again:
 		goto out;
 	}
 
-	/////////////////////////////////////////////
-	long r;
-	long added = 0;
-	char out[1024];
+	int pktsize;
+	char out[8000];
+	int r;
+	bool inservice = false;
+	int added = 0;
+
 	do {
-		r = fread(out, 1, 1024, web);
+		/* Read the packet size */
+		r = fread(out, 1, PKTSIZELEN, web);
+		if (r != PKTSIZELEN) {
+			perror("Read a 4 size, probably an error.");
+			exit(0);
+		}
+		out[PKTSIZELEN] = '\0';
+		pktsize = (int)strtol(out, NULL, 16);
+
+		if (inservice == false) {
+			/* Break if the packet was 0. */
+			if (pktsize == 0)
+				break;
+			r += fread(out + PKTSIZELEN, 1, pktsize - PKTSIZELEN, web);
+			if (r != pktsize) {
+				printf("Failed to read the size, expected %d, read %d, exiting.\n", pktsize, r);
+				exit(0);
+			}
+			if (strncmp(out+PKTSIZELEN, "# service=", 10) == 0)
+				inservice = true;
+		} else /* Reset the inservice flag */
+			inservice = false;
+
+		/* Append read bytes to the end */
 		response = realloc(response, added + r);
-		memcpy(response+added, out, r);
+		memcpy(response + added, out, r);
 		added += r;
-	} while (r >= 1024);
+	} while (r >= PKTSIZELEN);
+
+	response = realloc(response, added + r);
+	memcpy(response + added, "0000", PKTSIZELEN);
+
 	fclose(web);
-	/////////////////////////////////////////////
 
 	ret = proto_parse_response(response, smart_head);
 	clone_generic_get_pack(chandler, packfd, smart_head);

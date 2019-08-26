@@ -62,6 +62,8 @@
 #define STATE_PACK					3
 #define STATE_UNKNOWN					999
 
+#define PKTSIZELEN					4
+
 struct parseread {
 	int		state;		// current state
 	int		osize;		// object size

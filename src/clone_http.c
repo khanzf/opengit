@@ -52,8 +52,6 @@ match_http(struct clone_handler *chandler, char *uri)
 		return 1;
 	}
 
-	fetchFreeURL(fetchurl);
-
 	return 0;
 }
 
