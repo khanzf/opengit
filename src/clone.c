@@ -293,7 +293,7 @@ clone_generic(struct clone_handler *chandler, char *repodir, struct smart_head *
 	char path[PATH_MAX];
 	char srcpath[PATH_MAX];
 	int ret;
-	FILE *web;
+	FILE *stream;
 	char *response;
 	char *newpath;
 	SHA1_CTX packctx;
@@ -309,10 +309,10 @@ clone_generic(struct clone_handler *chandler, char *repodir, struct smart_head *
 	}
 again:
 	response = NULL;
-	web = chandler->run_service(chandler, "git-upload-pack");
-	if (web == NULL) {
+	stream = chandler->run_service(chandler, "git-upload-pack");
+	if (stream == NULL) {
 		/* Fortunately, we can assume fetch_uri length will always be > 4 */
-		if (strncmp(*chandler->path + (strlen((*chandler->path) - 4)), ".git", 4) != 0) {
+		if (strncmp(*chandler->path + strlen(*chandler->path) - 4, ".git", 4)) {
 			/* We'll try again with .git (+ null terminator) */
 			newpath  = malloc(strlen(*chandler->path) + 5);
 			strncpy(newpath, *chandler->path, strlen(*chandler->path));
@@ -335,7 +335,7 @@ again:
 
 	do {
 		/* Read the packet size */
-		r = fread(out, 1, PKTSIZELEN, web);
+		r = fread(out, 1, PKTSIZELEN, stream);
 		if (r != PKTSIZELEN) {
 			perror("Read a 4 size, probably an error.");
 			exit(0);
@@ -347,7 +347,7 @@ again:
 			/* Break if the packet was 0. */
 			if (pktsize == 0)
 				break;
-			r += fread(out + PKTSIZELEN, 1, pktsize - PKTSIZELEN, web);
+			r += fread(out + PKTSIZELEN, 1, pktsize - PKTSIZELEN, stream);
 			if (r != pktsize) {
 				printf("Failed to read the size, expected %d, read %d, exiting.\n", pktsize, r);
 				exit(0);
@@ -366,7 +366,7 @@ again:
 	response = realloc(response, added + r);
 	memcpy(response + added, PKTFLUSH, PKTSIZELEN);
 
-	fclose(web);
+	fclose(stream);
 
 	ret = proto_parse_response(response, smart_head);
 	clone_generic_get_pack(chandler, packfd, smart_head);

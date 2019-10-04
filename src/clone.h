@@ -33,6 +33,8 @@
 #include "lib/common.h"
 #include "lib/protocol.h"
 
+#define SSH_PORT	22
+
 struct clone_handler;
 
 /* uri, destdir, smart_head */
@@ -65,6 +67,10 @@ struct conn_ssh {
 	int		  err;
 
 	char		**path;
+
+	int		  bsize;
+	char		 *buf;
+	int		  bpos;
 };
 
 /* Holds http connection data */

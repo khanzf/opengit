@@ -38,6 +38,7 @@
 #include "lib/protocol.h"
 #include "clone.h"
 
+
 /* Match the ssh scheme */
 int
 match_ssh(struct clone_handler *chandler, char *uri)
@@ -47,11 +48,12 @@ match_ssh(struct clone_handler *chandler, char *uri)
 		struct conn_ssh *conn_ssh = malloc(sizeof(struct conn_ssh));
 		conn_ssh->ssh_user = "git";
 		conn_ssh->ssh_host = "github.com";
-		conn_ssh->port = 22;
+		conn_ssh->port = SSH_PORT;
 		conn_ssh->ssh_path = "khanzf/opengit";
 
 		conn_ssh->path = &conn_ssh->ssh_path;
 		chandler->conn_data = conn_ssh;
+		chandler->path = &conn_ssh->ssh_path;
 		return 1;
 	}
 	return 0;
@@ -60,22 +62,29 @@ match_ssh(struct clone_handler *chandler, char *uri)
 void
 setup_connection(struct clone_handler *chandler)
 {
+	struct conn_ssh *conn_ssh = chandler->conn_data;
 	int filedes1[2], filedes2[2], filedes3[2];
 	int pid;
 
-	pipe(filedes1);
-	pipe(filedes2);
+	if (pipe(filedes1) == -1)
+		goto out;
+	if (pipe(filedes2) == -1)
+		goto out;
+	if (pipe(filedes3) == -1)
+		goto out;
 
 	pid = fork();
 
 	if (pid == 0) {
-		dup2(filedes1[0], STDIN_FILENO);
-		dup2(filedes2[1], STDOUT_FILENO);
-		dup2(filedes2[1], STDERR_FILENO);
-		execl("/usr/bin/ssh", "ssh", "git@github.com", "git-upload-pack", "khanzf/opengit", NULL);
+		if (dup2(filedes1[0], STDIN_FILENO) == -1)
+			goto out;
+		if (dup2(filedes2[1], STDOUT_FILENO) == -1)
+			goto out;
+		if (dup2(filedes3[1], STDERR_FILENO) == -1)
+			goto out;
+		execl("/usr/bin/ssh", "ssh", "git@github.com", "git-upload-pack", conn_ssh->ssh_path, NULL);
 	}
 	else {
-		struct conn_ssh *conn_ssh = chandler->conn_data;
 		close(filedes1[0]);
 		close(filedes2[1]);
 		close(filedes3[0]);
@@ -83,26 +92,59 @@ setup_connection(struct clone_handler *chandler)
 		conn_ssh->in = filedes2[0];
 		conn_ssh->err = filedes3[1];
 	}
+
+	return;
+out:
+	fprintf(stderr, "Unable to setup connection, exiting.\n");
+	exit(-1);
+}
+
+static int
+ssh_readfn(void *v, char *buf, int len)
+{
+	struct conn_ssh *conn_ssh = v;
+	int b, rlen;
+
+	if (conn_ssh->bsize == 0 || conn_ssh->buf == NULL || conn_ssh->bsize == conn_ssh->bpos) {
+		conn_ssh->buf = realloc(conn_ssh->buf, len);
+		b = read(conn_ssh->in, conn_ssh->buf, len);
+		conn_ssh->bsize = b;
+		conn_ssh->bpos = 0;
+	}
+
+	rlen = conn_ssh->bsize - conn_ssh->bpos;
+	if (len < rlen)
+		rlen = len;
+
+	memcpy(buf, conn_ssh->buf - conn_ssh->bpos, len);
+	conn_ssh->bpos += rlen;
+
+	return (rlen);
+}
+
+static int
+ssh_writefn(void *v, const char *buf, int len)
+{
+	fprintf(stderr, "Writing currently unimplemented, exiting\n");
+	exit(0);
+	return (0);
 }
 
 FILE *
 ssh_run_service(struct clone_handler *chandler, char *service)
 {
-/*
-	long offset = 0;
-	long r;
-	char out[1024];
-	struct conn_ssh *conn_ssh = chandler->conn_data;
+	FILE *stream;
+	//struct conn_ssh *conn_ssh = chandler->conn_data;
 
 	setup_connection(chandler);
-	do {
-		r = read(conn_ssh->in, out, 1024);
-		*response = realloc(*response, offset+r);
-		memcpy(*response+offset, out, r);
-		offset += r;
-	} while(r >= 1024);
-*/
-	return (0);
+	stream = funopen(chandler->conn_data, ssh_readfn, ssh_writefn, NULL, NULL);
+
+	if (stream == NULL) {
+		fprintf(stderr, "Failed to open stream, exiting.\n");
+		exit(-1);
+	}
+
+	return stream;
 }
 
 FILE *
