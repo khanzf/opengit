@@ -1,6 +1,6 @@
 
 MAN=
-.if defined(DEBUG)
+.if defined(NDEBUG)
 CFLAGS+=	-Wall -Wunreachable-code -Werror -O0 -g
 .endif
 CFLAGS+=	-Wall -I${.CURDIR}/..
