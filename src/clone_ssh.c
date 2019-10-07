@@ -34,22 +34,35 @@
 #include <fcntl.h>
 #include <fetch.h>
 #include <errno.h>
+#include <regex.h>
 #include "lib/pack.h"
 #include "lib/protocol.h"
 #include "clone.h"
-
 
 /* Match the ssh scheme */
 int
 match_ssh(struct clone_handler *chandler, char *uri)
 {
-	/* XXX This is a temporary matching mechanism, long-term is a regex */
-	if (strncmp(uri, "git@", 4) == 0) {
+#define MAXGROUPS 5
+	regex_t gitpath;
+	regmatch_t m[MAXGROUPS];
+	int r;
+
+	r = regcomp(&gitpath, "(([a-z0-9_-]{0,31})@)?(.*):([a-zA-z\\/]+)(\\.git)?", REG_EXTENDED);
+	if (r != 0) {
+		fprintf(stderr, "Unable to compile regex, exiting.\n");
+		exit(r);
+	}
+
+	r = regexec(&gitpath, uri, MAXGROUPS, m, 0);
+	if (r == 0) {
 		struct conn_ssh *conn_ssh = malloc(sizeof(struct conn_ssh));
-		conn_ssh->ssh_user = "git";
-		conn_ssh->ssh_host = "github.com";
+		conn_ssh->ssh_user = strndup(uri+m[2].rm_so, m[2].rm_eo - m[2].rm_so);
+		conn_ssh->ssh_host = strndup(uri+m[3].rm_so, m[3].rm_eo - m[3].rm_so);
+		conn_ssh->ssh_path = strndup(uri+m[4].rm_so, m[4].rm_eo - m[4].rm_so);
 		conn_ssh->port = SSH_PORT;
-		conn_ssh->ssh_path = "khanzf/opengit";
+		conn_ssh->bpos = 0;
+		conn_ssh->buf = NULL;
 
 		conn_ssh->path = &conn_ssh->ssh_path;
 		chandler->conn_data = conn_ssh;
@@ -82,7 +95,7 @@ setup_connection(struct clone_handler *chandler)
 			goto out;
 		if (dup2(filedes3[1], STDERR_FILENO) == -1)
 			goto out;
-		execl("/usr/bin/ssh", "ssh", "git@github.com", "git-upload-pack", conn_ssh->ssh_path, NULL);
+		execl("/usr/bin/ssh", "ssh", "-l", "git", "github.com", "git-upload-pack", conn_ssh->ssh_path, NULL);
 	}
 	else {
 		close(filedes1[0]);
