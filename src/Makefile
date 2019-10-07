@@ -1,16 +1,19 @@
 
 MAN=
 .if defined(NDEBUG)
-CFLAGS+=	-Wall -Wunreachable-code -Werror -O0 -g
+# Debugging compiles in gcc because it works better with valgrind
+CC=		gcc
+CFLAGS+=	-g -Wall -Wunreachable-code -Werror -O0
 .endif
 CFLAGS+=	-Wall -I${.CURDIR}/..
+# Currently statically linking against libogit.a library
+LDADD+=		${.OBJDIR}/../lib/libogit.a
 LDFLAGS+=	-lmd -lz -lfetch
-LDFLAGS+=	${.OBJDIR}/../lib/libogit.a
 
-PROG=	ogit
+PROG=		ogit
 
-SRCS=	ogit.c remote.c init.c hash-object.c update-index.c cat-file.c log.c \
-    clone.c clone_http.c clone_ssh.c index-pack.c
+SRCS=		ogit.c remote.c init.c hash-object.c update-index.c log.c \
+		cat-file.c clone.c clone_http.c clone_ssh.c index-pack.c
 
 CLEANFILES+=	${PROG}.core
 
