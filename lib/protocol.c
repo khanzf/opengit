@@ -55,9 +55,6 @@ process_unknown(unsigned char *reply, struct parseread *parseread, int offset, i
 static void
 process_remote(unsigned char *reply, struct parseread *parseread)
 {
-	char buf[200];
-	strlcpy(buf, (char *)reply+5, parseread->osize-5);
-	buf[parseread->osize-5] = '\0';
 }
 
 static void
