@@ -95,7 +95,7 @@ setup_connection(struct clone_handler *chandler)
 			goto out;
 		if (dup2(filedes3[1], STDERR_FILENO) == -1)
 			goto out;
-		execl("/usr/bin/ssh", "ssh", "-l", "git", "github.com", "git-upload-pack", conn_ssh->ssh_path, NULL);
+		execl("/usr/bin/ssh", "ssh", "-l", conn_ssh->ssh_user, conn_ssh->ssh_host, "git-upload-pack", conn_ssh->ssh_path, NULL);
 	}
 	else {
 		close(filedes1[0]);
