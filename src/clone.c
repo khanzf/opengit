@@ -255,29 +255,14 @@ static void
 clone_generic_get_pack(struct clone_handler *chandler, int packfd, struct smart_head *smart_head)
 {
 	char *content = NULL;
-	struct parseread parseread;
-	FILE *packptr;
+	FILE *stream;
 
 	clone_build_post_content(smart_head->sha, &content);
-	packptr = chandler->get_pack_stream(chandler, content);
+	stream = chandler->get_pack_stream(chandler, content);
 
-	size_t sz;
-	int ret;
-	char buf[1024];
+	proto_process_pack(packfd, stream);
 
-	parseread.state = STATE_NEWLINE;
-	parseread.cremnant = 0;
-	parseread.fd = packfd;
-
-	while((sz = fread(buf, 1, 1024, packptr)) > 0) {
-		ret = proto_process_pack(buf, 1, sz, &parseread);
-		if (ret != sz) {
-			fprintf(stderr, "Error parsing http response. Exiting.\n");
-			exit(128);
-		}
-	}
-
-	fclose(packptr);
+	fclose(stream);
 	free(content);
 }
 

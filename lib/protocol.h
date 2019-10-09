@@ -60,19 +60,11 @@
 #define STATE_NAK					1
 #define STATE_REMOTE					2
 #define STATE_PACK					3
-#define STATE_UNKNOWN					999
+#define STATE_UNKNOWN					9
 
 #define PKTSIZELEN					4
+#define MAXPKTSIZE					65516
 #define PKTFLUSH					"0000"
-
-struct parseread {
-	int		state;		// current state
-	int		osize;		// object size
-	int		psize;		// processed size
-	int		cremnant;	// Remnant count
-	char		bremnant[4];	// Remnant bytes
-	int		fd;
-};
 
 struct symref {
 	char			*symbol;
@@ -99,7 +91,7 @@ struct smart_head {
 };
 
 int	proto_parse_response(char *response, struct smart_head *smart_head);
-size_t	proto_process_pack(void *buffer, size_t size, size_t nmemb, void *userp);
+size_t	proto_process_pack(int packfd, FILE *stream);
 
 
 #endif

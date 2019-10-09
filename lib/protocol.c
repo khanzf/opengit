@@ -35,131 +35,51 @@
 #include "protocol.h"
 
 
-// XXX This may be moved to pack.[ch]
-static void
-process_nak()
-{
-	// Currently unimplemented
-}
-
-static void
-process_unknown(unsigned char *reply, struct parseread *parseread, int offset, int size)
-{
-	if (parseread->psize == 0)
-		write(parseread->fd, reply+5, size-5);
-	else
-		write(parseread->fd, reply, size);
-}
-
-
-static void
-process_remote(unsigned char *reply, struct parseread *parseread)
-{
-}
-
-static void
-process_objects(unsigned char *reply, struct parseread *parseread, int offset,
-    int size)
-{
-	switch(parseread->state) {
-	case STATE_NAK:
-		process_nak();
-		break;
-	case STATE_REMOTE:
-		process_remote(reply, parseread);
-		break;
-	default:
-		process_unknown(reply, parseread, offset, size);
-		break;
-	}
-}
-
-/* Iteratively parse out a pack file sent via the smart protocol */
 size_t
-proto_process_pack(void *buffer, size_t size, size_t nmemb, void *userp)
+proto_process_pack(int packfd, FILE *stream)
 {
-	unsigned char *reply;
-	struct parseread *parseread = userp;
-	int offset = 0;
-	char tmp[5];
-	int pool;
+	int pktsize;
+	size_t sz;
+	unsigned char buf[MAXPKTSIZE];
 
-	/*
-	 * Check if there are any left-over bits from the previous iteration
-	 * If so, add them to the reply and increase the pool size
-	 * Otherwise, use the given values
-	*/
-	if (parseread->cremnant > 0) {
-		reply = malloc(nmemb + parseread->cremnant + 1);
-		memcpy(reply+parseread->cremnant, buffer, size * nmemb);
-		memcpy(reply, parseread->bremnant, parseread->cremnant);
-		pool = (size * nmemb) + parseread->cremnant;
-	}
-	else {
-		reply = buffer;
-		pool = size * nmemb;
-	}
-
-	/*
-	 * Iterate up to the pool size being 4 bytes, in the event that the last
-	 * four bytes are the beginning of a new object
-	 */
-	while(offset + PKTSIZELEN < pool) {
-		if (parseread->state == STATE_NEWLINE) {
-			bzero(tmp, 5);
-			memcpy(tmp, reply+offset, PKTSIZELEN); tmp[PKTSIZELEN] = '\0';
-			sscanf(tmp, "%04x", &parseread->osize);
-			if (parseread->osize == 0) {
-				offset += PKTSIZELEN;
-				break;
-			}
-
-			parseread->psize = 0;
-
-			if ( strncmp((char *)reply+offset+4, "NAK\n", PKTSIZELEN)==0)
-				parseread->state = STATE_NAK;
-			else if (reply[offset+PKTSIZELEN] == 0x02)
-				parseread->state = STATE_REMOTE;
-			else
-				parseread->state = STATE_UNKNOWN;
+	while(1) {
+		fscanf(stream, "%04x", &pktsize);
+		if (pktsize == 0) {
+#ifdef NDEBUG
+			fprintf(stderr, "debug: end of pack stream\n");
+#endif
+			break;
 		}
 
-		/*
-		 * If the pool minus the offset is greater or equal to the
-		 * remaining necessary bytes. This means we completed the data
-		 * in that object and can reset to a new state.
-		 */
-		if ((pool - offset) >= (parseread->osize - parseread->psize) ) {
-			process_objects(reply+offset, parseread, offset,
-			    (parseread->osize - parseread->psize));
-			offset += (parseread->osize - parseread->psize);
-			parseread->state = STATE_NEWLINE;
-		}
-		/* Otherwise, we need more bytes */
-		else if ((pool-offset) < (parseread->osize - parseread->psize)) {
-			process_objects(reply+offset, parseread, offset,
-			    pool-offset);
-			parseread->psize += (pool - offset);
-			offset = pool;
+#ifdef NDEBUG
+		fprintf(stderr, "debug: packet size: %d\n", pktsize);
+#endif
+		sz = fread(buf, 1, pktsize-PKTSIZELEN, stream);
+		if (sz != pktsize - PKTSIZELEN) {
+			fprintf(stderr, "Unable to read correct number of bytes from packet, exiting.\n");
+			exit(sz);
 		}
 
+		if (memcmp(buf, "NAK\n", 4)==0) {
+#ifdef NDEBUG
+			fprintf(stderr, "debug: received NAK packet\n");
+#endif
+		}
+		else if (buf[0] == 0x02) {
+#ifdef NDEBUG
+			fprintf(stderr, "debug: received server msg packet\n");
+#endif
+		}
+		else {
+#ifdef NDEBUG
+			fprintf(stderr, "debug: received pack packet\n");
+#endif
+			write(packfd, buf+1, pktsize-5);
+		}
 	}
 
-	/* The while-loop could break and the offset has not caught up to
-	 * the pool. In this case, we need to cache those 4 bytes, update
-	 * the parseread->cremnant value and return offset + parseread->cremnant
-	 * (which should be nmemb * size).
-	 */
-	if (pool-offset > 0)
-		memcpy(parseread->bremnant, reply+offset, pool-offset);
-	if (parseread->cremnant > 0)
-		free(reply);
-	parseread->cremnant = nmemb - offset;
-
-	return (offset + parseread->cremnant);
-
+	return (0);
 }
-
 
 static int
 push_ref(struct smart_head *smart_head, const char *refspec)   
