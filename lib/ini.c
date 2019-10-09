@@ -25,6 +25,7 @@
  * SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <regex.h>
 #include <stdio.h>
 #include <string.h>
@@ -201,16 +202,11 @@ ini_write_config(int fd, struct section *sections)
 void
 ini_init_regex()
 {
-	if (regcomp(&re_core_header, "^\\[(core)\\]", REG_EXTENDED)) {
-		printf("Unable to compile regex: 1\n");
-		return;
-	}
-	if (regcomp(&re_remote_header, "^\\[(remote) \"([a-zA-Z0-9_]+)\"\\]", REG_EXTENDED)) {
-		printf("Unable to compile regex: 2\n");
-		return;
-	}
-	if (regcomp(&re_variable, "([A-Za-z0-9_]+)[\\s ]*=[\\s ]*([A-Za-z0-9_$&+,:;=?@#|'<>.^*()%!-/]+)", REG_EXTENDED)) {
-		printf("Unable to compile regex: 3\n");
-	}
-//		[\\t\\s ]*([A-Za-z]*)[\\t\\s ]*=[\\t\\s ]*(.*)
+	int r;
+	r = regcomp(&re_core_header, "^\\[(core)\\]", REG_EXTENDED);
+	assert(r == 0);
+	r = regcomp(&re_remote_header, "^\\[(remote) \"([a-zA-Z0-9_]+)\"\\]", REG_EXTENDED);
+	assert(r == 0);
+	r = regcomp(&re_variable, "([A-Za-z0-9_]+)[\\s ]*=[\\s ]*([A-Za-z0-9_$&+,:;=?@#|'<>.^*()%!-/]+)", REG_EXTENDED);
+	assert(r == 0);
 }

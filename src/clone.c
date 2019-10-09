@@ -255,11 +255,10 @@ static void
 clone_generic_get_pack(struct clone_handler *chandler, int packfd, struct smart_head *smart_head)
 {
 	char *content = NULL;
-	int content_length;
 	struct parseread parseread;
 	FILE *packptr;
 
-	content_length = clone_build_post_content(smart_head->sha, &content);
+	clone_build_post_content(smart_head->sha, &content);
 	packptr = chandler->get_pack_stream(chandler, content);
 
 	size_t sz;

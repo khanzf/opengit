@@ -82,7 +82,6 @@ proto_process_pack(void *buffer, size_t size, size_t nmemb, void *userp)
 	struct parseread *parseread = userp;
 	int offset = 0;
 	char tmp[5];
-	int check;
 	int pool;
 
 	/*
@@ -109,8 +108,7 @@ proto_process_pack(void *buffer, size_t size, size_t nmemb, void *userp)
 		if (parseread->state == STATE_NEWLINE) {
 			bzero(tmp, 5);
 			memcpy(tmp, reply+offset, PKTSIZELEN); tmp[PKTSIZELEN] = '\0';
-			check = sscanf(tmp, "%04x", &parseread->osize);
-
+			sscanf(tmp, "%04x", &parseread->osize);
 			if (parseread->osize == 0) {
 				offset += PKTSIZELEN;
 				break;

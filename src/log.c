@@ -140,14 +140,12 @@ log_display_commits()
 	struct commitcontent commitcontent;
 	struct logarg logarg;
 	int source;
-	int read;
 	int hdr_offset = 0;
 
 	bzero(&logarg, sizeof(struct logarg));
 	log_get_start_sha(&logarg);
 
 	logarg.status = LOG_STATUS_PARENT;
-	read = 0;
 
 	bzero(&commitcontent, sizeof(struct commitcontent));
 

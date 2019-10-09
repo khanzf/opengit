@@ -3,7 +3,7 @@ MAN=
 .if defined(NDEBUG)
 # Debugging compiles in gcc because it works better with valgrind
 CC=		gcc
-CFLAGS+=	-g -Wall -Wunreachable-code -Werror -O0
+CFLAGS+=	-DNDEBUG -g -Wall -Wunreachable-code -Werror -O0
 .endif
 CFLAGS+=	-Wall -I${.CURDIR}/..
 # Currently statically linking against libogit.a library

@@ -6,7 +6,7 @@ SRCS=		buffering.c common.c index.c ini.c loose.c pack.c protocol.c \
 		zlib-handler.c
 
 .if defined(NDEBUG)
-CFLAGS+=	-Wall -Wunreachable-code -Werror
+CFLAGS+=	-DNDEBUG -Wall -Wunreachable-code -Werror
 CC=		gcc
 .endif
 CFLAGS+=	-Wall

@@ -26,6 +26,7 @@
  */
 
 #include <sys/param.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,10 +50,7 @@ match_ssh(struct clone_handler *chandler, char *uri)
 	int r;
 
 	r = regcomp(&gitpath, "(([a-z0-9_-]{0,31})@)?(.*):([a-zA-z\\/]+)(\\.git)?", REG_EXTENDED);
-	if (r != 0) {
-		fprintf(stderr, "Unable to compile regex, exiting.\n");
-		exit(r);
-	}
+	assert(r == 0);
 
 	r = regexec(&gitpath, uri, MAXGROUPS, m, 0);
 	if (r == 0) {
@@ -67,6 +65,9 @@ match_ssh(struct clone_handler *chandler, char *uri)
 		conn_ssh->path = &conn_ssh->ssh_path;
 		chandler->conn_data = conn_ssh;
 		chandler->path = &conn_ssh->ssh_path;
+#ifdef NDEBUG
+	fprintf(stderr, "debug: Matched as ssh\n");
+#endif
 		return 1;
 	}
 	return 0;
@@ -95,6 +96,10 @@ setup_connection(struct clone_handler *chandler)
 			goto out;
 		if (dup2(filedes3[1], STDERR_FILENO) == -1)
 			goto out;
+#ifdef NDEBUG
+		fprintf(stderr, "debut: Executing /usr/bin/ssh ssh -l %s %s git-upload-pack %s\n",
+		    conn_ssh->ssh_user, conn_ssh->ssh_host, conn_ssh->ssh_path);
+#endif
 		execl("/usr/bin/ssh", "ssh", "-l", conn_ssh->ssh_user, conn_ssh->ssh_host, "git-upload-pack", conn_ssh->ssh_path, NULL);
 	}
 	else {
@@ -147,7 +152,6 @@ FILE *
 ssh_run_service(struct clone_handler *chandler, char *service)
 {
 	FILE *stream;
-	//struct conn_ssh *conn_ssh = chandler->conn_data;
 
 	setup_connection(chandler);
 	stream = funopen(chandler->conn_data, ssh_readfn, ssh_writefn, NULL, NULL);

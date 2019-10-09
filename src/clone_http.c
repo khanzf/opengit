@@ -49,6 +49,9 @@ match_http(struct clone_handler *chandler, char *uri)
 		conn_http->fetchurl = fetchurl;
 		chandler->path = &fetchurl->doc;
 		chandler->conn_data = conn_http;
+#ifdef NDEBUG
+		fprintf(stderr, "debug: Matched as http(s)\n");
+#endif
 		return 1;
 	}
 
@@ -66,6 +69,9 @@ http_run_service(struct clone_handler *chandler, char *service)
 	char git_upload_pack[1000];
 
 	snprintf(git_upload_pack, 1000, "%s/info/refs?service=%s", fetchurl->doc, service);
+#ifdef NDEBUG
+	fprintf(stderr, "debug: fetch url: %s\n", git_upload_pack);
+#endif
 	savedoc = fetchurl->doc;
 	fetchurl->doc = git_upload_pack;
 	web = fetchReqHTTP(fetchurl, "POST", "NULL", "*/*", NULL);

@@ -648,7 +648,7 @@ pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap)
 {
 	struct fan *fans;
 	struct entry *entries;
-	struct checksum *checksums;
+	//struct checksum *checksums;
 	struct offset *offsets;
 	int idx_offset;
 	char idx_version;
@@ -686,7 +686,7 @@ pack_find_sha_offset(unsigned char *sha, unsigned char *idxmap)
 	// Move to Checksums
 	idx_offset += (sizeof(struct entry) * nelements);
 	// Point to checksums
-	checksums = (struct checksum *)(idxmap + idx_offset);
+	//checksums = (struct checksum *)(idxmap + idx_offset);
 	// Move to Offsets
 	idx_offset += (nelements * 4);
 	// Capture Offsets
