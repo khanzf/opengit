@@ -407,6 +407,25 @@ out:
 	return (ret);
 }
 
+void
+write_refs_head_sha(struct smart_head *s_head, char *repodir)
+{
+	char headrefpath[PATH_MAX];
+	int fd;
+
+	snprintf(headrefpath, PATH_MAX, "%s/.git/refs/heads/master", repodir);
+	fd = open(headrefpath, O_CREAT|O_RDWR, 0666);
+
+	if (write(fd, s_head->sha, HASH_SIZE) != HASH_SIZE) {
+		fprintf(stderr, "Unable to write 40 bytes to %s, exiting.\n", headrefpath);
+		exit(127);
+	}
+	if (write(fd, "\n", 1) != 1) {
+		fprintf(stderr, "Unable to write 1 byte to %s, exiting.\n", headrefpath);
+		exit(127);
+	}
+	close(fd);
+}
 
 int
 clone_main(int argc, char *argv[])
@@ -496,6 +515,9 @@ clone_main(int argc, char *argv[])
 		populate_symrefs(repodir, &smart_head);
 	/* Write the initial config file */
 	clone_initial_config(uri, repodir, NULL);
+
+	/* Write refs master sha */
+	write_refs_head_sha(&smart_head, repodir);
 
 	/* Retrieve the commit header and parse it out */
 	CONTENT_HANDLER(smart_head.sha, buffer_cb, pack_buffer_cb, &decompressed_object);
