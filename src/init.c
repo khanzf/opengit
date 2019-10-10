@@ -106,7 +106,7 @@ init_dirinit(int flags)
 		else {
 			ret = mkdir(path, 0755);
 			if (ret == -1) {
-				fprintf(stderr, "1 Cannot create %s\n", path);
+				fprintf(stderr, "Cannot create %s\n", path);
 				exit(ret);
 			}
 		}
