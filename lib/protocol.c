@@ -66,6 +66,13 @@ proto_process_pack(int packfd, FILE *stream)
 #endif
 		}
 		else if (buf[0] == 0x02) {
+			if (buf[sz] != '\n') {
+				buf[sz] = '\0';
+				printf("remote: %s", buf);
+			}
+			else {
+				printf("remote: %s\n", buf);
+			}
 #ifdef NDEBUG
 			fprintf(stderr, "debug: received server msg packet\n");
 #endif
