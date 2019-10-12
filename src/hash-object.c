@@ -27,6 +27,7 @@
 
 
 #include <sys/stat.h>
+#include <assert.h>
 #include <stdio.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -51,7 +52,7 @@ static struct option long_options[] =
 	{NULL, 0, NULL, 0}
 };
 
-int
+static int
 hash_object_usage(int type)
 {
 	fprintf(stderr, "usage: git hash-object [-t <type>] [-w] [--path=<file> | --no-filters] [--stdin] [--] <file>...\n");
@@ -68,7 +69,7 @@ hash_object_usage(int type)
 	return (0);
 }
 
-int
+static int
 hash_object_compute_checksum(FILE *source, char *checksum, char *header)
 {
 	SHA1_CTX context;
@@ -89,7 +90,7 @@ hash_object_compute_checksum(FILE *source, char *checksum, char *header)
 	return (0);
 }
 
-int
+static int
 hash_object_create_header(char *filepath, char *header)
 {
 	struct stat sb;
@@ -101,71 +102,71 @@ hash_object_create_header(char *filepath, char *header)
 	return (l);
 }
 
-int
-hash_object_create_zlib(FILE *source, FILE *dest, unsigned char *header, unsigned char *checksum)
+static int
+add_zlib_string(z_stream *strm, FILE *dest, unsigned char *header)
 {
-	int ret, flush;
-	z_stream strm;
-	int have;
-	Bytef in[CHUNK];
 	Bytef out[CHUNK];
-	char filepath[PATH_MAX];
+	int have;
 
-	snprintf(filepath, sizeof(filepath), "%s/objects/%c%c", dotgitpath,
-	    checksum[0], checksum[1]);
-
-	strm.zalloc = Z_NULL;
-	strm.zfree = Z_NULL;
-	strm.opaque = Z_NULL;
-	ret = deflateInit(&strm, Z_BEST_SPEED);
-	if (ret != Z_OK)
-		return (ret);
-
-	/* Beginning of writing the header */
-	strm.next_in = (Bytef *)header;
-	strm.avail_in = strlen((const char *)header) + 1;
+	strm->next_in = (Bytef *)header;
+	strm->avail_in = strlen((const char *)header) + 1;
 
 	do {
-		strm.avail_out = CHUNK;
-		strm.next_out = out;
-		if (deflate (& strm, Z_NO_FLUSH) < 0) {
-			fprintf(stderr, "returned a bad status of.\n");
+		strm->avail_out = CHUNK;
+		strm->next_out = out;
+		if (deflate(strm, Z_NO_FLUSH) < 0) {
+			fprintf(stderr, "zlib returned a bad address, exiting.\n");
 			exit(0);
 		}
-		have = CHUNK - strm.avail_out;
+		have = CHUNK - strm->avail_out;
 		fwrite(out, 1, have, dest);
-	} while(strm.avail_out == 0);
-
-	/* Beginning of file content */
-	do {
-		strm.avail_in = fread(in, 1, CHUNK, source);
-		if (ferror(source)) {
-			(void)deflateEnd(&strm);
-			return (Z_ERRNO);
-		}
-
-		flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
-		strm.next_in = in;
-
-		do {
-			strm.avail_out = CHUNK;
-			strm.next_out = out;
-			ret = deflate(&strm, flush);
-			have = CHUNK - strm.avail_out;
-			if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
-				(void)deflateEnd(&strm);
-				return (Z_ERRNO);
-			}
-		} while(strm.avail_out == 0);
-
-	} while (flush != Z_FINISH);
+	} while(strm->avail_out == 0);
 
 	return (0);
 }
 
-int
-hash_object_create_file(FILE **objectfileptr, char *checksum)
+static int
+add_zlib_content(z_stream *strm, FILE *source, FILE *dest)
 {
+	int ret, flush;
+	int have;
+	Bytef in[CHUNK];
+	Bytef out[CHUNK];
+
+	/* Beginning of file content */
+	do {
+		strm->avail_in = fread(in, 1, CHUNK, source);
+		if (ferror(source)) {
+			(void)deflateEnd(strm);
+			return (Z_ERRNO);
+		}
+
+		flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
+		strm->next_in = in;
+
+		do {
+			strm->avail_out = CHUNK;
+			strm->next_out = out;
+			ret = deflate(strm, flush);
+			assert(ret != Z_STREAM_ERROR);
+			have = CHUNK - strm->avail_out;
+			if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
+				(void)deflateEnd(strm);
+				return (Z_ERRNO);
+			}
+		} while(strm->avail_out == 0);
+		assert(strm->avail_in == 0);
+
+	} while (flush != Z_FINISH);
+	assert(ret == Z_STREAM_END);
+
+	return (0);
+}
+
+static FILE *
+hash_object_create_file(char *checksum)
+{
+	FILE *objectfileptr;
 	char objectpath[PATH_MAX];
 
 	// First create the directory
@@ -178,29 +179,44 @@ hash_object_create_file(FILE **objectfileptr, char *checksum)
 	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c/%s",
 	    dotgitpath, checksum[0], checksum[1], checksum+2);
 
-	*objectfileptr = fopen(objectpath, "w");
+	objectfileptr = fopen(objectpath, "w");
 
-	return (0);
+	return (objectfileptr);
 }
 
-int
+static int
 hash_object_write(char *filearg, uint8_t flags)
 {
 	int ret = 0;
-	FILE *fileptr;
-	FILE *objectfileptr = NULL;
+	FILE *sourceptr;
+	FILE *objectfileptr;
 	unsigned char checksum[HEX_DIGEST_LENGTH];
 	unsigned char header[32];
 
 	git_repository_path();
 
-	fileptr = fopen(filearg, "r");
+	sourceptr = fopen(filearg, "r");
+	if (sourceptr == NULL) {
+		fprintf(stderr, "Unable to open %s, exiting.\n", filearg);
+		exit(0);
+	}
 
 	hash_object_create_header(filearg, (char *)&header);
-	hash_object_compute_checksum(fileptr,(char *)&checksum,(char *)&header);
-	hash_object_create_file(&objectfileptr, (char *) &checksum);
-	if (flags & CMD_HASH_OBJECT_WRITE)
-		hash_object_create_zlib(fileptr, objectfileptr, (unsigned char *)&header, (unsigned char *)&checksum);
+	hash_object_compute_checksum(sourceptr,(char *)&checksum,(char *)&header);
+	objectfileptr = hash_object_create_file((char *) &checksum);
+
+	if (flags & CMD_HASH_OBJECT_WRITE) {
+		z_stream strm;
+		int ret;
+		strm.zalloc = Z_NULL;
+		strm.zfree = Z_NULL;
+		strm.opaque = Z_NULL;
+		ret = deflateInit(&strm, Z_BEST_SPEED);
+		if (ret != Z_OK)
+			return (ret);
+		add_zlib_string(&strm, objectfileptr, (unsigned char *)&header);
+		add_zlib_content(&strm, sourceptr, objectfileptr);
+	}
 
 	printf("%s\n", checksum);
 	return (ret);
