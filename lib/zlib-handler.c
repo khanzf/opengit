@@ -102,8 +102,8 @@ write_cb(unsigned char *buf, int size, int __unused deflate_bytes, void *arg)
 int
 deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg,
     inflated_handler inflated_handler, void *arg) {
-	unsigned char in[CHUNK];
-	unsigned char out[CHUNK];
+	Bytef in[CHUNK];
+	Bytef out[CHUNK];
 	unsigned have;
 	z_stream strm;
 	int ret;
@@ -168,4 +168,69 @@ int
 zlib_deliver_loose_object_content(unsigned char *buf, int size, void *data)
 {
 	return (0);
+}
+
+int
+inflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg,
+    inflated_handler inflated_handler, void *arg) {
+	unsigned char in[CHUNK];
+	unsigned char out[CHUNK];
+	unsigned have;
+	z_stream strm;
+	int ret;
+	int input_len;
+	int use;
+	int burn;
+	
+	strm.zalloc = Z_NULL;
+	strm.zfree = Z_NULL;
+	strm.opaque = Z_NULL;
+	strm.avail_in = 0;
+	strm.next_in = Z_NULL;
+	ret = inflateInit(&strm);
+	if (ret != Z_OK)
+		return (ret);
+
+	do {
+		burn = 0;
+		strm.avail_in = input_len = read(sourcefd, in, CHUNK);
+		if (strm.avail_in == -1) {
+			(void)inflateEnd(&strm);
+			perror("read from source file");
+			return (Z_ERRNO);
+		}
+		if (strm.avail_in == 0)
+			break;
+		strm.next_in = in;
+
+		do {
+			strm.avail_out = CHUNK;
+			strm.next_out = out;
+			ret = inflate(&strm, Z_NO_FLUSH);
+
+			switch (ret) {
+			case Z_NEED_DICT:
+				ret = Z_DATA_ERROR;
+			case Z_DATA_ERROR:
+			case Z_MEM_ERROR:
+				(void)inflateEnd(&strm);
+				return (ret);
+			}
+			have = CHUNK - strm.avail_out;
+
+			// Return value of 0 code means exit
+			use = input_len - strm.avail_in;
+			if (deflated_handler)
+				deflated_handler(in+burn, use, darg);
+			burn+=use;
+			input_len -= use;
+			if (inflated_handler(out, have, use, arg) == NULL)
+				goto end_inflation;
+
+		} while (strm.avail_out == 0);
+	} while (ret != Z_STREAM_END);
+
+end_inflation:
+	(void)inflateEnd(&strm);
+	return (ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR);
 }
