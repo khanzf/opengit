@@ -57,7 +57,7 @@ hash_object_usage(int type)
 	fprintf(stderr, "usage: git hash-object [-t <type>] [-w] [--path=<file> | --no-filters] [--stdin] [--] <file>...\n");
 	fprintf(stderr, "   or: git hash-object  --stdin-paths\n");
 	fprintf(stderr, "\n");
-	fprintf(stderr, "    -t <type>\t\twrite the object into the object database\n");
+	fprintf(stderr, "    -t <type>\t\tobject type\n");
 	fprintf(stderr, "    -w\t\t\twrite the object into the object database\n");
 	fprintf(stderr, "    --stdin\t\tread the object from stdin\n");
 	fprintf(stderr, "    --stdin-paths\tread file names from stdin\n");
