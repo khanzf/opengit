@@ -126,6 +126,26 @@ add_zlib_string(z_stream *strm, FILE *dest, unsigned char *header)
 }
 
 static int
+add_zlib_data(z_stream *strm, FILE *dest)
+{
+	Bytef out[CHUNK];
+	int have;
+
+	do {
+		strm->avail_out = CHUNK;
+		strm->next_out = out;
+		if (deflate(strm, Z_NO_FLUSH) < 0) {
+			fprintf(stderr, "zlib returned a bad address, exiting.\n");
+			exit(0);
+		}
+		have = CHUNK - strm->avail_out;
+		fwrite(out, 1, have, dest);
+	} while(strm->avail_out == 0);
+
+	return (0);
+}
+
+static int
 add_zlib_content(z_stream *strm, FILE *source, FILE *dest)
 {
 	int ret, flush;
@@ -144,18 +164,18 @@ add_zlib_content(z_stream *strm, FILE *source, FILE *dest)
 		flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
 		strm->next_in = in;
 
-		do {
-			strm->avail_out = CHUNK;
-			strm->next_out = out;
-			ret = deflate(strm, flush);
-			assert(ret != Z_STREAM_ERROR);
-			have = CHUNK - strm->avail_out;
-			if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
-				(void)deflateEnd(strm);
-				return (Z_ERRNO);
-			}
-		} while(strm->avail_out == 0);
-		assert(strm->avail_in == 0);
+//		do {
+//			strm->avail_out = CHUNK;
+//			strm->next_out = out;
+//			ret = deflate(strm, flush);
+//			assert(ret != Z_STREAM_ERROR);
+//			have = CHUNK - strm->avail_out;
+//			if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
+//				(void)deflateEnd(strm);
+//				return (Z_ERRNO);
+//			}
+//		} while(strm->avail_out == 0);
+//		assert(strm->avail_in == 0);
 
 	} while (flush != Z_FINISH);
 	assert(ret == Z_STREAM_END);
@@ -187,13 +207,58 @@ hash_object_create_file(char *checksum)
 static int
 hash_object_write(char *filearg, uint8_t flags)
 {
+	FILE *source;
+	int ret;
+	FILE *dest;
+	struct stat sb;
+	char checksum[HEX_DIGEST_LENGTH];
+	SHA1_CTX context;
+	Bytef in[CHUNK];
+	Bytef out[CHUNK];
+
+	z_stream strm;
+
+	strm.zalloc = Z_NULL;
+	strm.zfree = Z_NULL;
+	strm.opaque = Z_NULL;
+	strm.next_in = in;
+	ret = deflateInit(&strm, Z_BEST_SPEED);
+	if (ret != Z_OK) {
+		printf("Z_OK error\n");
+		return (ret);
+	}
+
+	SHA1_Init(&context);
+
+	bzero(checksum, HEX_DIGEST_LENGTH);
+
+	source = fopen(filearg, "r");
+	dest = fopen("BBBB", "w");
+	stat(filearg, &sb);
+
+	strm.avail_in = snprintf(in, CHUNK, "blob %ld", sb.st_size) + 1;
+	strm.next_in = in;
+//	add_zlib_data(&strm, dest);
+	SHA1_Update(&context, in, strm.avail_in);
+
+	while(1) {
+		strm.avail_in = fread(in, 1, CHUNK, source);
+
+		SHA1_Update(&context, in, strm.avail_in);
+		if (feof(source))
+			break;
+	}
+	SHA1_End(&context, checksum);
+	printf("Checksum: %s\n", checksum);
+	exit(0);
+
+	/*
 	int ret = 0;
 	FILE *sourceptr;
 	FILE *objectfileptr;
 	unsigned char checksum[HEX_DIGEST_LENGTH];
 	unsigned char header[32];
 
-	git_repository_path();
 
 	sourceptr = fopen(filearg, "r");
 	if (sourceptr == NULL) {
@@ -220,6 +285,7 @@ hash_object_write(char *filearg, uint8_t flags)
 
 	printf("%s\n", checksum);
 	return (ret);
+	*/
 }
 
 int
@@ -247,6 +313,7 @@ hash_object_main(int argc, char *argv[])
 	argc = argc - q;
 	argv = argv + q;
 
+	git_repository_path();
 	if (argv[1])
 		ret = hash_object_write(argv[1], flags);
 	else
