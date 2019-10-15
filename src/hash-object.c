@@ -124,6 +124,27 @@ hash_object_create_file(char *checksum)
 }
 
 static int
+add_zlib_content(z_stream *strm, FILE *dest, int flush)
+{
+	int ret;
+	unsigned have;
+	Bytef out[CHUNK];
+
+	do {
+		strm->avail_out = CHUNK;
+		strm->next_out = out;
+		ret = deflate(strm, flush);
+		assert(ret != Z_STREAM_ERROR);
+		have = CHUNK - strm->avail_out;
+		if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
+			(void)deflateEnd(strm);
+			return Z_ERRNO;
+		}
+	} while(strm->avail_out == 0);
+	assert(strm->avail_in == 0);
+}
+
+static int
 hash_object_write(char *filearg, uint8_t flags)
 {
 	FILE *source;
