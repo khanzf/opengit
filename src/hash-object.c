@@ -102,87 +102,6 @@ hash_object_create_header(char *filepath, char *header)
 	return (l);
 }
 
-static int
-add_zlib_string(z_stream *strm, FILE *dest, unsigned char *header)
-{
-	Bytef out[CHUNK];
-	int have;
-
-	strm->next_in = (Bytef *)header;
-	strm->avail_in = strlen((const char *)header) + 1;
-
-	do {
-		strm->avail_out = CHUNK;
-		strm->next_out = out;
-		if (deflate(strm, Z_NO_FLUSH) < 0) {
-			fprintf(stderr, "zlib returned a bad address, exiting.\n");
-			exit(0);
-		}
-		have = CHUNK - strm->avail_out;
-		fwrite(out, 1, have, dest);
-	} while(strm->avail_out == 0);
-
-	return (0);
-}
-
-static int
-add_zlib_data(z_stream *strm, FILE *dest)
-{
-	Bytef out[CHUNK];
-	int have;
-
-	do {
-		strm->avail_out = CHUNK;
-		strm->next_out = out;
-		if (deflate(strm, Z_NO_FLUSH) < 0) {
-			fprintf(stderr, "zlib returned a bad address, exiting.\n");
-			exit(0);
-		}
-		have = CHUNK - strm->avail_out;
-		fwrite(out, 1, have, dest);
-	} while(strm->avail_out == 0);
-
-	return (0);
-}
-
-static int
-add_zlib_content(z_stream *strm, FILE *source, FILE *dest)
-{
-	int ret, flush;
-	int have;
-	Bytef in[CHUNK];
-	Bytef out[CHUNK];
-
-	/* Beginning of file content */
-	do {
-		strm->avail_in = fread(in, 1, CHUNK, source);
-		if (ferror(source)) {
-			(void)deflateEnd(strm);
-			return (Z_ERRNO);
-		}
-
-		flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
-		strm->next_in = in;
-
-//		do {
-//			strm->avail_out = CHUNK;
-//			strm->next_out = out;
-//			ret = deflate(strm, flush);
-//			assert(ret != Z_STREAM_ERROR);
-//			have = CHUNK - strm->avail_out;
-//			if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
-//				(void)deflateEnd(strm);
-//				return (Z_ERRNO);
-//			}
-//		} while(strm->avail_out == 0);
-//		assert(strm->avail_in == 0);
-
-	} while (flush != Z_FINISH);
-	assert(ret == Z_STREAM_END);
-
-	return (0);
-}
-
 static FILE *
 hash_object_create_file(char *checksum)
 {
@@ -215,6 +134,8 @@ hash_object_write(char *filearg, uint8_t flags)
 	SHA1_CTX context;
 	Bytef in[CHUNK];
 	Bytef out[CHUNK];
+	unsigned have;
+	int flush;
 
 	z_stream strm;
 
@@ -238,54 +159,43 @@ hash_object_write(char *filearg, uint8_t flags)
 
 	strm.avail_in = snprintf(in, CHUNK, "blob %ld", sb.st_size) + 1;
 	strm.next_in = in;
-//	add_zlib_data(&strm, dest);
 	SHA1_Update(&context, in, strm.avail_in);
 
-	while(1) {
+	do {
 		strm.avail_in = fread(in, 1, CHUNK, source);
 
+		/* Do the SHA1 first because it will be clobbered */
 		SHA1_Update(&context, in, strm.avail_in);
-		if (feof(source))
-			break;
-	}
+
+		if (ferror(source)) {
+			(void)deflateEnd(&strm);
+			return Z_ERRNO;
+		}
+
+		flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
+		strm.next_in = in;
+
+		do {
+			strm.avail_out = CHUNK;
+			strm.next_out = out;
+			ret = deflate(&strm, flush);
+			assert(ret != Z_STREAM_ERROR);
+			have = CHUNK - strm.avail_out;
+			if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
+				(void)deflateEnd(&strm);
+				return Z_ERRNO;
+			}
+		} while(strm.avail_out == 0);
+		assert(strm.avail_in == 0);
+
+	} while (flush != Z_FINISH);
+	assert(ret == Z_STREAM_END);
+
 	SHA1_End(&context, checksum);
+	(void)deflateEnd(&strm);
+
 	printf("Checksum: %s\n", checksum);
 	exit(0);
-
-	/*
-	int ret = 0;
-	FILE *sourceptr;
-	FILE *objectfileptr;
-	unsigned char checksum[HEX_DIGEST_LENGTH];
-	unsigned char header[32];
-
-
-	sourceptr = fopen(filearg, "r");
-	if (sourceptr == NULL) {
-		fprintf(stderr, "Unable to open %s, exiting.\n", filearg);
-		exit(0);
-	}
-
-	hash_object_create_header(filearg, (char *)&header);
-	hash_object_compute_checksum(sourceptr,(char *)&checksum,(char *)&header);
-	objectfileptr = hash_object_create_file((char *) &checksum);
-
-	if (flags & CMD_HASH_OBJECT_WRITE) {
-		z_stream strm;
-		int ret;
-		strm.zalloc = Z_NULL;
-		strm.zfree = Z_NULL;
-		strm.opaque = Z_NULL;
-		ret = deflateInit(&strm, Z_BEST_SPEED);
-		if (ret != Z_OK)
-			return (ret);
-		add_zlib_string(&strm, objectfileptr, (unsigned char *)&header);
-		add_zlib_content(&strm, sourceptr, objectfileptr);
-	}
-
-	printf("%s\n", checksum);
-	return (ret);
-	*/
 }
 
 int
