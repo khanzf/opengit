@@ -138,10 +138,11 @@ add_zlib_content(z_stream *strm, FILE *dest, int flush)
 		have = CHUNK - strm->avail_out;
 		if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
 			(void)deflateEnd(strm);
-			return Z_ERRNO;
+			exit(Z_ERRNO);
 		}
+
 	} while(strm->avail_out == 0);
-	assert(strm->avail_in == 0);
+	return ret;
 }
 
 static int
@@ -181,6 +182,7 @@ hash_object_write(char *filearg, uint8_t flags)
 	strm.avail_in = snprintf(in, CHUNK, "blob %ld", sb.st_size) + 1;
 	strm.next_in = in;
 	SHA1_Update(&context, in, strm.avail_in);
+	add_zlib_content(&strm, dest, Z_NO_FLUSH);
 
 	do {
 		strm.avail_in = fread(in, 1, CHUNK, source);
@@ -196,18 +198,7 @@ hash_object_write(char *filearg, uint8_t flags)
 		flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
 		strm.next_in = in;
 
-		do {
-			strm.avail_out = CHUNK;
-			strm.next_out = out;
-			ret = deflate(&strm, flush);
-			assert(ret != Z_STREAM_ERROR);
-			have = CHUNK - strm.avail_out;
-			if (fwrite(out, 1, have, dest) != have || ferror(dest)) {
-				(void)deflateEnd(&strm);
-				return Z_ERRNO;
-			}
-		} while(strm.avail_out == 0);
-		assert(strm.avail_in == 0);
+		ret = add_zlib_content(&strm, dest, flush);
 
 	} while (flush != Z_FINISH);
 	assert(ret == Z_STREAM_END);
@@ -215,8 +206,8 @@ hash_object_write(char *filearg, uint8_t flags)
 	SHA1_End(&context, checksum);
 	(void)deflateEnd(&strm);
 
-	printf("Checksum: %s\n", checksum);
-	exit(0);
+	printf("%s\n", checksum);
+	return (0);
 }
 
 int
