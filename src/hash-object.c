@@ -69,60 +69,7 @@ hash_object_usage(int type)
 	return (0);
 }
 
-static int
-hash_object_compute_checksum(FILE *source, char *checksum, char *header)
-{
-	SHA1_CTX context;
-	char in[4096];
-	int l;
-
-	SHA1_Init(&context);
-	SHA1_Update(&context, header, strlen(header)+1);
-
-	while((l = fread(&in, 1, 4096, source)) != -1 && l != 0) {
-		SHA1_Update(&context, in, l);
-	}
-	SHA1_End(&context, checksum);
-
-	/* Reset the stream */
-	fseek(source, 0, SEEK_SET);
-
-	return (0);
-}
-
-static int
-hash_object_create_header(char *filepath, char *header)
-{
-	struct stat sb;
-	int l;
-	stat(filepath, &sb);
-
-	l = sprintf(header, "blob %ld", sb.st_size);
-
-	return (l);
-}
-
-static FILE *
-hash_object_create_file(char *checksum)
-{
-	FILE *objectfileptr;
-	char objectpath[PATH_MAX];
-
-	// First create the directory
-	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c",
-	    dotgitpath, checksum[0], checksum[1]);
-
-	mkdir(objectpath, 0755);
-
-	// Reusing objectpath variable
-	snprintf(objectpath, sizeof(objectpath), "%s/objects/%c%c/%s",
-	    dotgitpath, checksum[0], checksum[1], checksum+2);
-
-	objectfileptr = fopen(objectpath, "w");
-
-	return (objectfileptr);
-}
-
+/* May move this to lib/zlib-handler.[ch] */
 static int
 add_zlib_content(z_stream *strm, FILE *dest, int flush)
 {
@@ -149,37 +96,47 @@ static int
 hash_object_write(char *filearg, uint8_t flags)
 {
 	FILE *source;
-	int ret;
+	int r;
 	FILE *dest;
 	struct stat sb;
 	char checksum[HEX_DIGEST_LENGTH];
+	char tpath[PATH_MAX];
+	char objpath[PATH_MAX];
 	SHA1_CTX context;
 	Bytef in[CHUNK];
-	Bytef out[CHUNK];
-	unsigned have;
 	int flush;
+	int destfd;
 
 	z_stream strm;
+
+	strlcpy(tpath, dotgitpath, PATH_MAX);
+	strlcat(tpath, "/objects/obj.XXXXXX", PATH_MAX);
 
 	strm.zalloc = Z_NULL;
 	strm.zfree = Z_NULL;
 	strm.opaque = Z_NULL;
 	strm.next_in = in;
-	ret = deflateInit(&strm, Z_BEST_SPEED);
-	if (ret != Z_OK) {
+	r = deflateInit(&strm, Z_BEST_SPEED);
+	if (r != Z_OK) {
 		printf("Z_OK error\n");
-		return (ret);
+		return (r);
 	}
 
 	SHA1_Init(&context);
 
-	bzero(checksum, HEX_DIGEST_LENGTH);
-
 	source = fopen(filearg, "r");
-	dest = fopen("BBBB", "w");
+	destfd = mkstemp(tpath);
+	if (destfd == -1) {
+		fprintf(stderr, "Unable to temporary file %s, exiting.\n", tpath);
+		exit(0);
+	}
+	dest = fdopen(destfd, "w");
+	if (dest == NULL) {
+		fprintf(stderr, "Unable to fdopen() file, exiting.\n");
+	}
 	stat(filearg, &sb);
 
-	strm.avail_in = snprintf(in, CHUNK, "blob %ld", sb.st_size) + 1;
+	strm.avail_in = snprintf((char*)in, CHUNK, "blob %ld", sb.st_size) + 1;
 	strm.next_in = in;
 	SHA1_Update(&context, in, strm.avail_in);
 	add_zlib_content(&strm, dest, Z_NO_FLUSH);
@@ -198,13 +155,22 @@ hash_object_write(char *filearg, uint8_t flags)
 		flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
 		strm.next_in = in;
 
-		ret = add_zlib_content(&strm, dest, flush);
+		r = add_zlib_content(&strm, dest, flush);
 
 	} while (flush != Z_FINISH);
-	assert(ret == Z_STREAM_END);
+	assert(r == Z_STREAM_END);
 
 	SHA1_End(&context, checksum);
 	(void)deflateEnd(&strm);
+
+	/* Build the object directory prefix */
+	snprintf(objpath, PATH_MAX, "%s/objects/%c%c/", dotgitpath,
+	    checksum[0], checksum[1]);
+	mkdir(objpath, 0755);
+
+	/* Add the rest of the checksum path */
+	strlcat(objpath+3, checksum+2, PATH_MAX);
+	rename(tpath, objpath);
 
 	printf("%s\n", checksum);
 	return (0);
