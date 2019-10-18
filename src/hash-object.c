@@ -26,6 +26,7 @@
  */
 
 
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <assert.h>
 #include <stdio.h>
@@ -44,7 +45,7 @@
 
 static struct option long_options[] =
 {
-	{"stdin", no_argument, NULL, 0},
+	{"stdin", no_argument, NULL, 1},
 	{"stdin-paths", no_argument, NULL, 0},
 	{"no-filters", no_argument, NULL, 0},
 	{"literally", no_argument, NULL, 0},
@@ -193,6 +194,10 @@ hash_object_main(int argc, char *argv[])
 			flags |= CMD_HASH_OBJECT_WRITE; 
 			q++;
 			break;
+		case 1:
+			flags |= CMD_HASH_OBJECT_STDIN;
+			q++;
+			break;
 		default:
 			printf("Currently not implemented\n");
 			hash_object_usage(0);
@@ -202,10 +207,30 @@ hash_object_main(int argc, char *argv[])
 	argv = argv + q;
 
 	git_repository_path();
-	if (argv[1])
+
+	if (flags & CMD_HASH_OBJECT_STDIN) {
+		char data[CHUNK];
+		int fsize;
+		printf("stdin, currently unimplemented, exiting.\n");
+		exit(0);
+	}
+
+	if (argv[1]) {
+		int fd;
+		char *data;
+		struct stat sb;
+
+		fd = open(argv[1], O_RDONLY);
+		if (fd == -1) {
+			fprintf(stderr, "Unable to open file %s, exiting.\n", argv[1]);
+			exit(0);
+		}
+
+		fstat(fd, &sb);
+		data = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
 		ret = hash_object_write(argv[1], flags);
-	else
-		return (hash_object_usage(0));
+	}
 
 	return (ret);
 }

@@ -32,7 +32,8 @@
 #define HEX_DIGEST_LENGTH	257
 
 /* Commands */
-#define CMD_HASH_OBJECT_WRITE	0x1
+#define CMD_HASH_OBJECT_WRITE	BIT(1)
+#define CMD_HASH_OBJECT_STDIN	BIT(2)
 
 int	hash_object_main(int argc, char *argv[]);
 
