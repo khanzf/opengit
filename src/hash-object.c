@@ -94,48 +94,50 @@ add_zlib_content(z_stream *strm, FILE *dest, int flush)
 }
 
 static int
-hash_object_write(uint8_t flags, struct decompressed_object dobject)
+hash_object_write(uint8_t flags, struct decompressed_object dobject, int objtype)
 {
 	int r;
+	int flush;
+	int destfd;
+	int used = 0;
 	FILE *dest;
 	char checksum[HEX_DIGEST_LENGTH];
 	char tpath[PATH_MAX];
 	char objpath[PATH_MAX];
 	SHA1_CTX context;
 	Bytef in[CHUNK];
-	int flush;
-	int destfd;
-	int used = 0;
-
 	z_stream strm;
 
-	strlcpy(tpath, dotgitpath, PATH_MAX);
-	strlcat(tpath, "/objects/obj.XXXXXX", PATH_MAX);
-
-	strm.zalloc = Z_NULL;
-	strm.zfree = Z_NULL;
-	strm.opaque = Z_NULL;
-	r = deflateInit(&strm, Z_BEST_SPEED);
-	if (r != Z_OK) {
-		fprintf(stderr, "Unable to initiate zlib object, exiting.\n");
-		exit(r);
-	}
-
-	destfd = mkstemp(tpath);
-	if (destfd == -1) {
-		fprintf(stderr, "Unable to temporary file %s, exiting.\n", tpath);
-		exit(0);
-	}
-	dest = fdopen(destfd, "w");
-	if (dest == NULL) {
-		fprintf(stderr, "Unable to fdopen() file, exiting.\n");
-	}
-
-	strm.avail_in = snprintf((char*)in, CHUNK, "blob %ld", dobject.size) + 1;
-	strm.next_in = in;
+	strm.avail_in = snprintf((char*)in, CHUNK, "%s %ld", object_name[objtype], dobject.size) + 1;
 	SHA1_Init(&context);
 	SHA1_Update(&context, in, strm.avail_in);
-	add_zlib_content(&strm, dest, Z_NO_FLUSH);
+
+	if (flags & CMD_HASH_OBJECT_WRITE) {
+		strm.next_in = in;
+		strlcpy(tpath, dotgitpath, PATH_MAX);
+		strlcat(tpath, "/objects/obj.XXXXXX", PATH_MAX);
+
+		strm.zalloc = Z_NULL;
+		strm.zfree = Z_NULL;
+		strm.opaque = Z_NULL;
+		r = deflateInit(&strm, Z_BEST_SPEED);
+		if (r != Z_OK) {
+			fprintf(stderr, "Unable to initiate zlib object, exiting.\n");
+			exit(r);
+		}
+
+		destfd = mkstemp(tpath);
+		if (destfd == -1) {
+			fprintf(stderr, "Unable to temporary file %s, exiting.\n", tpath);
+			exit(0);
+		}
+		dest = fdopen(destfd, "w");
+		if (dest == NULL) {
+			fprintf(stderr, "Unable to fdopen() file, exiting.\n");
+			exit(0);
+		}
+		add_zlib_content(&strm, dest, Z_NO_FLUSH);
+	}
 
 	do {
 		strm.next_in = dobject.data + used;
@@ -148,23 +150,27 @@ hash_object_write(uint8_t flags, struct decompressed_object dobject)
 			flush = Z_NO_FLUSH;
 		}
 		SHA1_Update(&context, dobject.data+used, strm.avail_in);
-
-		r = add_zlib_content(&strm, dest, flush);
 		used = used + CHUNK;
+
+		if (flags & CMD_HASH_OBJECT_WRITE)
+			r = add_zlib_content(&strm, dest, flush);
 	} while(flush != Z_FINISH);
-	assert(r == Z_STREAM_END);
 
 	SHA1_End(&context, checksum);
-	(void)deflateEnd(&strm);
 
-	/* Build the object directory prefix */
-	snprintf(objpath, PATH_MAX, "%s/objects/%c%c/", dotgitpath,
-	    checksum[0], checksum[1]);
-	mkdir(objpath, 0755);
+	if (flags & CMD_HASH_OBJECT_WRITE) {
+		assert(r == Z_STREAM_END);
+		(void)deflateEnd(&strm);
 
-	/* Add the rest of the checksum path */
-	strlcat(objpath+3, checksum+2, PATH_MAX);
-	rename(tpath, objpath);
+		/* Build the object directory prefix */
+		snprintf(objpath, PATH_MAX, "%s/objects/%c%c/", dotgitpath,
+		    checksum[0], checksum[1]);
+		mkdir(objpath, 0755);
+
+		/* Add the rest of the checksum path */
+		strlcat(objpath+3, checksum+2, PATH_MAX);
+		rename(tpath, objpath);
+	}
 
 	printf("%s\n", checksum);
 	return (0);
@@ -222,7 +228,7 @@ hash_object_main(int argc, char *argv[])
 		}
 		dobject.size = sb.st_size;
 		dobject.data = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-		ret = hash_object_write(flags, dobject);
+		ret = hash_object_write(flags, dobject, OBJ_BLOB);
 		munmap(dobject.data, sb.st_size);
 	}
 
