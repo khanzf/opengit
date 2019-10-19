@@ -83,7 +83,7 @@ loose_get_headers(unsigned char *buf, int size, void *arg)
 	else if (!memcmp(buf, "blob ", 5)) {
 		loosearg->type = OBJ_BLOB;
 		loosearg->size = strtol((char *)buf + 5, (char **)&endptr, 10);
-		hdr_offset = 6 + (endptr - buf);
+		hdr_offset = 1 + (endptr - buf);
 	}
 	else if (!memcmp(buf, "tag", 3)) {
 		loosearg->type = OBJ_TAG;
