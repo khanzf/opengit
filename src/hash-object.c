@@ -94,12 +94,10 @@ add_zlib_content(z_stream *strm, FILE *dest, int flush)
 }
 
 static int
-hash_object_write(char *filearg, uint8_t flags)
+hash_object_write(uint8_t flags, struct decompressed_object dobject)
 {
-	FILE *source;
 	int r;
 	FILE *dest;
-	struct stat sb;
 	char checksum[HEX_DIGEST_LENGTH];
 	char tpath[PATH_MAX];
 	char objpath[PATH_MAX];
@@ -107,6 +105,7 @@ hash_object_write(char *filearg, uint8_t flags)
 	Bytef in[CHUNK];
 	int flush;
 	int destfd;
+	int used = 0;
 
 	z_stream strm;
 
@@ -116,16 +115,12 @@ hash_object_write(char *filearg, uint8_t flags)
 	strm.zalloc = Z_NULL;
 	strm.zfree = Z_NULL;
 	strm.opaque = Z_NULL;
-	strm.next_in = in;
 	r = deflateInit(&strm, Z_BEST_SPEED);
 	if (r != Z_OK) {
-		printf("Z_OK error\n");
-		return (r);
+		fprintf(stderr, "Unable to initiate zlib object, exiting.\n");
+		exit(r);
 	}
 
-	SHA1_Init(&context);
-
-	source = fopen(filearg, "r");
 	destfd = mkstemp(tpath);
 	if (destfd == -1) {
 		fprintf(stderr, "Unable to temporary file %s, exiting.\n", tpath);
@@ -135,30 +130,28 @@ hash_object_write(char *filearg, uint8_t flags)
 	if (dest == NULL) {
 		fprintf(stderr, "Unable to fdopen() file, exiting.\n");
 	}
-	stat(filearg, &sb);
 
-	strm.avail_in = snprintf((char*)in, CHUNK, "blob %ld", sb.st_size) + 1;
+	strm.avail_in = snprintf((char*)in, CHUNK, "blob %ld", dobject.size) + 1;
 	strm.next_in = in;
+	SHA1_Init(&context);
 	SHA1_Update(&context, in, strm.avail_in);
 	add_zlib_content(&strm, dest, Z_NO_FLUSH);
 
 	do {
-		strm.avail_in = fread(in, 1, CHUNK, source);
-
-		/* Do the SHA1 first because it will be clobbered */
-		SHA1_Update(&context, in, strm.avail_in);
-
-		if (ferror(source)) {
-			(void)deflateEnd(&strm);
-			return Z_ERRNO;
+		strm.next_in = dobject.data + used;
+		if (used + CHUNK > dobject.size) {
+			strm.avail_in = (dobject.size - used);
+			flush = Z_FINISH;
 		}
-
-		flush = feof(source) ? Z_FINISH : Z_NO_FLUSH;
-		strm.next_in = in;
+		else {
+			strm.avail_in = CHUNK;
+			flush = Z_NO_FLUSH;
+		}
+		SHA1_Update(&context, dobject.data+used, strm.avail_in);
 
 		r = add_zlib_content(&strm, dest, flush);
-
-	} while (flush != Z_FINISH);
+		used = used + CHUNK;
+	} while(flush != Z_FINISH);
 	assert(r == Z_STREAM_END);
 
 	SHA1_End(&context, checksum);
@@ -183,8 +176,8 @@ hash_object_main(int argc, char *argv[])
 	int ret = 0;
 	int ch;
 	int q = 0;
-
 	int8_t flags = 0;
+	struct decompressed_object dobject;
 
 	argc--; argv++;
 
@@ -209,15 +202,12 @@ hash_object_main(int argc, char *argv[])
 	git_repository_path();
 
 	if (flags & CMD_HASH_OBJECT_STDIN) {
-		char data[CHUNK];
-		int fsize;
 		printf("stdin, currently unimplemented, exiting.\n");
 		exit(0);
 	}
 
 	if (argv[1]) {
 		int fd;
-		char *data;
 		struct stat sb;
 
 		fd = open(argv[1], O_RDONLY);
@@ -226,12 +216,15 @@ hash_object_main(int argc, char *argv[])
 			exit(0);
 		}
 
-		fstat(fd, &sb);
-		data = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-
-		ret = hash_object_write(argv[1], flags);
+		if (fstat(fd, &sb) != 0) {
+			fprintf(stderr, "Unable to fstat(2) %s, exiting.\n", argv[1]);
+			exit(127);
+		}
+		dobject.size = sb.st_size;
+		dobject.data = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+		ret = hash_object_write(flags, dobject);
+		munmap(dobject.data, sb.st_size);
 	}
 
 	return (ret);
 }
-
