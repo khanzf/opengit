@@ -44,7 +44,8 @@
  * This is used to parse data in multiple ways.
  * Similar to pack_content_handler
  */
-int loose_content_handler(char *sha, inflated_handler inflated_handler, void *iarg)
+int
+loose_content_handler(char *sha, inflated_handler inflated_handler, void *iarg)
 {
 	char objectpath[PATH_MAX];
 	int objectfd;
