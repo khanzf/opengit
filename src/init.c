@@ -200,8 +200,6 @@ init_main(int argc, char *argv[])
 				exit(EXIT_FAILURE);
 			}
 		}
-		else
-			reinit = 1;
 	}
 	else
 		strlcat(dotgitpath, repodir, PATH_MAX);

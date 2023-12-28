@@ -40,6 +40,9 @@
 #include "ogit.h"
 #include "init.h"
 
+extern int remote_main();
+extern int log_main();
+
 static struct cmd cmds[] = {
 	{"remote",		remote_main},
 	{"init",		init_main},

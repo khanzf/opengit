@@ -97,6 +97,8 @@ loose_get_headers(unsigned char *buf, int size, void *arg)
 	else if (!memcmp(buf, "obj_ref_delta", 13)) {
 		loosearg->type = OBJ_REF_DELTA;
 		hdr_offset = 15;
+	} else {
+		loosearg->type = OBJ_UNKNOWN;
 	}
 
 	return (hdr_offset);

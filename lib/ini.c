@@ -58,8 +58,6 @@ config_parser()
 	char tmpvar[1000];
 	char *tmpval;
 
-	current_section = NULL;
-
 	ini_init_regex();
 
 	snprintf(ini_file, PATH_MAX, "%s/config", dotgitpath);

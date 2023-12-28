@@ -114,7 +114,8 @@ index_pack_main(int argc, char *argv[])
 	}
 	offset = pack_parse_header(packfd, &packfileinfo, &packctx);
 	index_entry = malloc(sizeof(struct index_entry) * packfileinfo.nobjects);
-	offset = pack_get_object_meta(packfd, offset, &packfileinfo, index_entry, &packctx, &idxctx);
+//	offset = pack_get_object_meta(packfd, offset, &packfileinfo, index_entry, &packctx, &idxctx);
+	(void)pack_get_object_meta(packfd, offset, &packfileinfo, index_entry, &packctx, &idxctx);
 	close(packfd);
 	SHA1_Final(packfileinfo.sha, &packctx);
 

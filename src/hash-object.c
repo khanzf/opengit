@@ -168,7 +168,7 @@ hash_object_write(uint8_t flags, struct decompressed_object dobject, int objtype
 		mkdir(objpath, 0755);
 
 		/* Add the rest of the checksum path */
-		strlcat(objpath+3, checksum+2, PATH_MAX);
+		strlcat(objpath+3, checksum+2, sizeof(objpath)-3);
 		rename(tpath, objpath);
 	}
 

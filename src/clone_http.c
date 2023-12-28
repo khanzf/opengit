@@ -68,13 +68,79 @@ http_run_service(struct clone_handler *chandler, char *service)
 	struct url *fetchurl = conn_http->fetchurl;
 	char git_upload_pack[1000];
 
-	snprintf(git_upload_pack, 1000, "%s/info/refs?service=%s", fetchurl->doc, service);
+	snprintf(git_upload_pack, 1000, "%s/info/refs?service=%s",
+		fetchurl->doc, service);
 #ifdef NDEBUG
 	fprintf(stderr, "debug: fetch url: %s\n", git_upload_pack);
 #endif
 	savedoc = fetchurl->doc;
 	fetchurl->doc = git_upload_pack;
-	web = fetchReqHTTP(fetchurl, "POST", "NULL", "*/*", NULL);
+	web = fetchReqHTTP(fetchurl, "GET", NULL, "*/*", "");
+#ifdef NDEBUG
+	char *errmsg;
+	switch (fetchLastErrCode) {
+	case FETCH_ABORT:
+		errmsg = "FETCH_ABORT";
+		break;
+	case FETCH_AUTH:
+		errmsg = "FETCH_AUTH";
+		break;
+	case FETCH_DOWN:
+		errmsg = "FETCH_DOWN";
+		break;
+	case FETCH_EXISTS:
+		errmsg = "FETCH_EXISTS";
+		break;
+	case FETCH_FULL:
+		errmsg = "FETCH_FULL";
+		break;
+	case FETCH_INFO:
+		errmsg = "FETCH_INFO";
+		break;
+	case FETCH_MEMORY:
+		errmsg = "FETCH_MEMORY";
+		break;
+	case FETCH_MOVED:
+		errmsg = "FETCH_MOVED";
+		break;
+	case FETCH_NETWORK:
+		errmsg = "FETCH_NETWORK";
+		break;
+	case FETCH_OK:
+		errmsg = "FETCH_OK";
+		break;
+	case FETCH_PROTO:
+		errmsg = "FETCH_PROTO";
+		break;
+	case FETCH_RESOLV:
+		errmsg = "FETCH_RESOLV";
+		break;
+	case FETCH_SERVER:
+		errmsg = "FETCH_SERVER";
+		break;
+	case FETCH_TEMP:
+		errmsg = "FETCH_TEMP";
+		break;
+	case FETCH_TIMEOUT:
+		errmsg = "FETCH_TIMEOUT";
+		break;
+	case FETCH_UNAVAIL:
+		errmsg = "FETCH_UNAVAIL";
+		break;
+	case FETCH_UNKNOWN:
+		errmsg = "FETCH_UNKNOWN";
+		break;
+	case FETCH_URL:
+		errmsg = "FETCH_URL";
+		break;
+	case FETCH_VERBOSE:
+		errmsg = "FETCH_VERBOSE";
+		break;
+	default:
+		errmsg = "Untracked response";
+	}
+	fprintf(stderr, "debug: libfetch response: %s\n", errmsg);
+#endif
 	fetchurl->doc = savedoc;
 	return web;
 }

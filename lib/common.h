@@ -56,6 +56,7 @@
 // Reserved			5
 #define OBJ_OFS_DELTA		6
 #define OBJ_REF_DELTA		7
+#define OBJ_UNKNOWN		8 // OpenGit addition
 
 #define HASH_SIZE	40
 

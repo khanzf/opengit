@@ -49,11 +49,17 @@ static struct clone_handler clone_handlers[] = {
 		.matcher = match_http,
 		.run_service = http_run_service,
 		.get_pack_stream = http_get_pack_stream,
+#ifdef NDEBUG
+		.name = "http",
+#endif
 	},
 	{
 		.matcher = match_ssh,
 		.run_service = ssh_run_service,
 		.get_pack_stream = ssh_get_pack_stream,
+#ifdef NDEBUG
+		.name = "ssh",
+#endif
 	},
 };
 
@@ -138,7 +144,7 @@ populate_symrefs(char *repodir, struct smart_head *smart_head)
 }
 
 static void
-clone_initial_config(char *uri, char *repodir, struct section *sections)
+clone_initial_config(char *uri, char *repodir)
 {
 	struct section core;
 	struct section remote;
@@ -147,7 +153,6 @@ clone_initial_config(char *uri, char *repodir, struct section *sections)
 	int fd;
 
 	/* Adds core, remote and branch */
-	sections = malloc(sizeof(struct section) * 3);
 
 	core.type = CORE;
 	core.repositoryformatversion = 0;
@@ -267,7 +272,8 @@ clone_generic_get_pack(struct clone_handler *chandler, int packfd, struct smart_
 }
 
 int
-clone_generic(struct clone_handler *chandler, char *repodir, struct smart_head *smart_head)
+clone_generic(struct clone_handler *chandler, char *repodir,
+	struct smart_head *smart_head)
 {
 	int packfd;
 	int offset;
@@ -331,7 +337,8 @@ again:
 			/* Break if the packet was 0. */
 			if (pktsize == 0)
 				break;
-			r += fread(out + PKTSIZELEN, 1, pktsize - PKTSIZELEN, stream);
+			r += fread(out + PKTSIZELEN, 1, pktsize - PKTSIZELEN,
+			    stream);
 			if (r != pktsize) {
 				printf("Failed to read the size, expected %d, read %d, exiting.\n", pktsize, r);
 				exit(0);
@@ -353,6 +360,8 @@ again:
 	fclose(stream);
 
 	ret = proto_parse_response(response, smart_head);
+	if (ret)
+		goto out;
 	clone_generic_get_pack(chandler, packfd, smart_head);
 
 	/* Jump to the beginning of the file */
@@ -363,8 +372,8 @@ again:
 
 	offset = pack_parse_header(packfd, &packfileinfo, &packctx);
 	index_entry = malloc(sizeof(struct index_entry) * packfileinfo.nobjects);
-	offset = pack_get_object_meta(packfd, offset, &packfileinfo, index_entry,
-	    &packctx, &idxctx);
+	offset = pack_get_object_meta(packfd, offset, &packfileinfo,
+	    index_entry, &packctx, &idxctx);
 	close(packfd);
 
 	SHA1_Final(packfileinfo.sha, &packctx);
@@ -477,6 +486,10 @@ clone_main(int argc, char *argv[])
 		assert(chandler->matcher != NULL);
 
 		if (chandler->matcher(chandler, uri)) {
+#ifdef NDEBUG
+			fprintf(stderr, "Debug: Handler identified: %s\n",
+				chandler->name);
+#endif
 			found = true;
 			break;
 		}
@@ -499,6 +512,11 @@ clone_main(int argc, char *argv[])
 		exit(0);
 	}
 
+	if (chandler == NULL) {
+		fprintf(stderr, "Unable to handle remote path: %s\n", uri);
+		exit(128);
+	}
+
 	/* Make initial directories */
 	init_dirinit(0);
 
@@ -514,14 +532,16 @@ clone_main(int argc, char *argv[])
 	if (!STAILQ_EMPTY(&smart_head.symrefs))
 		populate_symrefs(repodir, &smart_head);
 	/* Write the initial config file */
-	clone_initial_config(uri, repodir, NULL);
+	clone_initial_config(uri, repodir);
 
 	/* Write refs master sha */
 	write_refs_head_sha(&smart_head, repodir);
 
 	/* Retrieve the commit header and parse it out */
-	CONTENT_HANDLER(smart_head.sha, buffer_cb, pack_buffer_cb, &decompressed_object);
-	parse_commitcontent(&commitcontent, (char *)decompressed_object.data, decompressed_object.size);
+	CONTENT_HANDLER(smart_head.sha, buffer_cb, pack_buffer_cb,
+		&decompressed_object);
+	parse_commitcontent(&commitcontent, (char *)decompressed_object.data,
+		decompressed_object.size);
 
 	strlcpy(inodepath, repodir, PATH_MAX);
 	ITERATE_TREE(commitcontent.treesha, generate_tree_item, inodepath);
@@ -565,7 +585,7 @@ clone_main(int argc, char *argv[])
 
 out:
 	free(repodir);
-	free(treeleaf.subtree); /* Allocated by index_generate_treedata */
+//	free(treeleaf.subtree); /* Allocated by index_generate_treedata */
 
 	return (ret);
 }

@@ -185,7 +185,7 @@ index_parse(struct indextree *indextree, unsigned char *indexmap, off_t indexsiz
 	indextree->entries = htonl(indexhdr->entries);
 
 	offset += sizeof(struct indexhdr);
-	indextree->dircleaf = read_dirc(indexmap, &offset, indextree->entries);
+//	indextree->dircleaf = read_dirc(indexmap, &offset, indextree->entries);
 
 	/*
 	 * This calculation is derived from GPL git

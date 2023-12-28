@@ -50,6 +50,9 @@ struct clone_handler {
 	void			 *conn_data;
 
 	char			**path;
+#ifdef NDEBUG
+	char			*name;
+#endif
 };
 
 /* Holds ssh connection data */
