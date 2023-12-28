@@ -372,8 +372,10 @@ again:
 
 	offset = pack_parse_header(packfd, &packfileinfo, &packctx);
 	index_entry = malloc(sizeof(struct index_entry) * packfileinfo.nobjects);
-	offset = pack_get_object_meta(packfd, offset, &packfileinfo,
+	(void)pack_get_object_meta(packfd, offset, &packfileinfo,
 	    index_entry, &packctx, &idxctx);
+	//offset = pack_get_object_meta(packfd, offset, &packfileinfo,
+	//    index_entry, &packctx, &idxctx);
 	close(packfd);
 
 	SHA1_Final(packfileinfo.sha, &packctx);
@@ -441,7 +443,6 @@ clone_main(int argc, char *argv[])
 {
 	struct smart_head smart_head;
 	char *repodir;
-	char *repopath;
 	char *uri;
 	char inodepath[PATH_MAX];
 	struct clone_handler *chandler;
@@ -472,7 +473,7 @@ clone_main(int argc, char *argv[])
 	argc = argc - q;
 	argv = argv + q;
 
-	uri = repopath = argv[1];
+	uri = argv[1];
 	repodir = get_repo_dir(argv[1]);
 
 	/* Set dotgitpath */

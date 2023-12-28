@@ -114,6 +114,7 @@ tree_entry(unsigned char *indexmap, off_t *offset, int ext_size)
 /*
  * Must free: dircleaf
  */
+#if 0
 static struct dircleaf *
 read_dirc(unsigned char *indexmap, off_t *offset, int entries)
 {
@@ -160,6 +161,7 @@ read_dirc(unsigned char *indexmap, off_t *offset, int entries)
 
 	return (dircleaf);
 }
+#endif
 
 /*
  * Description: Reads and index file and stores the result in the

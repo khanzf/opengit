@@ -387,6 +387,12 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx)
 	base_object.size = 0;
 	base_object.deflated_size = 0;
 
+	/*
+	 * Prevent a potential condition where this
+	 * value is assigned without being used.
+	 */
+	delta_object.deflated_size = 0;
+
 	lseek(packfd, objectinfo->ofsbase, SEEK_SET);
 	deflate_caller(packfd, NULL, NULL, buffer_cb, &base_object);
 	objectinfo->deflated_size = base_object.deflated_size;
@@ -709,6 +715,9 @@ pack_content_handler(char *sha, packhandler packhandler, void *parg)
 	int packfd;
 	struct packfileinfo packfileinfo;
 	struct objectinfo objectinfo;
+
+	// Not strictly required, but needed to suppress a warning
+	bzero(&objectinfo, sizeof(struct objectinfo));
 
 	offset = pack_get_packfile_offset(sha, filename);
 	if (offset == -1) {
