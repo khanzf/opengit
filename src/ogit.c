@@ -73,7 +73,20 @@ parse_color_opt(const char *optarg)
 void
 usage()
 {
-	printf("Usage statement goes here\n");
+	printf("usage: git <command> [<args>]\n\n");
+	printf("These are common OpenGit commands used in various situations:\n\n");
+	printf("start a working area\n");
+	printf("   clone         Clone a repository into a new directory\n");
+	printf("   init          Create an empty Git repository or reinitialize an existing one\n");
+	printf("\n");
+	printf("Repository management\n");
+	printf("   remote        Manage set of tracked repositories\n");
+	printf("\n");
+	printf("plumming commands\n");
+	printf("   cat-file      Check object existence or emit object contents\n");
+	printf("   hash-object   Computes object ID and optionally create an object from a file\n");
+	printf("   update-index  Register file contents in the working tree to the index\n");
+	printf("\n");
 	exit(0);
 }
 
@@ -96,4 +109,6 @@ main(int argc, char *argv[])
 		usage();
 
 	cmds[ch].c_func(argc, argv);
+
+	return (0);
 }
