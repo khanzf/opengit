@@ -200,11 +200,7 @@ ini_write_config(int fd, struct section *sections)
 void
 ini_init_regex()
 {
-	int r;
-	r = regcomp(&re_core_header, "^\\[(core)\\]", REG_EXTENDED);
-	assert(r == 0);
-	r = regcomp(&re_remote_header, "^\\[(remote) \"([a-zA-Z0-9_]+)\"\\]", REG_EXTENDED);
-	assert(r == 0);
-	r = regcomp(&re_variable, "([A-Za-z0-9_]+)[\\s ]*=[\\s ]*([A-Za-z0-9_$&+,:;=?@#|'<>.^*()%!-/]+)", REG_EXTENDED);
-	assert(r == 0);
+	regcomp(&re_core_header, "^\\[(core)\\]", REG_EXTENDED);
+	regcomp(&re_remote_header, "^\\[(remote) \"([a-zA-Z0-9_]+)\"\\]", REG_EXTENDED);
+	regcomp(&re_variable, "([A-Za-z0-9_]+)[\\s ]*=[\\s ]*([A-Za-z0-9_$&+,:;=?@#|'<>.^*()%!-/]+)", REG_EXTENDED);
 }
