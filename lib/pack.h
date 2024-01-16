@@ -84,6 +84,8 @@ struct objectinfo {
 	unsigned long	ofshdrsize;	// The sizeof the ofs hdr 
 	unsigned long	*deltas;	// Offset of deltas + delta hdrs
 	int		ndeltas;	// Number of deltas
+	unsigned char	ref_sha[20];	// Used by OBJ_REF_DELTA
+	unsigned long	refbase;
 
 	unsigned char	*data;		// Pointer to inflated data
 
@@ -113,7 +115,9 @@ void		 pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
 int		 pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo, struct index_entry *index_entry,
 		     SHA1_CTX *packctx, SHA1_CTX *idxctx);
 unsigned char	*pack_get_index_bytes_cb(unsigned char *buf, int size, int deflated_bytes, void *arg);
-void		 pack_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx);
+void		 pack_ofs_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx);
+void		 pack_ref_delta_content(int packfd, struct index_entry *index_entry, int nindex,
+    		     struct objectinfo *objectinfo, struct decompressed_object *base_object);
 void		 write_index_header(int idxfd, SHA1_CTX *idxctx);
 void		 write_hash_count(int idxfd, struct index_entry *index_entry, SHA1_CTX *idxctx);
 void		 write_hashes(int idxfd, struct packfileinfo *packfileinfo, struct index_entry *index_entry, SHA1_CTX *idxctx);

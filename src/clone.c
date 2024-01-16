@@ -245,7 +245,8 @@ static int
 clone_build_post_content(const char *sha, char **content)
 {
 	int content_length;
-	char *capabilities = "multi_ack_detailed no-done side-band-64k thin-pack ofs-delta deepen-since deepen-not agent=opengit/0.0.1-pre";
+	//char *capabilities = "multi_ack_detailed no-done side-band-64k thin-pack ofs-delta deepen-since deepen-not agent=opengit/0.0.1-pre";
+	char *capabilities = "multi_ack_detailed no-done side-band-64k thin-pack deepen-since deepen-not agent=opengit/0.0.1-pre";
 
 	content_length = 0;
 
@@ -364,6 +365,11 @@ again:
 		goto out;
 	clone_generic_get_pack(chandler, packfd, smart_head);
 
+	/*
+	 * After retrieving the pack file, referenced by the `packfd` fd, we
+	 * will parse the pack file to gather data to construct the idx file.
+	 */
+
 	/* Jump to the beginning of the file */
 	lseek(packfd, 0, SEEK_SET);
 
@@ -374,8 +380,6 @@ again:
 	index_entry = malloc(sizeof(struct index_entry) * packfileinfo.nobjects);
 	(void)pack_get_object_meta(packfd, offset, &packfileinfo,
 	    index_entry, &packctx, &idxctx);
-	//offset = pack_get_object_meta(packfd, offset, &packfileinfo,
-	//    index_entry, &packctx, &idxctx);
 	close(packfd);
 
 	SHA1_Final(packfileinfo.sha, &packctx);

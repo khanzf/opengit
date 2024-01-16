@@ -133,7 +133,7 @@ print_content(int packfd, struct objectinfo *objectinfo, char *sha)
 		deflate_caller(packfd, NULL, NULL, write_cb, &writer_args);
 	}
 	else {
-		pack_delta_content(packfd, objectinfo, NULL);
+		pack_ofs_delta_content(packfd, objectinfo, NULL);
 		write(STDOUT_FILENO, objectinfo->data, objectinfo->isize);
 		free(objectinfo->data);
 		free(objectinfo->deltas);
@@ -153,7 +153,7 @@ print_size(int packfd, struct objectinfo *objectinfo)
 		printf("%lu\n", decompressed_object.size);
 	}
 	else {
-		pack_delta_content(packfd, objectinfo, NULL);
+		pack_ofs_delta_content(packfd, objectinfo, NULL);
 		printf("%lu\n", objectinfo->isize);
 		free(objectinfo->data);
 		free(objectinfo->deltas);

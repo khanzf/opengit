@@ -117,12 +117,15 @@ deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg,
 	strm.avail_in = 0;
 	strm.next_in = Z_NULL;
 	ret = inflateInit(&strm);
+int vindy;
 	if (ret != Z_OK)
 		return (ret);
 
 	do {
 		burn = 0;
+	vindy = lseek(sourcefd, 0, SEEK_CUR); fprintf(stderr, "%d vindy %d pre read\n", __LINE__, vindy); /////
 		strm.avail_in = input_len = read(sourcefd, in, CHUNK);
+	vindy = lseek(sourcefd, 0, SEEK_CUR); fprintf(stderr, "%d vindy %d post read\n", __LINE__, vindy); /////
 		if (strm.avail_in == -1) {
 			(void)inflateEnd(&strm);
 			perror("read from source file");
@@ -153,6 +156,7 @@ deflate_caller(int sourcefd, deflated_handler deflated_handler, void *darg,
 				deflated_handler(in+burn, use, darg);
 			burn+=use;
 			input_len -= use;
+	fprintf(stderr, "used here %d\n",use); /////
 			if (inflated_handler(out, have, use, arg) == NULL)
 				goto end_inflation;
 

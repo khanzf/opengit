@@ -25,7 +25,6 @@
  * SUCH DAMAGE.
  */
 
-
 #include <netinet/in.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -63,7 +62,7 @@ write_pack_cb(int packfd, struct objectinfo *objectinfo, void *pargs)
 		deflate_caller(packfd, NULL, NULL, write_cb, writer_args);
 	}
 	else {
-		pack_delta_content(packfd, objectinfo, NULL);
+		pack_ofs_delta_content(packfd, objectinfo, NULL);
 		write(writer_args->fd, objectinfo->data, objectinfo->isize);
 		free(objectinfo->data);
 		free(objectinfo->deltas);
@@ -76,7 +75,6 @@ get_type_pack_cb(int packfd, struct objectinfo *objectinfo, void *pargs)
 	uint8_t *type = pargs;
 	*type = objectinfo->ftype;
 }
-
 
 int
 read_sha_update(void *buf, size_t count, void *arg)
@@ -122,6 +120,10 @@ applypatch(struct decompressed_object *base, struct decompressed_object *delta, 
 
 	data = delta->data;
 	top = delta->data + delta->size;
+
+	printf(" base->size is %ld\n", base->size);
+	printf("       size is %ld\n",       size);
+	printf("delta->size is %ld\n", delta->size);
 
 	size = readvint(&data, top);
 	if (size != base->size) {
@@ -199,29 +201,79 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 	struct index_generate_arg index_generate_arg;
 	char hdr[32];
 	int hdrlen;
-//	Bytef tmpref[2];
 	struct two_darg two_darg;
+	struct decompressed_object base_object, delta_object;
+		int vindy;
 
 	for (x = 0; x < packfileinfo->nobjects; x++) {
 		objectinfo.crc = 0x00;
+		fprintf(stderr, "offset: %d\n", offset);
 		lseek(packfd, offset, SEEK_SET);
+	vindy = lseek(packfd, 0, SEEK_CUR); fprintf(stderr, "%d vindy %d initial\n", __LINE__, vindy); /////
+		fprintf(stderr, "vindy %d\n", vindy);
 		pack_object_header(packfd, offset, &objectinfo, packctx);
+	vindy = lseek(packfd, 0, SEEK_CUR); fprintf(stderr, "%d vindy %d afterheader\n", __LINE__, vindy); /////
+
 
 		switch (objectinfo.ptype) {
 		case OBJ_REF_DELTA:
-			fprintf(stderr, "OBJ_REF_DELTA: currently not implemented. Exiting.\n");
-			exit(0);
-//			offset += objectinfo.used;
-//			lseek(packfd, offset, SEEK_SET);
-//			buf_read(packfd, tmpref, 2, read_sha_update, packctx);
-//			objectinfo.crc = crc32(objectinfo.crc, tmpref, 2);
-//			buf_read(packfd, index_entry[x].digest, 20,
-//			    read_sha_update, packctx);
-//			offset += 22; /* 20 bytes + 2 for the header */
-//			break;
-		case OBJ_OFS_DELTA:
+			/*
+			 * We have the base object now we want the base object
+			 */
+
+			bzero(&base_object, sizeof(struct decompressed_object));
+			bzero(&delta_object, sizeof(struct decompressed_object));
+
+	vindy = lseek(packfd, 0, SEEK_CUR); fprintf(stderr, "%d vindy %d 1111111111111\n", __LINE__, vindy); /////
+			deflate_caller(packfd, NULL, NULL, buffer_cb, &delta_object);
+	printf("--------->>>> %ld %ld\n", delta_object.size, delta_object.deflated_size);
+	vindy = lseek(packfd, 0, SEEK_CUR); fprintf(stderr, "%d vindy %d 2222222222222\n", __LINE__, vindy); /////
+			pack_ref_delta_content(packfd, index_entry, x, &objectinfo, &base_object);
+	vindy = lseek(packfd, 0, SEEK_CUR); fprintf(stderr, "%d vindy %d 3333333333333\n", __LINE__, vindy); /////
+
+			applypatch(&base_object, &delta_object, &objectinfo);
+			base_object.data = objectinfo.data;
+			base_object.size = objectinfo.isize;
+
 			SHA1_Init(&index_generate_arg.shactx);
-			pack_delta_content(packfd, &objectinfo, packctx);
+
+			hdrlen = snprintf(hdr, sizeof(hdr), "%s %lu",
+			    object_name[objectinfo.ftype],
+			    objectinfo.isize) + 1;
+
+			SHA1_Update(&index_generate_arg.shactx, hdr, hdrlen);
+			SHA1_Update(&index_generate_arg.shactx,
+			    objectinfo.data, objectinfo.isize);
+			SHA1_Final(index_entry[x].digest,
+			    &index_generate_arg.shactx);
+
+			char mystr[HASH_SIZE+1];
+			sha_bin_to_str(index_entry[x].digest, mystr);
+			printf("final %s\n", mystr);
+			int start_offset = offset;
+
+			printf("Printing out lengths\n");
+			printf("=====================\n");
+			printf("objectinfo.used\t\t%ld\n", objectinfo.used);
+			printf("objectinfo.size\t\t%ld\n", objectinfo.isize);
+			printf("delta_object.size\t\t%ld\n", delta_object.size);
+			printf("delta_object.deflated_size\t%ld\n", delta_object.deflated_size);
+			printf("hash size\t\t20\n");
+			printf("Default read size\t\t2\n");
+
+			printf("want 82850\n");
+			printf("orig %d\n", start_offset);
+			offset += objectinfo.used + delta_object.size;
+			printf("send %d\n", offset);
+			printf("Diff %d\n", offset - 82850);
+			printf("=====================\n");
+
+			exit(1);
+			break;
+		case OBJ_OFS_DELTA:
+		vindy = lseek(packfd, 0, SEEK_CUR); fprintf(stderr, "%d vindy %d\n", __LINE__, vindy); /////
+			SHA1_Init(&index_generate_arg.shactx);
+			pack_ofs_delta_content(packfd, &objectinfo, packctx);
 			hdrlen = snprintf(hdr, sizeof(hdr), "%s %lu",
 			    object_name[objectinfo.ftype],
 			    objectinfo.isize) + 1;
@@ -230,7 +282,7 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 			    objectinfo.data, objectinfo.isize);
 			SHA1_Final(index_entry[x].digest,
 			    &index_generate_arg.shactx);
-			/* The next two are allocated in pack_delta_content */
+			/* The next two are allocated in pack_ofs_delta_content */
 			free(objectinfo.data);
 			free(objectinfo.deltas);
 
@@ -264,6 +316,12 @@ pack_get_object_meta(int packfd, int offset, struct packfileinfo *packfileinfo,
 
 		index_entry[x].crc = objectinfo.crc;
 		index_entry[x].offset = objectinfo.offset;
+#ifdef NDEBUG
+		char shastr[HASH_SIZE+1];
+		sha_bin_to_str(index_entry[x].digest, shastr);
+		shastr[HASH_SIZE] = '\0';
+		fprintf(stderr, "debug: indexing %s at %d\n", shastr, index_entry[x].offset);
+#endif
 	}
 
 	return (offset);
@@ -304,7 +362,7 @@ write_hashes(int idxfd, struct packfileinfo *packfileinfo,
 	int x;
 
 	for (x=0;x<packfileinfo->nobjects; x++)
-		sha_write(idxfd, index_entry[x].digest, 20, idxctx);
+		sha_write(idxfd, index_entry[x].digest, HASH_SIZE/2, idxctx);
 }
 
 inline void
@@ -336,9 +394,9 @@ write_32bit_table(int idxfd, struct packfileinfo *packfileinfo,
 inline void
 write_checksums(int idxfd, struct packfileinfo *packfileinfo, SHA1_CTX *idxctx)
 {
-	sha_write(idxfd, packfileinfo->sha, 20, idxctx);
+	sha_write(idxfd, packfileinfo->sha, HASH_SIZE/2, idxctx);
 	SHA1_Final(packfileinfo->ctx, idxctx);
-	sha_write(idxfd, packfileinfo->ctx, 20, idxctx);
+	sha_write(idxfd, packfileinfo->ctx, HASH_SIZE/2, idxctx);
 }
 
 /*
@@ -378,7 +436,7 @@ pack_build_index(int idxfd, struct packfileinfo *packfileinfo,
  * variable, which is GPL git's approach.
  */
 void
-pack_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx)
+pack_ofs_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx)
 {
 	struct decompressed_object base_object, delta_object;
 	int q;
@@ -427,6 +485,84 @@ pack_delta_content(int packfd, struct objectinfo *objectinfo, SHA1_CTX *packctx)
 	 * not of the parent deltas.
 	 */
 	objectinfo->deflated_size = delta_object.deflated_size;
+}
+
+void
+pack_ref_delta_content(int packfd, struct index_entry *index_entry, int nindex,
+    struct objectinfo *objectinfo, struct decompressed_object *base_object)
+{
+	struct decompressed_object delta_object;
+	unsigned long refdelta = 0;
+	uint8_t c;
+	unsigned shift = 4;
+	unsigned long psize;
+	uint8_t ptype;
+	unsigned long used;
+
+	/*
+	 * Find the object in the list of already parsed objects
+	 */
+	for(int q = 0; q < nindex; q++) {
+		if (!memcmp(objectinfo->ref_sha, index_entry[q].digest, HASH_SIZE/2)) {
+			printf("Found at %d\n", q);
+			printf("offset is %d\n", index_entry[q].offset);
+			refdelta = index_entry[q].offset;
+			break;
+		}
+	}
+	if (refdelta == 0) {
+		fprintf(stderr, "pack: Unable to find OBJ_REF_DELTA, exiting.\n");
+		exit(1);
+	}
+
+	/*
+	 * Now determine if we have another delta or the base.
+	 * If base, return the base
+	 * If delta, dig deeper for the base 
+	 */
+
+	/* lseek to and deflate the base object */
+	lseek(packfd, refdelta, SEEK_SET);
+
+	c = 0;
+	buf_read(packfd, &c, 1, NULL, NULL);
+
+	// BIT(0) - BIT(3) are the object size
+	psize = c & 15;
+	// BIT(4) - BIT(6) are the type
+	ptype = (c >> 4) & 7;
+	used = 1;
+
+	/*
+	 * Read from the pack file until bit BIT(7) is true, which means
+	 * end of the object header
+	 */
+	while (c & 0x80) { 
+		buf_read(packfd, &c, 1, NULL, NULL);
+		psize += (c & 0x7f) << shift;
+		shift += 7;
+		used++;
+	}
+
+	if (ptype == OBJ_REF_DELTA) {
+		buf_read(packfd, objectinfo->ref_sha, 20, NULL, NULL);
+		pack_ref_delta_content(packfd, index_entry, nindex,
+		    objectinfo, base_object);
+		/*
+		 * At this point, we can assume that `base_object` has
+		 * the undeltified base object, so we apply the current
+		 * patch and return this to `pack_get_object_meta`.
+		 */ 
+		applypatch(base_object, &delta_object, objectinfo);
+		objectinfo->deflated_size = base_object->deflated_size;
+	} else {
+		/* This assumes we hit the base, so read it and send it back */
+		deflate_caller(packfd, NULL, NULL, buffer_cb, base_object);
+		
+	}
+	printf("used                               %ld\n", used);
+//	objectinfo->deflated_size = base_object.deflated_size;
+
 
 }
 
@@ -458,7 +594,7 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 	for (i=0;i<20;i++)
 		sscanf(sha_str+i*2, "%2hhx", &sha_bin[i]);
 
-	snprintf(packdir, sizeof(packdir), "%s/objects/pack", dotgitpath);
+	snprintf(packdir, PATH_MAX, "%s/objects/pack", dotgitpath);
 	d = opendir(packdir);
 
 	/* Find hash in idx file or die */
@@ -468,12 +604,13 @@ pack_get_packfile_offset(char *sha_str, char *filename)
 			if (!file_ext || strncmp(file_ext, ".idx", 4))
 				continue;
 			/* XXX This is wrong; we need to know the size of the buffer */
-			snprintf(filename, PATH_MAX, "%s/objects/pack/%s", dotgitpath,
-			    dir->d_name);
+			snprintf(filename, PATH_MAX, "%s/objects/pack/%s",
+			    dotgitpath, dir->d_name);
 
 			packfd = open(filename, O_RDONLY);
 			fstat(packfd, &sb);
-			idxmap = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE, packfd, 0);
+			idxmap = mmap(NULL, sb.st_size, PROT_READ, MAP_PRIVATE,
+			    packfd, 0);
 
 			if (idxmap == NULL) {
 				fprintf(stderr, "mmap(2) error, exiting.\n");
@@ -538,7 +675,7 @@ pack_parse_header(int packfd, struct packfileinfo *packfileinfo, SHA1_CTX *packc
  * Note: The objectinfo->isize value is NOT captured
  *
  * If the application needs the objectinfo->isize or objectinfo->data, it must
- * run pack_delta_content. This function will consumed values B-D to produce
+ * run pack_ofs_delta_content. This function will consumed values B-D to produce
  * the final non-deltified data.
  */
 
@@ -567,6 +704,7 @@ object_header_ofs(int packfd, int offset, int layer,
 		used++;
 	}
 
+	/* This means we arrived at the base object, not a delta */
 	if (childinfo->ptype != OBJ_OFS_DELTA) {
 		objectinfo->ftype = childinfo->ptype;
 		objectinfo->deltas = malloc(sizeof(unsigned long) * layer);
@@ -595,7 +733,7 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
     SHA1_CTX *packctx)
 {
 	uint8_t c;
-	unsigned shift;
+	unsigned shift = 4;
 
 	lseek(packfd, offset, SEEK_SET);
 
@@ -606,10 +744,15 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
 	buf_read(packfd, &c, 1, read_sha_update, packctx);
 
 	objectinfo->crc = crc32(objectinfo->crc, &c, 1);
-	objectinfo->ptype = (c >> 4) & 7;
+	// BIT(0) - BIT(3) are the object size
 	objectinfo->psize = c & 15;
-	shift = 4;
+	// BIT(4) - BIT(6) are the type
+	objectinfo->ptype = (c >> 4) & 7;
 
+	/*
+	 * Read from the pack file until bit BIT(7) is true, which means
+	 * end of the object header
+	 */
 	while (c & 0x80) { 
 		buf_read(packfd, &c, 1, read_sha_update, packctx);
 		objectinfo->crc = crc32(objectinfo->crc, &c, 1);
@@ -618,11 +761,7 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
 		objectinfo->used++;
 	}
 
-	if (objectinfo->ptype != OBJ_OFS_DELTA && objectinfo->ptype != OBJ_REF_DELTA) {
-		objectinfo->ftype = objectinfo->ptype;
-		objectinfo->ndeltas = 0;
-	}
-	else {
+	if (objectinfo->ptype == OBJ_OFS_DELTA) {
 		/* We have to dig deeper */
 		unsigned long delta;
 		unsigned long ofshdrsize = 1;
@@ -644,6 +783,25 @@ pack_object_header(int packfd, int offset, struct objectinfo *objectinfo,
 		object_header_ofs(packfd, offset - delta, 1, objectinfo, &childinfo, packctx);
 		objectinfo->deltas[0] = offset + objectinfo->used + ofshdrsize;
 
+	}
+	else if (objectinfo->ptype == OBJ_REF_DELTA) {
+		/*
+		 * The start of an OBJ_REF_DELTA is a 20 byte sha1 referencing
+		 * where the delta is located. While object_header_ofs gets
+		 * the offsets, this function need to have calculated the SHA1
+		 * values before we can move forward.
+		 */
+		buf_read(packfd, objectinfo->ref_sha, HASH_SIZE/2,
+		    read_sha_update, packctx);
+		objectinfo->crc = crc32(objectinfo->crc, objectinfo->ref_sha,
+		    HASH_SIZE/2);
+		objectinfo->refbase = offset;// + objectinfo->used;// + HASH_SIZE/2;
+		printf("          Read 1 byte here\n");
+		printf("refbase   %ld\n", objectinfo->refbase);
+	}
+	else {
+		objectinfo->ftype = objectinfo->ptype;
+		objectinfo->ndeltas = 0;
 	}
 
 	return;
@@ -729,7 +887,10 @@ pack_content_handler(char *sha, packhandler packhandler, void *parg)
 	packfd = open(filename, O_RDONLY);
 	if (packfd == -1) {
 		fprintf(stderr, "fatal: ogit: could not get object info\n");
-		fprintf(stderr, "This The git repository may be corrupt.\n");
+#ifdef NDEBUG
+		fprintf(stderr, "debug: Unable to open pack file %s\n", filename);
+#endif
+		fprintf(stderr, "The git repository may be corrupt.\n");
 		exit(128);
 	}
 	pack_parse_header(packfd, &packfileinfo, NULL);
@@ -780,7 +941,7 @@ pack_buffer_cb(int packfd, struct objectinfo *objectinfo, void *pargs)
 		deflate_caller(packfd, NULL, NULL, buffer_cb, decompressed_object);
 	}
 	else {
-		pack_delta_content(packfd, objectinfo, NULL);
+		pack_ofs_delta_content(packfd, objectinfo, NULL);
 		free(objectinfo->deltas);
 		decompressed_object->data = objectinfo->data;
 		decompressed_object->size = objectinfo->isize;
